@@ -74,12 +74,15 @@ export default function TransfersPage() {
     if (!user) return false;
     if (user.role === "admin") return true;
 
+    const uid = (id: string | { _id: string; name: string } | undefined) =>
+      typeof id === "string" ? id : id?._id ?? "";
+
     const fromMatch =
-      (t.fromType === "factory" && user.role === "factory-manager" && user.factoryId === t.fromId) ||
-      (t.fromType === "depot" && user.role === "depot-manager" && user.depotId === t.fromId);
+      (t.fromType === "factory" && user.role === "factory-manager" && uid(user.factoryId) === t.fromId) ||
+      (t.fromType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.fromId);
     const toMatch =
-      (t.toType === "factory" && user.role === "factory-manager" && user.factoryId === t.toId) ||
-      (t.toType === "depot" && user.role === "depot-manager" && user.depotId === t.toId);
+      (t.toType === "factory" && user.role === "factory-manager" && uid(user.factoryId) === t.toId) ||
+      (t.toType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.toId);
 
     if (action === "in-transit") return fromMatch;
     if (action === "delivered") return toMatch;
