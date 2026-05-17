@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const saleFilter: Record<string, any> = { ...dateMatch };
+  let saleFilter: Record<string, any> = { ...dateMatch };
   const costFilter: Record<string, any> = { ...dateMatch, ...scopeFilter };
   const productionFilter: Record<string, any> = { ...dateMatch };
   const transferFilter: Record<string, any> = { ...dateMatch };
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     transferFilter.fromType = "factory";
     transferFilter.fromId = scopeFilter.locationId;
   } else if (scopeFilter.locationType === "depot") {
-    saleFilter.depotId = scopeFilter.locationId;
+    saleFilter = { ...saleFilter, locationType: "depot", locationId: scopeFilter.locationId };
     transferFilter.toType = "depot";
     transferFilter.toId = scopeFilter.locationId;
   }
@@ -68,8 +68,8 @@ export async function GET(req: NextRequest) {
 
   if (isFactoryMgr) {
     saleFilter._id = null;
-  } else if (isDepotMgr && user.depotId && !saleFilter.depotId) {
-    saleFilter.depotId = user.depotId;
+  } else if (isDepotMgr && user.depotId && !saleFilter.locationId) {
+    saleFilter = { ...saleFilter, locationType: "depot", locationId: user.depotId };
   } else if (!isAdmin) {
     saleFilter._id = null;
   }
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     scopeFilter.locationType
       ? Inventory.find(scopeFilter).populate("productId").lean()
       : Inventory.find({}).populate("productId").lean(),
-    Sale.find(saleFilter).populate("productId").populate("depotId").sort({ date: -1 }).lean(),
+    Sale.find(saleFilter).populate("productId").sort({ date: -1 }).lean(),
     Cost.find(costFilter).sort({ date: -1 }).lean(),
     Production.find(productionFilter).populate("productId").populate("factoryId").sort({ date: -1 }).lean(),
     Transfer.find(transferFilter).populate("productId").populate("truckId").sort({ date: -1 }).lean(),
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
     })),
     sales: sales.map((s: any) => ({
       _id: s._id.toString(),
-      depot: (s.depotId as any)?.name ?? "Unknown",
+      location: `${s.locationType}:${s.locationId?.toString().slice(-6) ?? "N/A"}`,
       product: (s.productId as any)?.name ?? "Unknown",
       productId: (s.productId as any)?._id?.toString(),
       quantity: s.quantity,

@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
 
   if (entityType !== "all" && entityId) {
     if (entityType === "depot") {
-      saleMatch.depotId = entityId;
+      saleMatch.locationType = "depot";
+      saleMatch.locationId = entityId;
       costMatch.locationType = "depot";
       costMatch.locationId = entityId;
     } else if (entityType === "factory") {
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
     costMatch.locationType = "factory";
     costMatch.locationId = user.factoryId;
   } else if (user.role === "depot-manager" && user.depotId) {
-    saleMatch.depotId = user.depotId;
+    saleMatch.locationType = "depot";
+    saleMatch.locationId = user.depotId;
     costMatch.locationType = "depot";
     costMatch.locationId = user.depotId;
   }

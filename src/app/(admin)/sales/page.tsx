@@ -13,7 +13,9 @@ import { PlusIcon, DollarLineIcon, BoxIconLine } from "@/icons";
 
 interface Sale {
   _id: string;
-  depotId: { _id: string; name: string } | null;
+  locationType: string;
+  locationId: string;
+  location: { _id: string; name: string } | null;
   productId: { _id: string; name: string } | null;
   quantity: number;
   unitPrice: number;
@@ -217,7 +219,7 @@ export default function SalesPage() {
         <Table>
           <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Depot</TableCell>
+              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Product</TableCell>
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Quantity</TableCell>
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit Price</TableCell>
@@ -238,7 +240,9 @@ export default function SalesPage() {
             ) : (
               sales.map((sale) => (
                 <TableRow key={sale._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{sale.depotId?.name ?? "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
+                    {sale.location?.name ?? `${sale.locationType} (${sale.locationId?.slice(-6) ?? "N/A"})`}
+                  </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{sale.productId?.name ?? "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{sale.quantity.toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">₦{sale.unitPrice?.toLocaleString()}</TableCell>

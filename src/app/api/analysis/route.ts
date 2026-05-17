@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
   if (isAdmin) {
     // no filter — all sales
   } else if (isDepotMgr && user.depotId) {
-    saleFilter.depotId = user.depotId;
+    saleFilter.locationType = "depot";
+    saleFilter.locationId = user.depotId;
   } else {
     // factory manager — no access to sales
     saleFilter._id = null; // forces empty result

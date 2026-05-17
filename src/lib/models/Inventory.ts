@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IInventory extends Document {
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: Types.ObjectId;
   productId: Types.ObjectId;
   quantity: number;
@@ -11,7 +11,7 @@ export interface IInventory extends Document {
 
 const InventorySchema = new Schema<IInventory>(
   {
-    locationType: { type: String, enum: ["factory", "depot"], required: true },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true, refPath: "locationType" },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     quantity: { type: Number, required: true, default: 0 },

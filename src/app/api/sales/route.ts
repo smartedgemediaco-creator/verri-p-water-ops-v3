@@ -1,9 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Inventory } from "@/lib/models";
+import { Sale, Inventory, Factory, Depot, Truck } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+
+async function populateLocation(sale: any) {
+  if (!sale) return sale;
+  if (sale.locationType === "factory") {
+    const loc = await Factory.findById(sale.locationId).select("name").lean();
+    sale.location = loc ? { _id: loc._id, name: loc.name } : null;
+  } else if (sale.locationType === "depot") {
+    const loc = await Depot.findById(sale.locationId).select("name").lean();
+    sale.location = loc ? { _id: loc._id, name: loc.name } : null;
+  } else if (sale.locationType === "truck") {
+    const loc = await Truck.findById(sale.locationId).select("plateNumber").lean();
+    sale.location = loc ? { _id: loc._id, name: `Truck: ${loc.plateNumber}` } : null;
+  }
+  return sale;
+}
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -27,7 +42,8 @@ export async function GET(req: NextRequest) {
   const filter: any = {};
 
   if (user.role === "depot-manager" && user.depotId) {
-    filter.depotId = user.depotId;
+    filter.locationType = "depot";
+    filter.locationId = user.depotId;
   }
 
   if (productId) filter.productId = productId;
@@ -40,7 +56,6 @@ export async function GET(req: NextRequest) {
 
   const [sales, total] = await Promise.all([
     Sale.find(filter)
-      .populate("depotId")
       .populate("productId")
       .sort({ date: -1 })
       .skip(skip)
@@ -49,8 +64,10 @@ export async function GET(req: NextRequest) {
     Sale.countDocuments(filter),
   ]);
 
+  const populated = await Promise.all(sales.map(populateLocation));
+
   return NextResponse.json({
-    sales,
+    sales: populated,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   });
 }
@@ -66,13 +83,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   if (user.role === "depot-manager") {
-    body.depotId = user.depotId;
+    body.locationType = "depot";
+    body.locationId = user.depotId;
   }
 
   const sale = await Sale.create(body);
 
   await Inventory.findOneAndUpdate(
-    { locationType: "depot", locationId: body.depotId, productId: body.productId },
+    { locationType: body.locationType, locationId: body.locationId, productId: body.productId },
     { $inc: { quantity: -body.quantity } },
     { upsert: true }
   );
@@ -81,12 +99,12 @@ export async function POST(req: NextRequest) {
     action: "created",
     entity: "sale",
     entityId: sale._id.toString(),
-    description: `Sale of ${body.quantity} units to ${body.customerName || "unknown"} — ₦${body.totalAmount?.toLocaleString()}`,
+    description: `Sale of ${body.quantity} units from ${body.locationType} to ${body.customerName || "unknown"} — ₦${body.totalAmount?.toLocaleString()}`,
     userId: user.userId,
-    domainType: "depot",
-    domainId: body.depotId,
+    domainType: body.locationType === "truck" ? "depot" : body.locationType,
+    domainId: body.locationId,
     productId: body.productId,
-    metadata: { quantity: body.quantity, totalAmount: body.totalAmount, customerName: body.customerName },
+    metadata: { locationType: body.locationType, quantity: body.quantity, totalAmount: body.totalAmount, customerName: body.customerName },
   });
 
   return NextResponse.json(sale, { status: 201 });

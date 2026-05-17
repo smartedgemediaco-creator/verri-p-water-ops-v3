@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ISale extends Document {
-  depotId: Types.ObjectId;
+  locationType: "factory" | "depot" | "truck";
+  locationId: Types.ObjectId;
   productId: Types.ObjectId;
   quantity: number;
   unitPrice: number;
@@ -15,7 +16,8 @@ export interface ISale extends Document {
 
 const SaleSchema = new Schema<ISale>(
   {
-    depotId: { type: Schema.Types.ObjectId, ref: "Depot", required: true },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
+    locationId: { type: Schema.Types.ObjectId, required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     quantity: { type: Number, required: true },
     unitPrice: { type: Number, required: true },

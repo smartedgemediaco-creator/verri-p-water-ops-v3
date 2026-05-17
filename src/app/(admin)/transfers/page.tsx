@@ -8,6 +8,7 @@ import Badge from "@/components/ui/badge/Badge";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
+import { useAuth } from "@/context/AuthContext";
 
 interface Transfer {
   _id: string;
@@ -23,15 +24,19 @@ interface Transfer {
 }
 
 export default function TransfersPage() {
+  const { user } = useAuth();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchTransfers = () => {
     fetch("/api/transfers")
       .then((res) => res.json())
       .then((data) => setTransfers(data))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchTransfers(); }, []);
 
   const statusBadge = (status: string) => {
     const map: Record<string, { color: "warning" | "info" | "success" | "error"; label: string }> = {
@@ -42,6 +47,44 @@ export default function TransfersPage() {
     };
     const s = map[status] ?? { color: "light" as const, label: status };
     return <Badge variant="light" color={s.color}>{s.label}</Badge>;
+  };
+
+  const updateStatus = async (id: string, status: string) => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/transfers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Failed to update");
+      } else {
+        fetchTransfers();
+      }
+    } catch {
+      alert("Network error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const canAct = (t: Transfer, action: string) => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+
+    const fromMatch =
+      (t.fromType === "factory" && user.role === "factory-manager" && user.factoryId === t.fromId) ||
+      (t.fromType === "depot" && user.role === "depot-manager" && user.depotId === t.fromId);
+    const toMatch =
+      (t.toType === "factory" && user.role === "factory-manager" && user.factoryId === t.toId) ||
+      (t.toType === "depot" && user.role === "depot-manager" && user.depotId === t.toId);
+
+    if (action === "in-transit") return fromMatch;
+    if (action === "delivered") return toMatch;
+    if (action === "cancelled") return fromMatch || toMatch;
+    return false;
   };
 
   const byStatus = (status: string) => transfers.filter((t) => t.status === status).length;
@@ -99,16 +142,17 @@ export default function TransfersPage() {
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Truck</TableCell>
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
               <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
+              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
               </TableRow>
             ) : transfers.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No transfers found. Click "New Transfer" to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No transfers found. Click &quot;New Transfer&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               transfers.map((t) => (
@@ -120,6 +164,25 @@ export default function TransfersPage() {
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.truckId?.plateNumber ?? <span className="text-gray-400">—</span>}</TableCell>
                   <TableCell className="py-3">{statusBadge(t.status)}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.date ? new Date(t.date).toLocaleDateString() : "N/A"}</TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex gap-1.5">
+                      {t.status === "pending" && canAct(t, "in-transit") && (
+                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "in-transit")}>
+                          {actionLoading === t._id ? "..." : "Dispatch"}
+                        </Button>
+                      )}
+                      {t.status === "in-transit" && canAct(t, "delivered") && (
+                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "delivered")}>
+                          {actionLoading === t._id ? "..." : "Confirm"}
+                        </Button>
+                      )}
+                      {(t.status === "pending" || t.status === "in-transit") && canAct(t, "cancelled") && (
+                        <Button size="sm" variant="outline" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "cancelled")}>
+                          {actionLoading === t._id ? "..." : "Cancel"}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
