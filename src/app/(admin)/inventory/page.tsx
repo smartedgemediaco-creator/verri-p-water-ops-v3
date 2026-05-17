@@ -19,10 +19,15 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/inventory")
-      .then((res) => res.json())
-      .then((data) => setItems(data))
-      .finally(() => setLoading(false));
+    const fetchInventory = () => {
+      fetch("/api/inventory")
+        .then((res) => res.json())
+        .then((data) => setItems(data))
+        .finally(() => setLoading(false));
+    };
+    fetchInventory();
+    const id = setInterval(fetchInventory, 15000);
+    return () => clearInterval(id);
   }, []);
 
   const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);

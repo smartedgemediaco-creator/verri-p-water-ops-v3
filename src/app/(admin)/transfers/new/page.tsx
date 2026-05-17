@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
+import DatePicker from "@/components/form/date-picker";
 import Button from "@/components/ui/button/Button";
 
 interface Option {
@@ -144,7 +145,7 @@ export default function NewTransferPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-            <InputField type="date" id="date" name="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker id="date" placeholder="Select date" defaultDate={date || undefined} onChange={(_dates, dateStr) => setDate(dateStr)} />
           </div>
         </div>
 

@@ -33,6 +33,7 @@ export default function CostBreakdownChart() {
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
+  const [poll, setPoll] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -44,6 +45,11 @@ export default function CostBreakdownChart() {
       setDepots(d.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
       setTrucks(t.map((x: { _id: string; plateNumber: string }) => ({ value: x._id, label: x.plateNumber })));
     });
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setPoll((p) => p + 1), 15000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -71,7 +77,7 @@ export default function CostBreakdownChart() {
           setTotal(0);
         }
       });
-  }, [months, entityType, entityId]);
+  }, [months, entityType, entityId, poll]);
 
   const options: ApexOptions = {
     chart: { fontFamily: "Outfit, sans-serif", height: 300, type: "donut" },

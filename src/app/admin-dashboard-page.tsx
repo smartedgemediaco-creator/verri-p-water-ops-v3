@@ -25,12 +25,16 @@ export default function AdminDashboardPage() {
     profit: 0,
     activeTransfers: 0,
   });
-
   useEffect(() => {
-    fetch("/api/analysis")
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {});
+    const fetchStats = () => {
+      fetch("/api/analysis")
+        .then((r) => r.json())
+        .then(setStats)
+        .catch(() => {});
+    };
+    fetchStats();
+    const id = setInterval(fetchStats, 15000);
+    return () => clearInterval(id);
   }, []);
 
   const isOwner = user?.role === "admin";
