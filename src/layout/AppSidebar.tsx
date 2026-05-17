@@ -1,22 +1,28 @@
 "use client";
-import React, { useEffect, useRef, useState,useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
+import { useAuth } from "../context/AuthContext";
 import {
-  BoxCubeIcon,
-  CalenderIcon,
+  AlertIcon,
   ChevronDownIcon,
+  DollarLineIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
   PieChartIcon,
-  PlugInIcon,
-  TableIcon,
-  UserCircleIcon,
+  TimeIcon,
+  UserIcon,
 } from "../icons/index";
+import {
+  FactoryIcon,
+  DepotIcon,
+  TruckIcon,
+  WaterDropIcon,
+  TransferIcon,
+  BottleIcon,
+  ReportIcon,
+} from "../components/icons/EntityIcons";
 import SidebarWidget from "./SidebarWidget";
 
 type NavItem = {
@@ -24,78 +30,122 @@ type NavItem = {
   icon: React.ReactNode;
   path?: string;
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  color?: string;
 };
 
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    path: "/",
+    color: "text-brand-500",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
-  },
-
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
+    icon: <FactoryIcon />,
+    name: "Factories",
+    color: "text-blue-500",
     subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
+      { name: "All Factories", path: "/factories", pro: false },
+      { name: "Add Factory", path: "/factories/new", pro: false },
+    ],
+  },
+  {
+    icon: <DepotIcon />,
+    name: "Depots",
+    color: "text-emerald-500",
+    subItems: [
+      { name: "All Depots", path: "/depots", pro: false },
+      { name: "Add Depot", path: "/depots/new", pro: false },
+    ],
+  },
+  {
+    icon: <TruckIcon />,
+    name: "Trucks",
+    color: "text-orange-500",
+    subItems: [
+      { name: "All Trucks", path: "/trucks", pro: false },
+      { name: "Add Truck", path: "/trucks/new", pro: false },
     ],
   },
 ];
 
 const othersItems: NavItem[] = [
   {
+    icon: <WaterDropIcon />,
+    name: "Inventory",
+    path: "/inventory",
+    color: "text-cyan-500",
+  },
+  {
+    icon: <TransferIcon />,
+    name: "Transfers",
+    color: "text-purple-500",
+    subItems: [
+      { name: "All Transfers", path: "/transfers", pro: false },
+      { name: "New Transfer", path: "/transfers/new", pro: false },
+    ],
+  },
+  {
+    icon: <DollarLineIcon />,
+    name: "Sales & Costs",
+    color: "text-amber-500",
+    subItems: [
+      { name: "Sales", path: "/sales", pro: false },
+      { name: "Costs", path: "/costs", pro: false },
+    ],
+  },
+  {
     icon: <PieChartIcon />,
-    name: "Charts",
+    name: "Analysis",
+    path: "/analysis",
+    color: "text-rose-500",
+  },
+  {
+    icon: <BottleIcon />,
+    name: "Products",
+    color: "text-teal-500",
     subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
+      { name: "All Products", path: "/products", pro: false },
+      { name: "Add Product", path: "/products/new", pro: false },
     ],
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
+    icon: <ReportIcon />,
+    name: "Reports",
+    path: "/reports",
+    color: "text-indigo-500",
   },
   {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
+    icon: <AlertIcon />,
+    name: "Notifications",
+    path: "/notifications",
+    color: "text-yellow-500",
+  },
+  {
+    icon: <UserIcon />,
+    name: "Users",
+    path: "/users",
+    color: "text-sky-500",
+  },
+  {
+    icon: <TimeIcon />,
+    name: "Activity Log",
+    path: "/activity",
+    color: "text-violet-500",
   },
 ];
 
+const roleFilter = (role: string | undefined, item: NavItem): boolean => {
+  if (role === "admin") return true;
+  const adminOnly = ["Analysis", "Reports", "Users"];
+  if (adminOnly.includes(item.name)) return false;
+  if (role === "factory-manager" && item.name === "Sales & Costs") return false;
+  return true;
+};
+
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { user } = useAuth();
   const pathname = usePathname();
 
   const renderMenuItems = (
@@ -108,7 +158,7 @@ const AppSidebar: React.FC = () => {
           {nav.subItems ? (
             <button
               onClick={() => handleSubmenuToggle(index, menuType)}
-              className={`menu-item group  ${
+              className={`menu-item group ${
                 openSubmenu?.type === menuType && openSubmenu?.index === index
                   ? "menu-item-active"
                   : "menu-item-inactive"
@@ -119,20 +169,20 @@ const AppSidebar: React.FC = () => {
               }`}
             >
               <span
-                className={` ${
+                className={`${
                   openSubmenu?.type === menuType && openSubmenu?.index === index
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
-                }`}
+                } ${nav.color || ""}`}
               >
                 {nav.icon}
               </span>
               {(isExpanded || isHovered || isMobileOpen) && (
-                <span className={`menu-item-text`}>{nav.name}</span>
+                <span className="menu-item-text">{nav.name}</span>
               )}
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
-                  className={`ml-auto w-5 h-5 transition-transform duration-200  ${
+                  className={`ml-auto w-5 h-5 transition-transform duration-200 ${
                     openSubmenu?.type === menuType &&
                     openSubmenu?.index === index
                       ? "rotate-180 text-brand-500"
@@ -154,12 +204,12 @@ const AppSidebar: React.FC = () => {
                     isActive(nav.path)
                       ? "menu-item-icon-active"
                       : "menu-item-icon-inactive"
-                  }`}
+                  } ${nav.color || ""}`}
                 >
                   {nav.icon}
                 </span>
                 {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className={`menu-item-text`}>{nav.name}</span>
+                  <span className="menu-item-text">{nav.name}</span>
                 )}
               </Link>
             )
@@ -196,7 +246,7 @@ const AppSidebar: React.FC = () => {
                               isActive(subItem.path)
                                 ? "menu-dropdown-badge-active"
                                 : "menu-dropdown-badge-inactive"
-                            } menu-dropdown-badge `}
+                            } menu-dropdown-badge`}
                           >
                             new
                           </span>
@@ -207,7 +257,7 @@ const AppSidebar: React.FC = () => {
                               isActive(subItem.path)
                                 ? "menu-dropdown-badge-active"
                                 : "menu-dropdown-badge-inactive"
-                            } menu-dropdown-badge `}
+                            } menu-dropdown-badge`}
                           >
                             pro
                           </span>
@@ -233,11 +283,9 @@ const AppSidebar: React.FC = () => {
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => path === pathname;
-   const isActive = useCallback((path: string) => path === pathname, [pathname]);
+  const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
   useEffect(() => {
-    // Check if the current path matches any submenu item
     let submenuMatched = false;
     ["main", "others"].forEach((menuType) => {
       const items = menuType === "main" ? navItems : othersItems;
@@ -255,15 +303,12 @@ const AppSidebar: React.FC = () => {
         }
       });
     });
-
-    // If no submenu item matches, close the open submenu
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [pathname,isActive]);
+  }, [pathname, isActive]);
 
   useEffect(() => {
-    // Set the height of the submenu items when the submenu is opened
     if (openSubmenu !== null) {
       const key = `${openSubmenu.type}-${openSubmenu.index}`;
       if (subMenuRefs.current[key]) {
@@ -304,39 +349,42 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
+        className={`py-8 flex ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
         <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
+          <span
+            className={`flex items-center gap-2 ${
+              !isExpanded && !isHovered ? "justify-center" : ""
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="w-8 h-8 text-brand-500 flex-shrink-0"
+            >
+              <path
+                d="M12 2C8 8 5 12 5 15.5a7 7 0 0014 0C19 12 16 8 12 2z"
+                fill="currentColor"
+                opacity="0.3"
               />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
+              <path
+                d="M10 15.5a3 3 0 004 0"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
               />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
-          )}
+            </svg>
+            {(isExpanded || isHovered || isMobileOpen) && (
+              <span className="text-lg font-bold text-gray-800 dark:text-white whitespace-nowrap">
+                Verri P Water
+              </span>
+            )}
+          </span>
         </Link>
       </div>
-      <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+      <div className="flex flex-col overflow-y-auto duration-300 ease-linear custom-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>
@@ -370,7 +418,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(othersItems.filter((i) => roleFilter(user?.role, i)), "others")}
             </div>
           </div>
         </nav>

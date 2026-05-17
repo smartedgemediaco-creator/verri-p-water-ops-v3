@@ -1,19 +1,18 @@
-import Calendar from "@/components/calendar/Calendar";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import DeliverySchedule from "@/components/calendar/DeliverySchedule";
 import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Calender | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Calender page for TailAdmin  Tailwind CSS Admin Dashboard Template",
-  // other metadata
+  title: "Delivery Schedule - Verri P Water Inc",
+  description: "Delivery and transfer schedule calendar",
 };
-export default function page() {
+
+export default function CalendarPage() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Calendar" />
-      <Calendar />
+      <PageBreadcrumb pageTitle="Delivery Schedule" />
+      <DeliverySchedule />
     </div>
   );
 }

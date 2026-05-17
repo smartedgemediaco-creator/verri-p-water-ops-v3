@@ -1,12 +1,13 @@
 {
-  "name": "free-nextjs-admin-dashboard",
-  "version": "2.3.0",
+  "name": "verri-p-water-ops",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed": "node --import tsx --env-file=.env.local scripts/seed.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
@@ -21,7 +22,14 @@
     "@tailwindcss/postcss": "^4.1.17",
     "apexcharts": "^4.7.0",
     "autoprefixer": "^10.4.22",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "flatpickr": "^4.6.13",
+    "html2canvas": "^1.4.1",
+    "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.16.0",
+    "mongoose": "^9.6.2",
     "next": "^16.1.6",
     "react": "^19.2.0",
     "react-apexcharts": "^1.8.0",
@@ -35,6 +43,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@svgr/webpack": "^8.1.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.25",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
@@ -43,6 +53,7 @@
     "eslint-config-next": "16.0.7",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.22.0",
     "typescript": "^5.9.3"
   },
   "overrides": {
