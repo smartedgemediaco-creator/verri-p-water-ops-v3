@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 
@@ -28,12 +29,23 @@ export default function EditDepotPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch(`/api/depots/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    router.push("/depots");
+    try {
+      const res = await fetch(`/api/depots/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        toast.error("Failed to update depot");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Depot updated");
+      router.push("/depots");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   if (loading) return <div className="text-gray-500">Loading...</div>;

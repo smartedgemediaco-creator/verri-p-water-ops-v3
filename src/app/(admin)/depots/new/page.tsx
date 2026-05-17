@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 
@@ -17,12 +18,23 @@ export default function NewDepotPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/depots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    router.push("/depots");
+    try {
+      const res = await fetch("/api/depots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        toast.error("Failed to add depot");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Depot added");
+      router.push("/depots");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   return (

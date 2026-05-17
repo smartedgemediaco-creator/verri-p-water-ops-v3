@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
@@ -50,12 +51,23 @@ export default function EditTruckPage() {
       body.assignedToType = null;
       body.assignedToId = null;
     }
-    await fetch(`/api/trucks/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    router.push("/trucks");
+    try {
+      const res = await fetch(`/api/trucks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        toast.error("Failed to update truck");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Truck updated");
+      router.push("/trucks");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   if (loading) return <div className="text-gray-500">Loading...</div>;

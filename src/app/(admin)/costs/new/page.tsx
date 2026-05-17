@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
@@ -39,19 +40,31 @@ export default function NewCostPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/costs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category,
-        amount: Number(amount),
-        description,
-        locationType,
-        locationId,
-        date: date || undefined,
-      }),
-    });
-    router.push("/costs");
+    try {
+      const res = await fetch("/api/costs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category,
+          amount: Number(amount),
+          description,
+          locationType,
+          locationId,
+          date: date || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to record cost");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Cost recorded");
+      router.push("/costs");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   return (

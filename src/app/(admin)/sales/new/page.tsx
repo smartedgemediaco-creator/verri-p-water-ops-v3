@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
@@ -62,22 +63,34 @@ export default function NewSalePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/sales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        locationType,
-        locationId,
-        productId,
-        quantity: Number(quantity),
-        unitPrice: Number(unitPrice),
-        totalAmount: Number(quantity) * Number(unitPrice),
-        customerName,
-        date: date || undefined,
-        notes,
-      }),
-    });
-    router.push("/sales");
+    try {
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationType,
+          locationId,
+          productId,
+          quantity: Number(quantity),
+          unitPrice: Number(unitPrice),
+          totalAmount: Number(quantity) * Number(unitPrice),
+          customerName,
+          date: date || undefined,
+          notes,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to record sale");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Sale recorded");
+      router.push("/sales");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   return (

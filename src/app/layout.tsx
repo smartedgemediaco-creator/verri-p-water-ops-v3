@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from 'next/font/google';
+import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from '@/context/SidebarContext';
@@ -29,6 +30,7 @@ export default function RootLayout({
             <AuthProviderWrapper>{children}</AuthProviderWrapper>
           </SidebarProvider>
         </ThemeProvider>
+        <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontSize: '14px' } }} />
       </body>
     </html>
   );

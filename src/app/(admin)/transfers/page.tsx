@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import toast from "react-hot-toast";
 import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
@@ -59,12 +60,18 @@ export default function TransfersPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Failed to update");
+        toast.error(err.error || "Failed to update");
       } else {
+        const msgs: Record<string, string> = {
+          "in-transit": "Transfer dispatched",
+          delivered: "Transfer confirmed delivered",
+          cancelled: "Transfer cancelled",
+        };
+        toast.success(msgs[status] || `Status changed to ${status}`);
         fetchTransfers();
       }
     } catch {
-      alert("Network error");
+      toast.error("Network error");
     } finally {
       setActionLoading(null);
     }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 
@@ -17,12 +18,23 @@ export default function NewFactoryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/factories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, capacity: Number(form.capacity) }),
-    });
-    router.push("/factories");
+    try {
+      const res = await fetch("/api/factories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, capacity: Number(form.capacity) }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to add factory");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Factory added");
+      router.push("/factories");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   return (

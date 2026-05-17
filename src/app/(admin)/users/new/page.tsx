@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
@@ -57,11 +58,12 @@ export default function NewUserPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Failed to create user");
+      toast.error(data.error || "Failed to create user");
       setSubmitting(false);
       return;
     }
 
+    toast.success("User created");
     router.push("/users");
   };
 

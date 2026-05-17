@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
@@ -61,22 +62,34 @@ export default function NewTransferPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await fetch("/api/transfers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fromType,
-        fromId,
-        toType,
-        toId,
-        productId,
-        quantity: Number(quantity),
-        truckId,
-        date,
-        notes,
-      }),
-    });
-    router.push("/transfers");
+    try {
+      const res = await fetch("/api/transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromType,
+          fromId,
+          toType,
+          toId,
+          productId,
+          quantity: Number(quantity),
+          truckId,
+          date,
+          notes,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to create transfer");
+        setSubmitting(false);
+        return;
+      }
+      toast.success("Transfer created");
+      router.push("/transfers");
+    } catch {
+      toast.error("Network error");
+      setSubmitting(false);
+    }
   };
 
   return (
