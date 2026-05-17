@@ -1,3 +1,9 @@
+<div align="center">
+  <img src="./public/images/logo/logo.svg" alt="Verri P Water" />
+</div>
+
+<br/>
+
 # Verri P Water Operations Management System
 
 A full-featured ERP-style operations dashboard for Verri P Water Inc — a Nigerian sachet/bottle water company. Built with **Next.js 16**, **React 19**, **TypeScript**, **MongoDB**, and **Tailwind CSS v4**.
