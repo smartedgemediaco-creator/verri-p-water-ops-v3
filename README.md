@@ -1,208 +1,108 @@
-# TailAdmin Next.js - Free Next.js Tailwind Admin Dashboard Template
+# Verri P Water Operations Management System
 
-TailAdmin is a free and open-source admin dashboard template built on **Next.js and Tailwind CSS** providing developers with everything they need to create a feature-rich and data-driven: back-end, dashboard, or admin panel solution for any sort of web project.
+A full-featured ERP-style operations dashboard for Verri P Water Inc — a Nigerian sachet/bottle water company. Built with **Next.js 16**, **React 19**, **TypeScript**, **MongoDB**, and **Tailwind CSS v4**.
 
-![TailAdmin - Next.js Dashboard Preview](./banner.png)
-
-With TailAdmin Next.js, you get access to all the necessary dashboard UI components, elements, and pages required to build a high-quality and complete dashboard or admin panel. Whether you're building a dashboard or admin panel for a complex web application or a simple website.
-
-TailAdmin utilizes the powerful features of **Next.js 16** and common features of Next.js such as server-side rendering (SSR), static site generation (SSG), and seamless API route integration. Combined with the advancements of **React 19** and the robustness of **TypeScript**, TailAdmin is the perfect solution to help get your project up and running quickly.
+Manages the entire supply chain: factories → depots → trucks → inventory → transfers → sales → costs.
 
 ## Overview
 
-TailAdmin provides essential UI components and layouts for building feature-rich, data-driven admin dashboards and control panels. It's built on:
+| Layer | Tech |
+|-------|------|
+| Framework | Next.js 16 (App Router, standalone output) |
+| UI | React 19, Tailwind CSS v4 |
+| Database | MongoDB + Mongoose 9 |
+| Auth | JWT (httpOnly cookies) + bcryptjs |
+| Charts | ApexCharts + react-apexcharts |
+| Calendar | FullCalendar |
+| PDF Reports | html2canvas + jsPDF |
+| Docker | Multi-stage build + docker-compose (app + MongoDB 7) |
 
-* Next.js 16.x
-* React 19
-* TypeScript
-* Tailwind CSS V4
+## Features
 
-### Quick Links
+- **Dashboard** — aggregated metrics, revenue/cost charts, business advice, production recording
+- **Factories** — CRUD management with capacity tracking
+- **Depots** — CRUD management with location and manager tracking
+- **Trucks** — CRUD management with assignment to factories/depots
+- **Products** — CRUD with bulk import (sachet/bottle categories)
+- **Inventory** — stock levels per product per location
+- **Sales** — record sales with auto-inventory deduction, filter by product/customer/date, PDF export
+- **Costs** — 6 categories (production, transport, maintenance, salary, utility, other)
+- **Transfers** — 4-state workflow (pending → in-transit → delivered/cancelled)
+- **Production** — record batches with auto-inventory increment
+- **Activity Log** — comprehensive audit trail with entity/action/product/date filters, expandable detail
+- **Reports** — domain-specific PDF reports with scope/product/date filters
+- **Notifications** — low-stock alerts + in-transit transfer alerts
+- **Users** — admin-only user management with 4 roles
+- **Analysis** — admin-only business analysis view
 
-* [✨ Visit Website](https://tailadmin.com)
-* [📄 Documentation](https://tailadmin.com/docs)
-* [⬇️ Download](https://tailadmin.com/download)
-* [🖌️ Figma Design File (Community Edition)](https://www.figma.com/community/file/1463141366275764364)
-* [⚡ Get PRO Version](https://tailadmin.com/pricing)
+## Role-Based Access
 
-### Demos
+| Role | Scoped To |
+|------|-----------|
+| admin | Full access |
+| factory-manager | Own factory data only |
+| depot-manager | Own depot data only |
+| driver | Limited view |
 
-* [Free Version](https://nextjs-free-demo.tailadmin.com)
-* [Pro Version](https://nextjs-demo.tailadmin.com)
-
-### Other Versions
-
-- [Next.js Version](https://github.com/TailAdmin/free-nextjs-admin-dashboard)
-- [React.js Version](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/TailAdmin/vue-tailwind-admin-dashboard)
-- [Angular Version](https://github.com/TailAdmin/free-angular-tailwind-dashboard)
-- [Laravel Version](https://github.com/TailAdmin/tailadmin-laravel)
-
-## Installation
+## Getting Started
 
 ### Prerequisites
 
-To get started with TailAdmin, ensure you have the following prerequisites installed and set up:
+- Node.js 20.x or later
+- MongoDB instance (local or Atlas)
 
-* Node.js 18.x or later (recommended to use Node.js 20.x or later)
-
-### Cloning the Repository
-
-Clone the repository using the following command:
+### Installation
 
 ```bash
-git clone https://github.com/TailAdmin/free-nextjs-admin-dashboard.git
+git clone https://github.com/smartedgemediaco-creator/verri-p-water-ops-v3.git
+cd verri-p-water-ops-v3
+npm install
 ```
 
-> Windows Users: place the repository near the root of your drive if you face issues while cloning.
+### Environment Variables
 
-1. Install dependencies:
+Create `.env.local`:
 
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+```
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+```
 
-   > Use `--legacy-peer-deps` flag if you face peer-dependency error during installation.
+### Seed Database (optional)
 
-2. Start the development server:
+```bash
+npx tsx scripts/seed.ts
+```
 
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
+### Reset Database (keeps admin user)
 
-## Components
+```bash
+npx tsx scripts/reset.ts
+```
 
-TailAdmin is a pre-designed starting point for building a web-based dashboard using Next.js and Tailwind CSS. The template includes:
+### Start Dev Server
 
-* Sophisticated and accessible sidebar
-* Data visualization components
-* Profile management and custom 404 page
-* Tables and Charts(Line and Bar)
-* Authentication forms and input elements
-* Alerts, Dropdowns, Modals, Buttons and more
-* Can't forget Dark Mode 🕶️
+```bash
+npm run dev
+```
 
-All components are built with React and styled using Tailwind CSS for easy customization.
+### Build
 
-## Feature Comparison
+```bash
+npm run build
+```
 
-### Free Version
+## Docker
 
-* 1 Unique Dashboard
-* 30+ dashboard components
-* 50+ UI elements
-* Basic Figma design files
-* Community support
+```bash
+docker-compose up
+```
 
-### Pro Version
+## Default Login
 
-* 7 Unique Dashboards: Analytics, Ecommerce, Marketing, CRM, SaaS, Stocks, Logistics (more coming soon)
-* 500+ dashboard components and UI elements
-* Complete Figma design file
-* Email support
-
-To learn more about pro version features and pricing, visit our [pricing page](https://tailadmin.com/pricing).
-
-## Changelog
-
-### Version 2.3.0 - [April 28, 2026]
-
-- **New Feature**: Added **AI Dashboard** with token usage and revenue tracking.
-- **New Feature**: Added **Sales Dashboard** with retention and multi-channel analytics.
-- **New Feature**: Added **Finance Dashboard** with cashflow and balance management.
-- **New Feature**: Introduced **6 New Layout variations** for improved UI flexibility.
-- **Enhancement**: Integrated **Advanced Data Visualization** with 7+ new chart types.
-
-### Version 2.2.3 - [March 15, 2026]
-
-* update ESLint configuration and dependencies; upgrade Next.js to version 16.1.6
-
-### Version 2.2.2 - [December 30, 2025]
-
-* Fixed date picker positioning and functionality in Statistics Chart.
-
-
-### Version 2.1.0 - [November 15, 2025]
-
-* Updated to Next.js 16.x
-* Fixed all reported minor bugs
-
-### Version 2.0.2 - [March 25, 2025]
-
-* Upgraded to Next.js 16.x for [CVE-2025-29927](https://nextjs.org/blog/cve-2025-29927) concerns
-* Included overrides vectormap for packages to prevent peer dependency errors during installation.
-* Migrated from react-flatpickr to flatpickr package for React 19 support
-
-### Version 2.0.1 - [February 27, 2025]
-
-#### Update Overview
-
-* Upgraded to Tailwind CSS v4 for better performance and efficiency.
-* Updated class usage to match the latest syntax and features.
-* Replaced deprecated class and optimized styles.
-
-#### Next Steps
-
-* Run npm install or yarn install to update dependencies.
-* Check for any style changes or compatibility issues.
-* Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-* This update keeps the project up to date with the latest Tailwind improvements. 🚀
-
-### v2.0.0 (February 2025)
-
-A major update focused on Next.js 16 implementation and comprehensive redesign.
-
-#### Major Improvements
-
-* Complete redesign using Next.js 16 App Router and React Server Components
-* Enhanced user interface with Next.js-optimized components
-* Improved responsiveness and accessibility
-* New features including collapsible sidebar, chat screens, and calendar
-* Redesigned authentication using Next.js App Router and server actions
-* Updated data visualization using ApexCharts for React
-
-#### Breaking Changes
-
-* Migrated from Next.js 14 to Next.js 16
-* Chart components now use ApexCharts for React
-* Authentication flow updated to use Server Actions and middleware
-
-[Read more](https://tailadmin.com/docs/update-logs/nextjs) on this release.
-
-### v1.3.4 (July 01, 2024)
-
-* Fixed JSvectormap rendering issues
-
-### v1.3.3 (June 20, 2024)
-
-* Fixed build error related to Loader component
-
-### v1.3.2 (June 19, 2024)
-
-* Added ClickOutside component for dropdown menus
-* Refactored sidebar components
-* Updated Jsvectormap package
-
-### v1.3.1 (Feb 12, 2024)
-
-* Fixed layout naming consistency
-* Updated styles
-
-### v1.3.0 (Feb 05, 2024)
-
-* Upgraded to Next.js 14
-* Added Flatpickr integration
-* Improved form elements
-* Enhanced multiselect functionality
-* Added default layout component
+- **Email:** `admin@verripwater.com`
+- **Password:** `admin123`
 
 ## License
 
-TailAdmin Next.js Free Version is released under the MIT License.
-
-## Support
-If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
+MIT
