@@ -244,10 +244,10 @@ export default function ReportsPage() {
           ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
         }
         const pageImgData = pageCanvas.toDataURL("image/png");
-        const renderH = (sliceH * imgWidth) / canvas.width;
+        const renderH = (sliceH * _imgWidth) / canvas.width;
 
         if (pageNum > 0) pdf.addPage();
-        pdf.addImage(pageImgData, "PNG", margin, margin, imgWidth, renderH);
+        pdf.addImage(pageImgData, "PNG", margin, margin, _imgWidth, renderH);
 
         srcY += sliceH;
         pageNum++;

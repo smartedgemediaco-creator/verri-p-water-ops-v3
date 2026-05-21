@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
     saleFilter.productId = pid;
     invFilter.productId = pid;
     wasteFilter.productId = pid;
+    transferFilter.productId = pid;
   }
 
   // Date range filter

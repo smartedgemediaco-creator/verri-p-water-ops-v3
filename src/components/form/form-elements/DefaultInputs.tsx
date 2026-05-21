@@ -14,8 +14,7 @@ export default function DefaultInputs() {
     { value: "template", label: "Template" },
     { value: "development", label: "Development" },
   ];
-  const handleSelectChange = (value: string) => {
-    console.log("Selected value:", value);
+  const handleSelectChange = (_value: string) => {
   };
   return (
     <ComponentCard title="Default Inputs">
@@ -67,9 +66,7 @@ export default function DefaultInputs() {
             id="date-picker"
             label="Date Picker Input"
             placeholder="Select a date"
-            onChange={(dates, currentDateString) => {
-              // Handle your logic
-              console.log({ dates, currentDateString });
+            onChange={(_dates, _currentDateString) => {
             }}
           />
         </div>
@@ -81,7 +78,7 @@ export default function DefaultInputs() {
               type="time"
               id="tm"
               name="tm"
-              onChange={(e) => console.log(e.target.value)}
+              onChange={(_e) => {}}
             />
             <span className="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
               <TimeIcon />

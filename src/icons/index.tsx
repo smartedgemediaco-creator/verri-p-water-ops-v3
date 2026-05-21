@@ -52,6 +52,8 @@ import HorizontaLDots from "./horizontal-dots.svg";
 import ChatIcon from "./chat.svg";
 import MoreDotIcon from "./more-dot.svg";
 import BellIcon from "./bell.svg";
+import { default as CalendarIcon } from "./calendar.svg";
+import { default as TaskSvgIcon } from "./task.svg";
 
 export {
   DownloadIcon,
@@ -108,4 +110,6 @@ export {
   HorizontaLDots,
   ChevronUpIcon,
   ChatIcon,
+  CalendarIcon,
+  TaskSvgIcon,
 };

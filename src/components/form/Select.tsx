@@ -12,6 +12,7 @@ interface SelectProps {
   className?: string;
   defaultValue?: string;
   value?: string;
+  required?: boolean;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -21,6 +22,7 @@ const Select: React.FC<SelectProps> = ({
   className = "",
   defaultValue = "",
   value,
+  required = false,
 }) => {
   // Manage the selected value
   const [internalValue, setInternalValue] = useState<string>(defaultValue);
@@ -41,6 +43,7 @@ const Select: React.FC<SelectProps> = ({
       } ${className}`}
       value={selectedValue}
       onChange={handleChange}
+      required={required}
     >
       {/* Placeholder option */}
       <option

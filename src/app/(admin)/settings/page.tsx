@@ -6,8 +6,10 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { showSuccess, showError } from "@/lib/toast";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -75,11 +77,11 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-            <Input type="email" value="admin@verripwater.com" disabled className="max-w-sm" />
+            <Input type="email" value={user?.email ?? ""} disabled className="max-w-sm" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
-            <Input value="Administrator" disabled className="max-w-sm" />
+            <Input value={user?.role === "admin" ? "Administrator" : user?.role === "factory-manager" ? "Factory Manager" : user?.role === "depot-manager" ? "Depot Manager" : user?.role === "driver" ? "Driver" : ""} disabled className="max-w-sm" />
           </div>
         </div>
       </div>
