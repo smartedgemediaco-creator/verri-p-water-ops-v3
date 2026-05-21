@@ -15,7 +15,7 @@ const TruckSchema = new Schema<ITruck>(
   {
     plateNumber: { type: String, required: true, unique: true },
     driverName: { type: String, default: "" },
-    capacity: { type: Number, required: true },
+    capacity: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     assignedToType: { type: String, enum: ["factory", "depot"] },
     assignedToId: { type: Schema.Types.ObjectId },

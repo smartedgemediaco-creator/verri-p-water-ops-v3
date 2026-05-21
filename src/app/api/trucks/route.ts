@@ -1,16 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Truck } from "@/lib/models";
+import { Truck, Factory, Depot } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await connectDB();
-  const trucks = await Truck.find({}).sort({ createdAt: -1 });
-  return NextResponse.json(trucks);
+  const trucks = await Truck.find({}).sort({ createdAt: -1 }).lean();
+
+  const enriched = await Promise.all(
+    trucks.map(async (t) => {
+      const obj = t as Record<string, unknown>;
+      if (obj.assignedToType === "factory" && mongoose.Types.ObjectId.isValid(obj.assignedToId as string)) {
+        const f = await Factory.findById(obj.assignedToId).select("name").lean();
+        obj.assignedToName = (f as { name?: string } | null)?.name ?? null;
+      } else if (obj.assignedToType === "depot" && mongoose.Types.ObjectId.isValid(obj.assignedToId as string)) {
+        const d = await Depot.findById(obj.assignedToId).select("name").lean();
+        obj.assignedToName = (d as { name?: string } | null)?.name ?? null;
+      }
+      return obj;
+    })
+  );
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(req: NextRequest) {

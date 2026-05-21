@@ -10,8 +10,10 @@ interface User {
   role: string;
   factoryId?: string | { _id: string; name: string };
   depotId?: string | { _id: string; name: string };
+  truckId?: string | { _id: string; plateNumber: string; driverName?: string };
   factoryName?: string;
   depotName?: string;
+  truckName?: string;
 }
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,8 +86,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/signin");
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const res = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to change password");
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

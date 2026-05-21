@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewDepotPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", location: "", manager: "" });
+  const [form, setForm] = useState({ name: "", location: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/depots", {
@@ -25,14 +31,14 @@ export default function NewDepotPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        toast.error("Failed to add depot");
+        showError("Failed to add depot");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to add depot");
       }
-      toast.success("Depot added");
+      showSuccess("Depot added");
       router.push("/depots");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
   };
@@ -49,10 +55,6 @@ export default function NewDepotPage() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
           <InputField id="location" name="location" placeholder="Location" value={form.location} onChange={handleChange} />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manager</label>
-          <InputField id="manager" name="manager" placeholder="Manager name" value={form.manager} onChange={handleChange} />
-        </div>
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? "Saving..." : "Save"}
@@ -62,6 +64,25 @@ export default function NewDepotPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Create Depot"
+        message={
+          <>
+            You are about to create a new depot:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Location:</strong> {form.location}</li>
+            </ul>
+            <p className="mt-2">This entity will be immediately available in the system. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Create Depot"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

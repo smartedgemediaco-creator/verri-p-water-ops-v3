@@ -12,6 +12,7 @@ export interface JWTPayload {
   role: string;
   factoryId?: string;
   depotId?: string;
+  truckId?: string;
 }
 
 export function hashPassword(password: string): Promise<string> {
@@ -55,6 +56,9 @@ export function getScopeFilter(user: JWTPayload | null): Record<string, any> {
   }
   if (user.role === "depot-manager" && user.depotId) {
     return { locationType: "depot", locationId: user.depotId };
+  }
+  if (user.role === "driver" && user.truckId) {
+    return { truckId: user.truckId };
   }
   return {};
 }

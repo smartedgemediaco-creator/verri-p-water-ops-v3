@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon } from "@/icons";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { FactoryIcon } from "@/components/icons/EntityIcons";
 
 interface Factory {
@@ -19,6 +20,7 @@ interface Factory {
 export default function FactoriesPage() {
   const [factories, setFactories] = useState<Factory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/factories")
@@ -27,10 +29,13 @@ export default function FactoriesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this factory?")) return;
-    await fetch(`/api/factories/${id}`, { method: "DELETE" });
-    setFactories((prev) => prev.filter((f) => f._id !== id));
+  const handleDelete = (id: string) => setDeleteTarget(id);
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/factories/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed to delete");
+    setFactories((prev) => prev.filter((f) => f._id !== deleteTarget));
   };
 
   const totalActive = factories.filter((f) => f.isActive).length;
@@ -70,25 +75,25 @@ export default function FactoriesPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader>
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Capacity</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Capacity</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>Loading...</TableCell>
               </TableRow>
             ) : factories.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>No factories found. Click "Add Factory" to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>No factories found. Click &quot;Add Factory&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               factories.map((factory) => (
@@ -126,6 +131,16 @@ export default function FactoriesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete Factory"
+        message="This will permanently delete this factory and all associated data. This action cannot be undone."
+        confirmLabel="Delete Factory"
+        variant="danger"
+      />
     </div>
   );
 }

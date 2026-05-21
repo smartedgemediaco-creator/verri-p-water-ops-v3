@@ -6,10 +6,13 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate } from "@/lib/dateFormat";
+import DisputeButton from "@/components/disputes/DisputeButton";
 
 interface Transfer {
   _id: string;
@@ -17,6 +20,8 @@ interface Transfer {
   fromId: string;
   toType: string;
   toId: string;
+  fromName?: string;
+  toName?: string;
   productId: { _id: string; name: string } | null;
   quantity: number;
   truckId: { _id: string; plateNumber: string } | null;
@@ -29,6 +34,10 @@ export default function TransfersPage() {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [spoilageTarget, setSpoilageTarget] = useState<Transfer | null>(null);
+  const [spoilageQty, setSpoilageQty] = useState("0");
+  const [spoilageReason, setSpoilageReason] = useState("");
+  const [pendingAction, setPendingAction] = useState<{ id: string; action: string } | null>(null);
 
   const fetchTransfers = () => {
     fetch("/api/transfers")
@@ -50,30 +59,61 @@ export default function TransfersPage() {
     return <Badge variant="light" color={s.color}>{s.label}</Badge>;
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const updateStatus = async (id: string, status: string, spoilage?: number, reason?: string) => {
     setActionLoading(id);
     try {
+      const body: Record<string, unknown> = { status };
+      if (spoilage !== undefined && spoilage > 0) {
+        body.spoilage = spoilage;
+        body.spoilageReason = reason || "";
+      }
       const res = await fetch(`/api/transfers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Failed to update");
-      } else {
-        const msgs: Record<string, string> = {
-          "in-transit": "Transfer dispatched",
-          delivered: "Transfer confirmed delivered",
-          cancelled: "Transfer cancelled",
-        };
-        toast.success(msgs[status] || `Status changed to ${status}`);
-        fetchTransfers();
+        showError(err.error || "Failed to update");
+        throw new Error(err.error || "Failed to update");
       }
-    } catch {
-      toast.error("Network error");
+      const msgs: Record<string, string> = {
+        "in-transit": "Transfer dispatched",
+        delivered: "Transfer confirmed delivered",
+        cancelled: "Transfer cancelled",
+      };
+      showSuccess(msgs[status] || `Status changed to ${status}`);
+      fetchTransfers();
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
+      throw e;
     } finally {
       setActionLoading(null);
+      setSpoilageTarget(null);
+    }
+  };
+
+  const confirmDelivered = (t: Transfer) => {
+    const sq = Number(spoilageQty);
+    if (sq > t.quantity) {
+      showError("Spoilage cannot exceed transfer quantity");
+      return;
+    }
+    updateStatus(t._id, "delivered", sq, spoilageReason);
+  };
+
+  const openSpoilage = (t: Transfer) => {
+    setSpoilageTarget(t);
+    setSpoilageQty("0");
+    setSpoilageReason("");
+  };
+
+  const confirmStatusAction = async () => {
+    if (!pendingAction) return;
+    try {
+      await updateStatus(pendingAction.id, pendingAction.action);
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -81,19 +121,23 @@ export default function TransfersPage() {
     if (!user) return false;
     if (user.role === "admin") return true;
 
-    const uid = (id: string | { _id: string; name: string } | undefined) =>
+    const uid = (id: string | { _id: string; name?: string } | { _id: string; plateNumber?: string } | undefined) =>
       typeof id === "string" ? id : id?._id ?? "";
+    const driverTruckId = uid(user.truckId);
 
     const fromMatch =
       (t.fromType === "factory" && user.role === "factory-manager" && uid(user.factoryId) === t.fromId) ||
-      (t.fromType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.fromId);
+      (t.fromType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.fromId) ||
+      (t.fromType === "truck" && user.role === "driver" && driverTruckId === t.fromId);
     const toMatch =
       (t.toType === "factory" && user.role === "factory-manager" && uid(user.factoryId) === t.toId) ||
-      (t.toType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.toId);
+      (t.toType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.toId) ||
+      (t.toType === "truck" && user.role === "driver" && driverTruckId === t.toId);
+    const isAssignedDriver = user.role === "driver" && driverTruckId === t.truckId?._id;
 
-    if (action === "in-transit") return fromMatch;
-    if (action === "delivered") return toMatch;
-    if (action === "cancelled") return fromMatch || toMatch;
+    if (action === "in-transit") return fromMatch || isAssignedDriver;
+    if (action === "delivered") return toMatch || isAssignedDriver;
+    if (action === "cancelled") return fromMatch || toMatch || isAssignedDriver;
     return false;
   };
 
@@ -103,11 +147,14 @@ export default function TransfersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Transfers" />
-        <Link href="/transfers/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            New Transfer
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
+          <Link href="/transfers/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              New Transfer
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
@@ -141,21 +188,21 @@ export default function TransfersPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader>
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">From</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">To</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Product</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Quantity</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Truck</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">From</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">To</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Product</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Quantity</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Truck</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
@@ -167,30 +214,31 @@ export default function TransfersPage() {
             ) : (
               transfers.map((t) => (
                 <TableRow key={t._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.fromType} ({t.fromId.slice(-6)})</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.toType} ({t.toId.slice(-6)})</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.fromName ?? `${t.fromType} (${(t.fromId ?? "").slice(-6)})`}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.toName ?? `${t.toType} (${(t.toId ?? "").slice(-6)})`}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{t.productId?.name ?? "N/A"}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.quantity.toLocaleString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(t.quantity ?? 0).toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.truckId?.plateNumber ?? <span className="text-gray-400">—</span>}</TableCell>
                   <TableCell className="py-3">{statusBadge(t.status)}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.date ? new Date(t.date).toLocaleDateString() : "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(t.date)}</TableCell>
                   <TableCell className="py-3">
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 items-center">
                       {t.status === "pending" && canAct(t, "in-transit") && (
-                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "in-transit")}>
+                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => setPendingAction({ id: t._id, action: "in-transit" })}>
                           {actionLoading === t._id ? "..." : "Dispatch"}
                         </Button>
                       )}
                       {t.status === "in-transit" && canAct(t, "delivered") && (
-                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "delivered")}>
+                        <Button size="sm" disabled={actionLoading === t._id} onClick={() => openSpoilage(t)}>
                           {actionLoading === t._id ? "..." : "Confirm"}
                         </Button>
                       )}
                       {(t.status === "pending" || t.status === "in-transit") && canAct(t, "cancelled") && (
-                        <Button size="sm" variant="outline" disabled={actionLoading === t._id} onClick={() => updateStatus(t._id, "cancelled")}>
+                        <Button size="sm" variant="outline" disabled={actionLoading === t._id} onClick={() => setPendingAction({ id: t._id, action: "cancelled" })}>
                           {actionLoading === t._id ? "..." : "Cancel"}
                         </Button>
                       )}
+                      <DisputeButton entity="transfer" entityId={t._id} entityLabel={`${t.productId?.name ?? "transfer"} x${(t.quantity ?? 0).toLocaleString()}`} />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -199,6 +247,42 @@ export default function TransfersPage() {
           </TableBody>
         </Table>
       </div>
+      {spoilageTarget && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setSpoilageTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Confirm Delivery</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              {(spoilageTarget.quantity ?? 0).toLocaleString()} units of{" "}
+              {spoilageTarget.productId?.name ?? "product"} — any spoilage?
+            </p>
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Damaged / Spoiled</label>
+              <input type="number" min="0" max={spoilageTarget.quantity} value={spoilageQty} onChange={(e) => setSpoilageQty(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
+              <input type="text" value={spoilageReason} onChange={(e) => setSpoilageReason(e.target.value)} placeholder="e.g. bottles cracked during transit" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setSpoilageTarget(null)}>Cancel</Button>
+              <Button size="sm" onClick={() => confirmDelivered(spoilageTarget)}>Confirm Delivery</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ConfirmDialog
+        isOpen={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        onConfirm={confirmStatusAction}
+        title={pendingAction?.action === "cancelled" ? "Cancel Transfer" : "Dispatch Transfer"}
+        message={
+          pendingAction?.action === "cancelled"
+            ? "You are about to cancel this transfer. Stock will remain at the origin location."
+            : "You are about to dispatch this transfer. Stock will be marked as in-transit."
+        }
+        confirmLabel={pendingAction?.action === "cancelled" ? "Cancel Transfer" : "Dispatch Transfer"}
+        variant="warning"
+      />
     </div>
   );
 }

@@ -29,17 +29,18 @@ export default function BusinessAdviceCard() {
       .then(([analysis, charts, notifications]) => {
         const messages: Advice[] = [];
 
-        const inventory = analysis.totalInventory || 0;
-        const sales = analysis.totalSales || 0;
-        const costs = analysis.totalCosts || 0;
-        const profit = analysis.profit || 0;
-        const activeTransfers = analysis.activeTransfers || 0;
-        const factories = analysis.factories || 0;
-        const depots = analysis.depots || 0;
+        const fArr = analysis.factories || [];
+        const dArr = analysis.depots || [];
+        const tArr = analysis.trucks || [];
+        const inventory = fArr.reduce((s: number, f: { inventory: number }) => s + f.inventory, 0) + dArr.reduce((s: number, d: { inventory: number }) => s + d.inventory, 0) + tArr.reduce((s: number, t: { inventory: number }) => s + (t.inventory ?? 0), 0);
+        const sales = fArr.reduce((s: number, f: { sales: number }) => s + f.sales, 0) + dArr.reduce((s: number, d: { sales: number }) => s + d.sales, 0);
+        const costs = fArr.reduce((s: number, f: { costs: number }) => s + f.costs, 0) + dArr.reduce((s: number, d: { costs: number }) => s + d.costs, 0);
+        const profit = sales - costs;
+        const activeTransfers = tArr.reduce((s: number, t: { activeTransfers: number }) => s + (t.activeTransfers ?? 0), 0);
+        const factories = fArr.length;
+        const depots = dArr.length;
 
         const monthlySales = charts.monthlySales || [];
-        const monthlyCosts = charts.monthlyCosts || [];
-
         const salesTrend =
           monthlySales.length >= 2
             ? monthlySales[monthlySales.length - 1].total -

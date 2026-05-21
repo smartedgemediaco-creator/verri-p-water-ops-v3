@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewFactoryPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", location: "", capacity: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/factories", {
@@ -25,15 +31,16 @@ export default function NewFactoryPage() {
         body: JSON.stringify({ ...form, capacity: Number(form.capacity) }),
       });
       if (!res.ok) {
-        toast.error("Failed to add factory");
+        showError("Failed to add factory");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to add factory");
       }
-      toast.success("Factory added");
+      showSuccess("Factory added");
       router.push("/factories");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
+      throw e;
     }
   };
 
@@ -62,6 +69,26 @@ export default function NewFactoryPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Create Factory"
+        message={
+          <>
+            You are about to create a new factory with the following details:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Location:</strong> {form.location}</li>
+              <li><strong>Capacity:</strong> {form.capacity.toLocaleString()}</li>
+            </ul>
+            <p className="mt-2">This entity will be immediately available in the system. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Create Factory"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

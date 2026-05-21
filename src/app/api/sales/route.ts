@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Inventory, Factory, Depot, Truck } from "@/lib/models";
+import { Sale, Inventory, Factory, Depot, Truck, PosDevice, Product } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -23,7 +23,7 @@ async function populateLocation(sale: any) {
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role === "factory-manager") {
+  if (user.role !== "admin" && user.role !== "depot-manager" && user.role !== "factory-manager" && user.role !== "driver") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -38,16 +38,33 @@ export async function GET(req: NextRequest) {
   const customerName = url.searchParams.get("customerName");
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
+  const paymentMethod = url.searchParams.get("paymentMethod");
+  const creditStatus = url.searchParams.get("creditStatus");
 
   const filter: any = {};
 
   if (user.role === "depot-manager" && user.depotId) {
     filter.locationType = "depot";
     filter.locationId = user.depotId;
+  } else if (user.role === "factory-manager" && user.factoryId) {
+    filter.locationType = "factory";
+    filter.locationId = user.factoryId;
+  } else if (user.role === "driver" && user.truckId) {
+    filter.locationType = "truck";
+    filter.locationId = user.truckId;
   }
 
   if (productId) filter.productId = productId;
   if (customerName) filter.customerName = { $regex: customerName, $options: "i" };
+  if (paymentMethod) filter.paymentMethod = paymentMethod;
+  if (creditStatus === "unpaid") {
+    filter.paymentMethod = "credit";
+    filter.isPaid = false;
+  }
+  if (creditStatus === "paid") {
+    filter.paymentMethod = "credit";
+    filter.isPaid = true;
+  }
   if (startDate || endDate) {
     filter.date = {};
     if (startDate) filter.date.$gte = new Date(startDate);
@@ -57,6 +74,7 @@ export async function GET(req: NextRequest) {
   const [sales, total] = await Promise.all([
     Sale.find(filter)
       .populate("productId")
+      .populate("posDeviceId", "name terminalSerial")
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit)
@@ -73,39 +91,106 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "admin" && user.role !== "depot-manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    const user = getUserFromRequest(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (user.role !== "admin" && user.role !== "depot-manager" && user.role !== "factory-manager" && user.role !== "driver") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await connectDB();
+    const body = await req.json();
+
+    if (user.role === "depot-manager") {
+      body.locationType = "depot";
+      body.locationId = user.depotId;
+    } else if (user.role === "factory-manager") {
+      body.locationType = "factory";
+      body.locationId = user.factoryId;
+    } else if (user.role === "driver") {
+      body.locationType = "truck";
+      body.locationId = user.truckId;
+    }
+
+    // Normalize date from DD/MM/YYYY (flatpickr) to ISO
+    if (body.date && typeof body.date === "string") {
+      const parts = body.date.split("/");
+      if (parts.length === 3) {
+        body.date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+
+    if (!body.paymentMethod) body.paymentMethod = "cash";
+    if (body.paymentMethod === "credit") {
+      body.isPaid = body.isPaid ?? false;
+      body.paidAmount = body.paidAmount ?? 0;
+    } else {
+      body.isPaid = true;
+    }
+
+    if (user.role !== "admin" && body.productId) {
+      const product = await Product.findById(body.productId).select("unitPrice").lean();
+      if (product && product.unitPrice > 0 && Number(body.unitPrice) !== product.unitPrice) {
+        return NextResponse.json(
+          { error: `Unit price must match product catalog price (₦${product.unitPrice}). Contact admin to change.` },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (body.paymentMethod === "pos" && body.posDeviceId) {
+      const device = await PosDevice.findById(body.posDeviceId);
+      if (device && device.terminalSerial && !body.posTransactionRef) {
+        body.posTransactionRef = `pos-${device.terminalSerial}-${Date.now()}`;
+      }
+    }
+
+    const inventoryFilter = { locationType: body.locationType, locationId: body.locationId, productId: body.productId };
+    const currentInventory = await Inventory.findOne(inventoryFilter);
+    const available = currentInventory?.quantity ?? 0;
+    if (available < body.quantity) {
+      return NextResponse.json(
+        { error: `Insufficient stock: ${available} available, ${body.quantity} required` },
+        { status: 400 }
+      );
+    }
+
+    const sale = await Sale.create(body);
+
+    await Inventory.findOneAndUpdate(
+      inventoryFilter,
+      { $inc: { quantity: -body.quantity } },
+      { upsert: true }
+    );
+
+    try {
+      await logActivity({
+        action: "created",
+        entity: "sale",
+        entityId: sale._id.toString(),
+        description: `Sale of ${body.quantity} units from ${body.locationType} to ${body.customerName || "unknown"} — ₦${body.totalAmount?.toLocaleString()} [${body.paymentMethod}]`,
+        userId: user.userId,
+        domainType: body.locationType === "truck" ? "depot" : body.locationType,
+        domainId: body.locationId,
+        productId: body.productId,
+        metadata: {
+          locationType: body.locationType,
+          quantity: body.quantity,
+          totalAmount: body.totalAmount,
+          customerName: body.customerName,
+          paymentMethod: body.paymentMethod,
+        },
+      });
+    } catch {
+      console.error("Failed to log activity for sale", sale._id);
+    }
+
+    return NextResponse.json(sale, { status: 201 });
+  } catch (e: any) {
+    console.error("Sales POST error:", e);
+    return NextResponse.json(
+      { error: e?.message ?? "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  await connectDB();
-  const body = await req.json();
-
-  if (user.role === "depot-manager") {
-    body.locationType = "depot";
-    body.locationId = user.depotId;
-  }
-
-  const sale = await Sale.create(body);
-
-  await Inventory.findOneAndUpdate(
-    { locationType: body.locationType, locationId: body.locationId, productId: body.productId },
-    { $inc: { quantity: -body.quantity } },
-    { upsert: true }
-  );
-
-  await logActivity({
-    action: "created",
-    entity: "sale",
-    entityId: sale._id.toString(),
-    description: `Sale of ${body.quantity} units from ${body.locationType} to ${body.customerName || "unknown"} — ₦${body.totalAmount?.toLocaleString()}`,
-    userId: user.userId,
-    domainType: body.locationType === "truck" ? "depot" : body.locationType,
-    domainId: body.locationId,
-    productId: body.productId,
-    metadata: { locationType: body.locationType, quantity: body.quantity, totalAmount: body.totalAmount, customerName: body.customerName },
-  });
-
-  return NextResponse.json(sale, { status: 201 });
 }

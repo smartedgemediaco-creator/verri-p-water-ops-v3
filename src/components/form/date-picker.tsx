@@ -3,6 +3,7 @@ import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.css';
 import Label from './Label';
 import { CalenderIcon } from '../../icons';
+import { getDateFormat } from '@/lib/dateFormat';
 import Hook = flatpickr.Options.Hook;
 import DateOption = flatpickr.Options.DateOption;
 
@@ -13,6 +14,7 @@ type PropsType = {
   defaultDate?: DateOption;
   label?: string;
   placeholder?: string;
+  maxDate?: DateOption | null;
 };
 
 export default function DatePicker({
@@ -22,14 +24,15 @@ export default function DatePicker({
   label,
   defaultDate,
   placeholder,
+  maxDate,
 }: PropsType) {
   useEffect(() => {
     const flatPickr = flatpickr(`#${id}`, {
       mode: mode || "single",
-      static: true,
       monthSelectorType: "static",
-      dateFormat: "Y-m-d",
+      dateFormat: getDateFormat(),
       defaultDate,
+      maxDate: maxDate ?? new Date(),
       onChange,
     });
 
@@ -38,7 +41,7 @@ export default function DatePicker({
         flatPickr.destroy();
       }
     };
-  }, [mode, onChange, id, defaultDate]);
+  }, [mode, onChange, id, defaultDate, maxDate]);
 
   return (
     <div>

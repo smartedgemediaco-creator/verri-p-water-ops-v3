@@ -4,7 +4,12 @@ import { User } from "@/lib/models";
 import { hashPassword, getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const user = getUserFromRequest(req);
+  if (!user || user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await connectDB();
   const users = await User.find({}).select("-password").sort({ createdAt: -1 });
   return NextResponse.json(users);
@@ -17,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const { name, email, password, role, factoryId, depotId } = await req.json();
+  const { name, email, password, role, factoryId, depotId, truckId } = await req.json();
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -36,6 +41,7 @@ export async function POST(req: NextRequest) {
     role: role || "factory-manager",
     factoryId: factoryId || undefined,
     depotId: depotId || undefined,
+    truckId: truckId || undefined,
   });
 
   await logActivity({

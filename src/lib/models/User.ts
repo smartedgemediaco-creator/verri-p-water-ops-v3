@@ -7,6 +7,7 @@ export interface IUser extends Document {
   role: "admin" | "factory-manager" | "depot-manager" | "driver";
   factoryId?: Types.ObjectId;
   depotId?: Types.ObjectId;
+  truckId?: Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ const UserSchema = new Schema<IUser>(
     },
     factoryId: { type: Schema.Types.ObjectId, ref: "Factory" },
     depotId: { type: Schema.Types.ObjectId, ref: "Depot" },
+    truckId: { type: Schema.Types.ObjectId, ref: "Truck" },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

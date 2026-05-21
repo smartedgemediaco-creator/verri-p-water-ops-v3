@@ -6,6 +6,9 @@ import { logActivity } from "@/lib/logActivity";
 
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
+  if (!user || user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   await connectDB();
   const body = await req.json();
   const { products } = body;
@@ -26,12 +29,17 @@ export async function POST(req: NextRequest) {
       errors.push(`Row ${i + 1}: missing name`);
       continue;
     }
+    if (!p.unitPrice || Number(p.unitPrice) < 1) {
+      errors.push(`Row ${i + 1}: unitPrice is required and must be > 0`);
+      continue;
+    }
     try {
       await Product.create({
         name: p.name,
         unit: p.unit || "bag",
         category: p.category || "sachet",
         description: p.description || "",
+        unitPrice: Number(p.unitPrice),
       });
       count++;
     } catch (err: unknown) {
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest) {
     entity: "import",
     entityId: `batch-${Date.now()}`,
     description: `Imported ${count} products (${errors.length} errors)`,
-    userId: user?.userId,
+    userId: user.userId,
     metadata: { successCount: count, errorCount: errors.length, errors: errors.slice(0, 5) },
   });
 

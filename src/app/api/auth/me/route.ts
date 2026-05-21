@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { User } from "@/lib/models/User";
+import { User } from "@/lib/models";
 import { verifyToken } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
   const user = await User.findById(payload.userId)
     .select("-password")
     .populate("factoryId", "name")
-    .populate("depotId", "name");
+    .populate("depotId", "name")
+    .populate("truckId", "plateNumber driverName");
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }

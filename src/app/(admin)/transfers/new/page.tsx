@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import DatePicker from "@/components/form/date-picker";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 
 interface Option {
   value: string;
@@ -16,6 +18,7 @@ interface Option {
 
 export default function NewTransferPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const [fromType, setFromType] = useState("");
@@ -30,8 +33,35 @@ export default function NewTransferPage() {
 
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
-  const [products, setProducts] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
+  const [truckLocations, setTruckLocations] = useState<Option[]>([]);
+  const [products, setProducts] = useState<Option[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [availableStock, setAvailableStock] = useState<number | null>(null);
+  const [stockLoading, setStockLoading] = useState(false);
+
+  const isDepotManager = user?.role === "depot-manager";
+  const isFactoryManager = user?.role === "factory-manager";
+
+  const userDisplayName = user?.name ?? user?.email ?? "User";
+  const userDepotName = user?.depotName ?? (typeof user?.depotId === "object" ? user.depotId?.name : undefined) ?? "Your Depot";
+  const userFactoryName = user?.factoryName ?? (typeof user?.factoryId === "object" ? user.factoryId?.name : undefined) ?? "Your Factory";
+
+  useEffect(() => {
+    if (fromType && fromId && productId) {
+      setStockLoading(true);
+      fetch(`/api/inventory?locationType=${fromType}&locationId=${fromId}&productId=${productId}`)
+        .then((r) => r.json())
+        .then((data: { quantity?: number }[]) => {
+          const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
+          setAvailableStock(total);
+        })
+        .catch(() => setAvailableStock(null))
+        .finally(() => setStockLoading(false));
+    } else {
+      setAvailableStock(null);
+    }
+  }, [fromType, fromId, productId]);
 
   useEffect(() => {
     fetch("/api/products")
@@ -41,9 +71,11 @@ export default function NewTransferPage() {
       );
     fetch("/api/trucks")
       .then((r) => r.json())
-      .then((data: { _id: string; plateNumber: string }[]) =>
-        setTrucks(data.map((t) => ({ value: t._id, label: t.plateNumber })))
-      );
+      .then((data: { _id: string; plateNumber: string }[]) => {
+        const opts = data.map((t) => ({ value: t._id, label: t.plateNumber }));
+        setTrucks(opts);
+        setTruckLocations(opts);
+      });
     fetch("/api/factories")
       .then((r) => r.json())
       .then((data: { _id: string; name: string }[]) =>
@@ -56,11 +88,36 @@ export default function NewTransferPage() {
       );
   }, []);
 
-  const fromOptions = fromType === "factory" ? factories : fromType === "depot" ? depots : [];
-  const toOptions = toType === "factory" ? factories : toType === "depot" ? depots : [];
+  useEffect(() => {
+    if (isDepotManager && !fromType) setFromType("depot");
+    if (isFactoryManager && !fromType) setFromType("factory");
+  }, [isDepotManager, isFactoryManager, fromType]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isDepotManager && user?.depotId && !fromId) {
+      const id = typeof user.depotId === "string" ? user.depotId : user.depotId._id;
+      setFromId(id);
+    }
+    if (isFactoryManager && user?.factoryId && !fromId) {
+      const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
+      setFromId(id);
+    }
+  }, [isDepotManager, isFactoryManager, user?.depotId, user?.factoryId, fromId]);
+
+  const fromOptions = fromType === "factory" ? factories : fromType === "depot" ? depots : fromType === "truck" ? truckLocations : [];
+  const toOptions = toType === "factory" ? factories : toType === "depot" ? depots : toType === "truck" ? truckLocations : [];
+
+  const locationName = (id: string, type: string) => {
+    const opts = type === "factory" ? factories : type === "depot" ? depots : type === "truck" ? truckLocations : [];
+    return opts.find((o) => o.value === id)?.label ?? id.slice(-6);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/transfers", {
@@ -80,55 +137,68 @@ export default function NewTransferPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Failed to create transfer");
+        showError(err.error || "Failed to create transfer");
         setSubmitting(false);
-        return;
+        throw new Error(err.error || "Failed to create transfer");
       }
-      toast.success("Transfer created");
+      showSuccess("Transfer created");
       router.push("/transfers");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
+      throw e;
     }
   };
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">New Transfer</h1>
+      <div className="flex items-baseline justify-between mb-6">
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">New Transfer</h1>
+        <span className="text-xs text-gray-400 dark:text-gray-500">Created by: {userDisplayName}</span>
+      </div>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Type</label>
-            <Select
-              options={[
-                { value: "factory", label: "Factory" },
-                { value: "depot", label: "Depot" },
-              ]}
-              placeholder="Select type"
-              onChange={(val) => { setFromType(val); setFromId(""); }}
-            />
+        {isDepotManager || isFactoryManager ? (
+          <div className="p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-sm text-blue-700 dark:text-blue-400 font-medium">
+            Transferring from: {isDepotManager ? userDepotName : userFactoryName} ({isDepotManager ? "Depot" : "Factory"})
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Location</label>
-            <Select
-              options={fromOptions}
-              placeholder={fromType ? "Select location" : "Select type first"}
-              onChange={setFromId}
-            />
+        ) : null}
+        {isDepotManager || isFactoryManager ? null : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Type</label>
+              <Select
+                options={[
+                  { value: "factory", label: "Factory" },
+                  { value: "depot", label: "Depot" },
+                  { value: "truck", label: "Truck" },
+                ]}
+                placeholder="Select type"
+                onChange={(val) => { setFromType(val); setFromId(""); }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From Location</label>
+              <Select
+                options={fromOptions}
+                placeholder={fromType ? "Select location" : "Select type first"}
+                onChange={setFromId}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To Type</label>
-            <Select
-              options={[
-                { value: "factory", label: "Factory" },
-                { value: "depot", label: "Depot" },
-              ]}
-              placeholder="Select type"
-              onChange={(val) => { setToType(val); setToId(""); }}
-            />
+              <Select
+                options={[
+                  { value: "factory", label: "Factory" },
+                  { value: "depot", label: "Depot" },
+                  { value: "truck", label: "Truck" },
+                ]}
+                placeholder="Select type"
+                onChange={(val) => { setToType(val); setToId(""); }}
+              />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To Location</label>
@@ -147,7 +217,22 @@ export default function NewTransferPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
-            <InputField type="number" id="quantity" name="quantity" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+            <div className="relative">
+              <InputField type="number" id="quantity" name="quantity" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+              {availableStock !== null && fromId && productId && (
+                <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                  availableStock > 0
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                    : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${availableStock > 0 ? "bg-emerald-500" : "bg-red-500"}`} />
+                  {availableStock.toLocaleString()} avail.
+                </div>
+              )}
+              {stockLoading && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">loading...</div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -158,7 +243,7 @@ export default function NewTransferPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-            <DatePicker id="date" placeholder="Select date" defaultDate={date || undefined} onChange={(_dates, dateStr) => setDate(dateStr)} />
+            <DatePicker id="date" placeholder="Select date" defaultDate={date || undefined} maxDate={null} onChange={(_dates, dateStr) => setDate(dateStr)} />
           </div>
         </div>
 
@@ -176,6 +261,26 @@ export default function NewTransferPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Create Transfer"
+        message={
+          <>
+            You are about to create a new stock transfer. This will affect inventory levels at both locations.
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>From:</strong> {locationName(fromId, fromType)} ({fromType})</li>
+              <li><strong>To:</strong> {locationName(toId, toType)} ({toType})</li>
+              <li><strong>Quantity:</strong> {quantity}</li>
+            </ul>
+            <p className="mt-2">Once created, this transfer can be dispatched and confirmed. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Create Transfer"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

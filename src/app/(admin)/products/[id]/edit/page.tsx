@@ -2,24 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "" });
+  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "" });
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/products/${id}`)
       .then(r => r.json())
-      .then(data => setForm({ name: data.name, unit: data.unit, category: data.category, description: data.description || "" }))
+      .then(data => setForm({ name: data.name, unit: data.unit, category: data.category, description: data.description || "", unitPrice: String(data.unitPrice ?? "") }))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -27,8 +29,7 @@ export default function EditProductPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/products/${id}`, {
@@ -37,16 +38,22 @@ export default function EditProductPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        toast.error("Failed to update product");
+        const err = await res.json();
+        showError(err.error || "Failed to update product");
         setSubmitting(false);
-        return;
+        throw new Error(err.error || "Failed to update product");
       }
-      toast.success("Product updated");
+      showSuccess("Product updated");
       router.push("/products");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfirmOpen(true);
   };
 
   if (loading) return <div className="text-gray-500">Loading...</div>;
@@ -75,6 +82,10 @@ export default function EditProductPage() {
           />
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦) <span className="text-red-500">*</span></label>
+          <InputField type="number" id="unitPrice" name="unitPrice" value={form.unitPrice} onChange={handleChange} />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <InputField id="description" name="description" value={form.description} onChange={handleChange} />
         </div>
@@ -87,6 +98,25 @@ export default function EditProductPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Confirm Product Update"
+        message={
+          <>
+            You are about to update this product:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Category:</strong> {form.category}</li>
+              <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
+            </ul>
+            <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Update Product"
+        variant="warning"
+      />
     </div>
   );
 }

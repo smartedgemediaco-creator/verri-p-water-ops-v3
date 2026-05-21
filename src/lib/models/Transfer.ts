@@ -1,9 +1,9 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITransfer extends Document {
-  fromType: "factory" | "depot";
+  fromType: "factory" | "depot" | "truck";
   fromId: Types.ObjectId;
-  toType: "factory" | "depot";
+  toType: "factory" | "depot" | "truck";
   toId: Types.ObjectId;
   productId: Types.ObjectId;
   quantity: number;
@@ -17,9 +17,9 @@ export interface ITransfer extends Document {
 
 const TransferSchema = new Schema<ITransfer>(
   {
-    fromType: { type: String, enum: ["factory", "depot"], required: true },
+    fromType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     fromId: { type: Schema.Types.ObjectId, required: true },
-    toType: { type: String, enum: ["factory", "depot"], required: true },
+    toType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     toId: { type: Schema.Types.ObjectId, required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     quantity: { type: Number, required: true },

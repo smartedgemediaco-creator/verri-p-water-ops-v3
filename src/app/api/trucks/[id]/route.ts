@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { Truck } from "@/lib/models";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = getUserFromRequest(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   await connectDB();
   const truck = await Truck.findById(id);
@@ -20,6 +23,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = getUserFromRequest(req);
+  if (!user || !isAdmin(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   await connectDB();
   const body = await req.json();
@@ -31,7 +38,7 @@ export async function PUT(
     entity: "truck",
     entityId: id,
     description: `Updated truck "${truck.plateNumber}"`,
-    userId: user?.userId,
+    userId: user.userId,
     metadata: { changes: body },
   });
 
@@ -39,10 +46,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = getUserFromRequest(_req);
+  const user = getUserFromRequest(req);
+  if (!user || !isAdmin(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   await connectDB();
   const truck = await Truck.findByIdAndDelete(id);
@@ -53,7 +64,7 @@ export async function DELETE(
     entity: "truck",
     entityId: id,
     description: `Deleted truck "${truck.plateNumber}"`,
-    userId: user?.userId,
+    userId: user.userId,
   });
 
   return NextResponse.json({ message: "Deleted" });

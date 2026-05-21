@@ -13,8 +13,10 @@ import Select from "@/components/form/Select";
 import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { formatDateTime } from "@/lib/dateFormat";
 import Pagination from "@/components/tables/Pagination";
 import DatePicker from "@/components/form/date-picker";
+import { WaterDropIcon } from "@/components/icons/EntityIcons";
 
 interface ActivityUser {
   _id: string;
@@ -93,6 +95,15 @@ const entityIcon = (entity: string) => {
   return map[entity] ?? "📌";
 };
 
+const actionIcon = (action: string) => {
+  const map: Record<string, string> = {
+    created: "➕",
+    updated: "✏️",
+    deleted: "🗑️",
+  };
+  return map[action] ?? "📌";
+};
+
 export default function ActivityPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 30, total: 0, totalPages: 0 });
@@ -110,6 +121,19 @@ export default function ActivityPage() {
   const [dateKey, setDateKey] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  const actionColors: Record<string, { bg: string; color: string }> = {
+    created: { bg: "#ecfdf5", color: "#059669" },
+    deleted: { bg: "#fef2f2", color: "#dc2626" },
+    updated: { bg: "#fffbeb", color: "#d97706" },
+  };
+  const entityLabel: Record<string, string> = {
+    factory: "🏭", depot: "🏬", truck: "🚚", product: "📦",
+    production: "⚙️", sale: "💰", cost: "📉", transfer: "🔄",
+    inventory: "📋", user: "👤", import: "📥",
+  };
+  const fmtDate = (dateStr: string) => formatDateTime(dateStr);
 
   useEffect(() => {
     fetch("/api/products")
@@ -173,20 +197,57 @@ export default function ActivityPage() {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, logging: false });
+      const target = pdfRef.current ?? reportRef.current;
+      const canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          for (let si = 0; si < clonedDoc.styleSheets.length; si++) {
+            const sheet = clonedDoc.styleSheets[si];
+            try {
+              const removeOklabRules = (rules: CSSRuleList, parent: CSSGroupingRule | CSSStyleSheet) => {
+                for (let i = rules.length - 1; i >= 0; i--) {
+                  const rule = rules[i];
+                  if (rule instanceof CSSGroupingRule && rule.cssRules.length) {
+                    removeOklabRules(rule.cssRules, rule);
+                  }
+                  if (rule.cssText?.includes("color-mix(in oklab")) {
+                    parent.deleteRule(i);
+                  }
+                }
+              };
+              removeOklabRules(sheet.cssRules, sheet);
+            } catch {
+              /* cross-origin sheet */
+            }
+          }
+        },
+      });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 190;
+      const margin = 10;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+      const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 10;
-      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-      heightLeft -= pdf.internal.pageSize.height - 20;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-        heightLeft -= pdf.internal.pageSize.height - 20;
+
+      const pxPerMm = canvas.width / pageWidth;
+      const pageCanvasPx = Math.floor(pageHeight * pxPerMm);
+
+      let srcY = 0;
+      let pageNum = 0;
+      while (srcY < canvas.height) {
+        const sliceH = Math.min(pageCanvasPx, canvas.height - srcY);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceH;
+        const ctx = pageCanvas.getContext("2d");
+        if (ctx) ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        if (pageNum > 0) pdf.addPage();
+        pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", margin, margin, imgWidth, (sliceH * imgWidth) / canvas.width);
+        srcY += sliceH;
+        pageNum++;
       }
       const filename = `activity-log-${new Date().toISOString().slice(0, 10)}.pdf`;
       pdf.save(filename);
@@ -195,17 +256,6 @@ export default function ActivityPage() {
     } finally {
       setPdfLoading(false);
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-NG", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   return (
@@ -272,7 +322,7 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      <div ref={reportRef} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div ref={reportRef} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Activity Log</h3>
           <p className="text-xs text-gray-400 mt-1">
@@ -284,17 +334,17 @@ export default function ActivityPage() {
           </p>
         </div>
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader>
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 w-16">Type</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Action</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Entity</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Description</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">User</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 w-16">Type</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Action</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Entity</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Description</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">User</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>Loading...</TableCell>
@@ -312,12 +362,12 @@ export default function ActivityPage() {
                     className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
                     onClick={() => setExpanded(expanded === log._id ? null : log._id)}
                   >
-                    <TableCell className="py-3 text-lg">{entityIcon(log.entity)}</TableCell>
+                    <TableCell className="py-3 text-lg">{actionIcon(log.action)}</TableCell>
                     <TableCell className="py-3">{actionBadge(log.action)}</TableCell>
                     <TableCell className="py-3">
                       <span className="capitalize text-theme-sm font-medium text-gray-800 dark:text-white/90">{log.entity}</span>
                       <br />
-                      <span className="text-xs text-gray-400 font-mono">{log.entityId.slice(-8)}</span>
+                      <span className="text-xs text-gray-400 font-mono">{(log.entityId ?? "").slice(-8)}</span>
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {log.description}
@@ -334,7 +384,7 @@ export default function ActivityPage() {
                       )}
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {formatDate(log.createdAt)}
+                      {fmtDate(log.createdAt)}
                     </TableCell>
                   </TableRow>
                   {expanded === log._id && (
@@ -389,6 +439,89 @@ export default function ActivityPage() {
             />
           </div>
         )}
+      </div>
+
+      <div ref={pdfRef} style={{
+        position: "absolute", left: "-9999px", top: 0, width: "1200px",
+        fontFamily: "Outfit, sans-serif", backgroundColor: "#ffffff",
+      }}>
+        <div style={{ height: "6px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)" }} />
+
+        <div style={{ padding: "32px 32px 24px", borderBottom: "1px solid #e4e7ec" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            <WaterDropIcon className="w-9 h-9 [&>path]:fill-[#465fff]" />
+            <div>
+              <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#101828", letterSpacing: "-0.02em", margin: 0 }}>Verri P Water Inc</h1>
+              <p style={{ fontSize: "14px", margin: "2px 0 0", color: "#667085", textTransform: "uppercase", letterSpacing: "0.02em", fontWeight: 500 }}>Activity Log Report</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px", fontSize: "12px", color: "#98a2b3" }}>
+            <span><span style={{ color: "#667085", fontWeight: 600 }}>Records:</span> {pagination.total}</span>
+            {filterEntity && <span><span style={{ color: "#667085", fontWeight: 600 }}>Entity:</span> {filterEntity}</span>}
+            {filterAction && <span><span style={{ color: "#667085", fontWeight: 600 }}>Action:</span> {filterAction}</span>}
+            {startDate && <span><span style={{ color: "#667085", fontWeight: 600 }}>From:</span> {startDate}</span>}
+            {endDate && <span><span style={{ color: "#667085", fontWeight: 600 }}>To:</span> {endDate}</span>}
+          </div>
+        </div>
+
+        <div style={{ padding: "24px 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+            <div style={{ width: "4px", height: "20px", backgroundColor: "#465fff", borderRadius: "2px" }} />
+            <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#101828", margin: 0 }}>Activity Entries</h2>
+            <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{logs.length} entries</span>
+          </div>
+
+          <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1px solid #e4e7ec" }}>
+            <thead>
+              <tr style={{ backgroundColor: "#f9fafb" }}>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085", width: "48px" }}>Type</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Action</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Entity</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Description</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>User</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+              </tr>
+            </thead>
+            <tbody style={{ backgroundColor: "#ffffff" }}>
+              {logs.map((log) => {
+                const ac = actionColors[log.action] ?? { bg: "#f2f4f7", color: "#667085" };
+                return (
+                  <tr key={log._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                    <td style={{ padding: "12px 16px", fontSize: "18px", textAlign: "center" }}>{actionIcon(log.action)}</td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "11px", fontWeight: 500, backgroundColor: ac.bg, color: ac.color }}>{log.action}</span>
+                    </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ fontWeight: 500, color: "#344054", fontSize: "13px", textTransform: "capitalize" }}>{log.entity}</div>
+                      <div style={{ fontSize: "11px", color: "#98a2b3", fontFamily: "monospace" }}>{(log.entityId ?? "").slice(-8)}</div>
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "#667085", fontSize: "13px", maxWidth: "280px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description}</td>
+                    <td style={{ padding: "12px 16px", color: "#667085", fontSize: "13px" }}>
+                      {log.user ? (
+                        <div>
+                          <div style={{ color: "#344054", fontWeight: 500 }}>{log.user.name}</div>
+                          <div style={{ fontSize: "11px", color: "#98a2b3", textTransform: "capitalize" }}>{log.user.role}</div>
+                        </div>
+                      ) : (
+                        <span style={{ color: "#98a2b3" }}>System</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "#667085", fontSize: "13px", whiteSpace: "nowrap" }}>{fmtDate(log.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ borderTop: "1px solid #e4e7ec", padding: "16px 32px", textAlign: "center" }}>
+          <p style={{ fontSize: "12px", color: "#98a2b3", margin: 0 }}>
+            <span style={{ fontWeight: 600, color: "#667085" }}>Verri P Water Inc</span> — Operations Management System
+            <br />
+            Generated {new Date().toLocaleString("en-NG")}
+          </p>
+          <div style={{ marginTop: "8px", height: "3px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)", borderRadius: "2px", maxWidth: "240px", marginLeft: "auto", marginRight: "auto" }} />
+        </div>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ export interface ICost extends Document {
   category: "production" | "transport" | "maintenance" | "salary" | "utility" | "other";
   amount: number;
   description: string;
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: Types.ObjectId;
   date: Date;
   createdAt: Date;
@@ -20,7 +20,7 @@ const CostSchema = new Schema<ICost>(
     },
     amount: { type: Number, required: true },
     description: { type: String, default: "" },
-    locationType: { type: String, enum: ["factory", "depot"], required: true },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true },
     date: { type: Date, default: Date.now },
   },

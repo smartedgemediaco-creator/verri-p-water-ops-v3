@@ -6,31 +6,46 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon } from "@/icons";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { DepotIcon } from "@/components/icons/EntityIcons";
 
 interface Depot {
   _id: string;
   name: string;
   location: string;
-  manager: string;
   isActive: boolean;
 }
 
 export default function DepotsPage() {
   const [depots, setDepots] = useState<Depot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [assignedUsers, setAssignedUsers] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch("/api/depots")
-      .then((res) => res.json())
-      .then((data) => setDepots(data))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/depots").then((r) => r.json()),
+      fetch("/api/users").then((r) => r.json()),
+    ]).then(([depotData, userData]) => {
+      setDepots(depotData);
+      const map: Record<string, string> = {};
+      const raw = Array.isArray(userData) ? userData : ((userData as Record<string, unknown>)?.users as unknown[] ?? []);
+      for (const u of raw) {
+        const user = u as { name: string; depotId?: string | { _id: string } };
+        const depotId = typeof user.depotId === "string" ? user.depotId : user.depotId?._id;
+        if (depotId) map[depotId] = user.name;
+      }
+      setAssignedUsers(map);
+    }).finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this depot?")) return;
-    await fetch(`/api/depots/${id}`, { method: "DELETE" });
-    setDepots((prev) => prev.filter((d) => d._id !== id));
+  const handleDelete = (id: string) => setDeleteTarget(id);
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/depots/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed to delete");
+    setDepots((prev) => prev.filter((d) => d._id !== deleteTarget));
   };
 
   const totalActive = depots.filter((d) => d.isActive).length;
@@ -70,32 +85,32 @@ export default function DepotsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader>
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Manager</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Manager</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>Loading...</TableCell>
               </TableRow>
             ) : depots.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>No depots found. Click "Add Depot" to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>No depots found. Click &quot;Add Depot&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               depots.map((depot) => (
                 <TableRow key={depot._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{depot.name}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{depot.location}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{depot.manager}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{assignedUsers[depot._id] || "—"}</TableCell>
                   <TableCell className="py-3">
                     <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${
                       depot.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"
@@ -126,6 +141,16 @@ export default function DepotsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete Depot"
+        message="This will permanently delete this depot and all associated data. This action cannot be undone."
+        confirmLabel="Delete Depot"
+        variant="danger"
+      />
     </div>
   );
 }

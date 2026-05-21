@@ -47,6 +47,11 @@ export async function GET(req: NextRequest) {
       { domainType: "depot", domainId: user.depotId },
       { domainType: { $exists: false } },
     ];
+  } else if (user.role === "driver" && user.truckId) {
+    filter.$or = [
+      { domainType: "truck", domainId: user.truckId },
+      { domainType: { $exists: false } },
+    ];
   }
 
   const [logs, total] = await Promise.all([
@@ -67,7 +72,7 @@ export async function GET(req: NextRequest) {
   const enriched = logs.map((log) => ({
     ...log,
     _id: log._id.toString(),
-    entityId: log.entityId.toString(),
+    entityId: log.entityId?.toString() ?? "",
     user: log.userId ? userMap.get(log.userId) ?? null : null,
   }));
 

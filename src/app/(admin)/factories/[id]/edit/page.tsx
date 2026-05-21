@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function EditFactoryPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function EditFactoryPage() {
   const [form, setForm] = useState({ name: "", location: "", capacity: "" });
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/factories/${id}`)
@@ -26,8 +28,12 @@ export default function EditFactoryPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/factories/${id}`, {
@@ -36,14 +42,14 @@ export default function EditFactoryPage() {
         body: JSON.stringify({ ...form, capacity: Number(form.capacity) }),
       });
       if (!res.ok) {
-        toast.error("Failed to update factory");
+        showError("Failed to update factory");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to update factory");
       }
-      toast.success("Factory updated");
+      showSuccess("Factory updated");
       router.push("/factories");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
   };
@@ -75,6 +81,26 @@ export default function EditFactoryPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Update Factory"
+        message={
+          <>
+            You are about to update this factory:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Location:</strong> {form.location}</li>
+              <li><strong>Capacity:</strong> {form.capacity}</li>
+            </ul>
+            <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Update Factory"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

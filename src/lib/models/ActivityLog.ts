@@ -7,7 +7,7 @@ export interface IActivityLog extends Document {
   description: string;
   userId?: string;
   metadata?: Record<string, any>;
-  domainType?: "factory" | "depot";
+  domainType?: "factory" | "depot" | "truck";
   domainId?: string;
   productId?: string;
   createdAt: Date;
@@ -22,7 +22,7 @@ const ActivityLogSchema = new Schema<IActivityLog>(
     description: { type: String, required: true },
     userId: { type: String },
     metadata: { type: Schema.Types.Mixed },
-    domainType: { type: String, enum: ["factory", "depot"] },
+    domainType: { type: String, enum: ["factory", "depot", "truck"] },
     domainId: { type: String },
     productId: { type: String },
   },

@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { Outfit } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
+import '@fontsource/outfit/100.css';
+import '@fontsource/outfit/200.css';
+import '@fontsource/outfit/300.css';
+import '@fontsource/outfit/400.css';
+import '@fontsource/outfit/500.css';
+import '@fontsource/outfit/600.css';
+import '@fontsource/outfit/700.css';
+import '@fontsource/outfit/800.css';
+import '@fontsource/outfit/900.css';
 import './globals.css';
 import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProviderWrapper } from "./auth-wrapper";
-
-const outfit = Outfit({
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Verri P Water Inc",
@@ -24,13 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.className} dark:bg-gray-900`}>
+      <body className="dark:bg-gray-900">
         <ThemeProvider>
           <SidebarProvider>
             <AuthProviderWrapper>{children}</AuthProviderWrapper>
           </SidebarProvider>
         </ThemeProvider>
-        <Toaster position="top-right" toastOptions={{ duration: 4000, style: { fontSize: '14px' } }} />
+        <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} toastOptions={{ duration: 4000 }} />
       </body>
     </html>
   );

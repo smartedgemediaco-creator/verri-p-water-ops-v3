@@ -5,8 +5,11 @@ import Link from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
+import Select from "@/components/form/Select";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { PlusIcon, UserIcon, GroupIcon } from "@/icons";
+import { PlusIcon, UserIcon, GroupIcon, PencilIcon } from "@/icons";
+import { formatDate } from "@/lib/dateFormat";
+import { showSuccess, showError } from "@/lib/toast";
 
 interface User {
   _id: string;
@@ -15,8 +18,14 @@ interface User {
   role: string;
   factoryId?: { _id: string; name: string } | string;
   depotId?: { _id: string; name: string } | string;
+  truckId?: { _id: string; plateNumber: string } | string;
   isActive: boolean;
   createdAt: string;
+}
+
+interface Option {
+  value: string;
+  label: string;
 }
 
 const roleBadge = (role: string) => {
@@ -42,6 +51,15 @@ const roleLabel = (role: string) => {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editFactoryId, setEditFactoryId] = useState("");
+  const [editDepotId, setEditDepotId] = useState("");
+  const [editTruckId, setEditTruckId] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [factories, setFactories] = useState<Option[]>([]);
+  const [depots, setDepots] = useState<Option[]>([]);
+  const [trucks, setTrucks] = useState<Option[]>([]);
 
   const fetchUsers = useCallback(() => {
     setLoading(true);
@@ -53,6 +71,18 @@ export default function UsersPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
+  useEffect(() => {
+    fetch("/api/factories").then((r) => r.json()).then((data: { _id: string; name: string }[]) =>
+      setFactories(data.map((f) => ({ value: f._id, label: f.name })))
+    );
+    fetch("/api/depots").then((r) => r.json()).then((data: { _id: string; name: string }[]) =>
+      setDepots(data.map((d) => ({ value: d._id, label: d.name })))
+    );
+    fetch("/api/trucks").then((r) => r.json()).then((data: { _id: string; plateNumber: string }[]) =>
+      setTrucks(data.map((t) => ({ value: t._id, label: t.plateNumber })))
+    );
+  }, []);
+
   const toggleActive = async (id: string, current: boolean) => {
     await fetch(`/api/users/${id}`, {
       method: "PATCH",
@@ -62,11 +92,40 @@ export default function UsersPage() {
     fetchUsers();
   };
 
+  const openEdit = (u: User) => {
+    setEditTarget(u);
+    setEditFactoryId(typeof u.factoryId === "object" ? u.factoryId._id : u.factoryId ?? "");
+    setEditDepotId(typeof u.depotId === "object" ? u.depotId._id : u.depotId ?? "");
+    setEditTruckId(typeof u.truckId === "object" ? u.truckId._id : u.truckId ?? "");
+  };
+
+  const saveEdit = async () => {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      const body: Record<string, any> = {};
+      if (editTarget.role === "factory-manager") body.factoryId = editFactoryId || null;
+      if (editTarget.role === "depot-manager") body.depotId = editDepotId || null;
+      if (editTarget.role === "driver") body.truckId = editTruckId || null;
+      const res = await fetch(`/api/users/${editTarget._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { showError("Failed to update"); return; }
+      showSuccess("User updated");
+      setEditTarget(null);
+      fetchUsers();
+    } catch { showError("Network error"); }
+    finally { setEditSaving(false); }
+  };
+
   const totalActive = users.filter((u) => u.isActive).length;
 
   const assignedTo = (user: User): string => {
     if (user.factoryId && typeof user.factoryId === "object") return user.factoryId.name;
     if (user.depotId && typeof user.depotId === "object") return user.depotId.name;
+    if (user.truckId && typeof user.truckId === "object") return `Truck: ${user.truckId.plateNumber}`;
     return "";
   };
 
@@ -105,51 +164,52 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <Table>
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+          <TableHeader>
             <TableRow>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Email</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Assigned To</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Joined</TableCell>
-              <TableCell isHeader className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Action</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Email</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Assigned To</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Joined</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>Loading...</TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No users found. Click "Add User" to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No users found. Click &quot;Add User&quot; to create one.</TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow key={user._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{user.name}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{user.email}</TableCell>
-                  <TableCell className="py-3">{roleBadge(user.role)}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{assignedTo(user) || roleLabel(user.role)}</TableCell>
+              users.filter((u) => u._id).map((u) => (
+                <TableRow key={u._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{u.name}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{u.email}</TableCell>
+                  <TableCell className="py-3">{roleBadge(u.role)}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{assignedTo(u) || roleLabel(u.role)}</TableCell>
                   <TableCell className="py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"
+                      u.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"
                     }`}>
-                      {user.isActive ? "Active" : "Inactive"}
+                      {u.isActive ? "Active" : "Inactive"}
                     </span>
                   </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(u.createdAt)}</TableCell>
                   <TableCell className="py-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleActive(user._id, user.isActive)}
-                    >
-                      {user.isActive ? "Revoke" : "Activate"}
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => openEdit(u)}>
+                        <PencilIcon className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => toggleActive(u._id, u.isActive)}>
+                        {u.isActive ? "Revoke" : "Activate"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -157,6 +217,39 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setEditTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">Edit User</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{editTarget.name} ({editTarget.email})</p>
+
+            {editTarget.role === "factory-manager" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned Factory</label>
+                <Select options={factories} placeholder="Select factory" value={editFactoryId} onChange={setEditFactoryId} />
+              </div>
+            )}
+            {editTarget.role === "depot-manager" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned Depot</label>
+                <Select options={depots} placeholder="Select depot" value={editDepotId} onChange={setEditDepotId} />
+              </div>
+            )}
+            {editTarget.role === "driver" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned Truck</label>
+                <Select options={trucks} placeholder="Select truck" value={editTruckId} onChange={setEditTruckId} />
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setEditTarget(null)}>Cancel</Button>
+              <Button size="sm" disabled={editSaving} onClick={saveEdit}>{editSaving ? "Saving..." : "Save"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

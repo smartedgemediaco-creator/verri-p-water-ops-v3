@@ -10,6 +10,7 @@
     "seed": "node --import tsx --env-file=.env.local scripts/seed.ts"
   },
   "dependencies": {
+    "@fontsource/outfit": "^5.2.8",
     "@fullcalendar/core": "^6.1.19",
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
@@ -37,6 +38,7 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
+    "react-hot-toast": "^2.6.0",
     "swiper": "^11.2.10",
     "tailwind-merge": "^2.6.0"
   },

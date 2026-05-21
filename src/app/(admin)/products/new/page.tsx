@@ -2,22 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "" });
+  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch("/api/products", {
@@ -26,14 +32,15 @@ export default function NewProductPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        toast.error("Failed to add product");
+        const err = await res.json();
+        showError(err.error || "Failed to add product");
         setSubmitting(false);
-        return;
+        throw new Error(err.error || "Failed to add product");
       }
-      toast.success("Product added");
+      showSuccess("Product added");
       router.push("/products");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
   };
@@ -62,6 +69,10 @@ export default function NewProductPage() {
           />
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦) <span className="text-red-500">*</span></label>
+          <InputField type="number" id="unitPrice" name="unitPrice" placeholder="e.g. 120" value={form.unitPrice} onChange={handleChange} />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <InputField id="description" name="description" placeholder="Description (optional)" value={form.description} onChange={handleChange} />
         </div>
@@ -74,6 +85,26 @@ export default function NewProductPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Create Product"
+        message={
+          <>
+            You are about to create a new product:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Category:</strong> {form.category}</li>
+              <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
+            </ul>
+            <p className="mt-2">This product will be available for inventory and sales. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Create Product"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

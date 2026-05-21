@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import Button from "@/components/ui/button/Button";
 
 export default function ImportProductsPage() {
@@ -35,10 +35,10 @@ export default function ImportProductsPage() {
     const data = await res.json();
     setResult(data);
     if (res.ok) {
-      toast.success(`${data.success} products imported`);
+      showSuccess(`${data.success} products imported`);
       setCsv("");
     } else {
-      toast.error(data.error || "Import failed");
+      showError(data.error || "Import failed");
     }
     setSubmitting(false);
   };

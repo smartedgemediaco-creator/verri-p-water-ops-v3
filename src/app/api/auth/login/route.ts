@@ -3,6 +3,7 @@ import connectDB from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { Factory } from "@/lib/models/Factory";
 import { Depot } from "@/lib/models/Depot";
+import { Truck } from "@/lib/models/Truck";
 import { comparePassword, signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -29,10 +30,12 @@ export async function POST(req: NextRequest) {
     role: user.role,
     factoryId: user.factoryId?.toString(),
     depotId: user.depotId?.toString(),
+    truckId: user.truckId?.toString(),
   });
 
   let factoryName: string | undefined;
   let depotName: string | undefined;
+  let truckName: string | undefined;
   if (user.factoryId) {
     const factory = await Factory.findById(user.factoryId).select("name");
     factoryName = factory?.name;
@@ -40,6 +43,10 @@ export async function POST(req: NextRequest) {
   if (user.depotId) {
     const depot = await Depot.findById(user.depotId).select("name");
     depotName = depot?.name;
+  }
+  if (user.truckId) {
+    const truck = await Truck.findById(user.truckId).select("plateNumber");
+    truckName = truck?.plateNumber;
   }
 
   const res = NextResponse.json({
@@ -50,8 +57,10 @@ export async function POST(req: NextRequest) {
       role: user.role,
       factoryId: user.factoryId,
       depotId: user.depotId,
+      truckId: user.truckId ? { _id: user.truckId, plateNumber: truckName || "" } : undefined,
       factoryName,
       depotName,
+      truckName,
     },
     token,
   });

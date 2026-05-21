@@ -2,23 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function EditDepotPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [form, setForm] = useState({ name: "", location: "", manager: "" });
+  const [form, setForm] = useState({ name: "", location: "" });
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/depots/${id}`)
       .then(r => r.json())
-      .then(data => setForm({ name: data.name, location: data.location, manager: data.manager }))
+      .then(data => setForm({ name: data.name, location: data.location }))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -26,8 +28,7 @@ export default function EditDepotPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/depots/${id}`, {
@@ -36,16 +37,21 @@ export default function EditDepotPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        toast.error("Failed to update depot");
+        showError("Failed to update depot");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to update depot");
       }
-      toast.success("Depot updated");
+      showSuccess("Depot updated");
       router.push("/depots");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfirmOpen(true);
   };
 
   if (loading) return <div className="text-gray-500">Loading...</div>;
@@ -62,10 +68,6 @@ export default function EditDepotPage() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
           <InputField id="location" name="location" value={form.location} onChange={handleChange} />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manager</label>
-          <InputField id="manager" name="manager" value={form.manager} onChange={handleChange} />
-        </div>
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? "Saving..." : "Update"}
@@ -75,6 +77,24 @@ export default function EditDepotPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Confirm Depot Update"
+        message={
+          <>
+            You are about to update this depot:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Name:</strong> {form.name}</li>
+              <li><strong>Location:</strong> {form.location}</li>
+            </ul>
+            <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Update Depot"
+        variant="warning"
+      />
     </div>
   );
 }

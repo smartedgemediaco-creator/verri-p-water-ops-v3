@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function EditTruckPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function EditTruckPage() {
   const [depots, setDepots] = useState<{ value: string; label: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -40,8 +42,7 @@ export default function EditTruckPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     setSubmitting(true);
     const body: any = { ...form, capacity: Number(form.capacity) };
     if (assignedToType && assignedToId) {
@@ -58,16 +59,25 @@ export default function EditTruckPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        toast.error("Failed to update truck");
+        showError("Failed to update truck");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to update truck");
       }
-      toast.success("Truck updated");
+      showSuccess("Truck updated");
       router.push("/trucks");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.plateNumber.trim()) {
+      showError("Plate number is required");
+      return;
+    }
+    setConfirmOpen(true);
   };
 
   if (loading) return <div className="text-gray-500">Loading...</div>;
@@ -77,19 +87,19 @@ export default function EditTruckPage() {
       <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Edit Truck</h1>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number <span className="text-red-500">*</span></label>
           <InputField id="plateNumber" name="plateNumber" value={form.plateNumber} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Name</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Name <span className="text-gray-400 font-normal">(optional)</span></label>
           <InputField id="driverName" name="driverName" value={form.driverName} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity <span className="text-gray-400 font-normal">(optional)</span></label>
           <InputField id="capacity" name="capacity" type="number" value={form.capacity} onChange={handleChange} />
         </div>
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assignment</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assignment <span className="text-gray-400 font-normal">(optional)</span></p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Assign To</label>
@@ -115,7 +125,7 @@ export default function EditTruckPage() {
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <Button type="submit" variant="primary" disabled={submitting}>
+          <Button type="submit" variant="primary" disabled={submitting || !form.plateNumber.trim()}>
             {submitting ? "Saving..." : "Update"}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/trucks")}>
@@ -123,6 +133,25 @@ export default function EditTruckPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Confirm Truck Update"
+        message={
+          <>
+            You are about to update this truck:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Plate:</strong> {form.plateNumber}</li>
+              <li><strong>Driver:</strong> {form.driverName}</li>
+              <li><strong>Capacity:</strong> {form.capacity}</li>
+            </ul>
+            <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Update Truck"
+        variant="warning"
+      />
     </div>
   );
 }

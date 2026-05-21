@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewTruckPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function NewTruckPage() {
   const [factories, setFactories] = useState<{ value: string; label: string }[]>([]);
   const [depots, setDepots] = useState<{ value: string; label: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/factories").then(r => r.json()).then(data =>
@@ -31,8 +33,16 @@ export default function NewTruckPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.plateNumber.trim()) {
+      showError("Plate number is required");
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
     setSubmitting(true);
     const body: any = { ...form, capacity: Number(form.capacity) };
     if (assignedToType && assignedToId) {
@@ -46,14 +56,14 @@ export default function NewTruckPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        toast.error("Failed to add truck");
+        showError("Failed to add truck");
         setSubmitting(false);
-        return;
+        throw new Error("Failed to add truck");
       }
-      toast.success("Truck added");
+      showSuccess("Truck added");
       router.push("/trucks");
-    } catch {
-      toast.error("Network error");
+    } catch (e) {
+      if (!(e instanceof Error) || !e.message) showError("Network error");
       setSubmitting(false);
     }
   };
@@ -63,15 +73,15 @@ export default function NewTruckPage() {
       <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Add Truck</h1>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number <span className="text-red-500">*</span></label>
           <InputField id="plateNumber" name="plateNumber" placeholder="Plate number" value={form.plateNumber} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Name</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Name <span className="text-gray-400 font-normal">(optional)</span></label>
           <InputField id="driverName" name="driverName" placeholder="Driver name" value={form.driverName} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity <span className="text-gray-400 font-normal">(optional)</span></label>
           <InputField id="capacity" name="capacity" type="number" placeholder="Capacity" value={form.capacity} onChange={handleChange} />
         </div>
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -99,7 +109,7 @@ export default function NewTruckPage() {
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <Button type="submit" variant="primary" disabled={submitting}>
+          <Button type="submit" variant="primary" disabled={submitting || !form.plateNumber.trim()}>
             {submitting ? "Saving..." : "Save"}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/trucks")}>
@@ -107,6 +117,27 @@ export default function NewTruckPage() {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        title="Create Truck"
+        message={
+          <>
+            You are about to create a new truck:
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Plate:</strong> {form.plateNumber}</li>
+              <li><strong>Driver:</strong> {form.driverName}</li>
+              <li><strong>Capacity:</strong> {form.capacity}</li>
+              {assignedToType && <li><strong>Assigned to:</strong> {assignedToType}</li>}
+            </ul>
+            <p className="mt-2">This entity will be immediately available in the system. Are you sure?</p>
+          </>
+        }
+        confirmLabel="Create Truck"
+        variant="warning"
+        loading={submitting}
+      />
     </div>
   );
 }

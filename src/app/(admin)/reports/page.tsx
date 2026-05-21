@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Select from "@/components/form/Select";
-import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import DatePicker from "@/components/form/date-picker";
+import { formatDate } from "@/lib/dateFormat";
 
 interface FilterOption {
   value: string;
@@ -117,6 +117,7 @@ interface ReportData {
 
 export default function ReportsPage() {
   const reportRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [data, setData] = useState<ReportData | null>(null);
@@ -130,7 +131,7 @@ export default function ReportsPage() {
   const [filterProduct, setFilterProduct] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [dateKey, setDateKey] = useState(0);
+  const [dateKey, _setDateKey] = useState(0);
 
   const domainOptions = domainType === "factory" ? factories : domainType === "depot" ? depots : [];
 
@@ -181,28 +182,75 @@ export default function ReportsPage() {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(reportRef.current, {
+      const target = pdfRef.current ?? reportRef.current;
+      const canvas = await html2canvas(target, {
         scale: 2,
         useCORS: true,
         logging: false,
+        onclone: (clonedDoc: Document) => {
+          for (let si = 0; si < clonedDoc.styleSheets.length; si++) {
+            const sheet = clonedDoc.styleSheets[si];
+            try {
+              const removeOklabRules = (rules: CSSRuleList, parent: CSSGroupingRule | CSSStyleSheet) => {
+                for (let i = rules.length - 1; i >= 0; i--) {
+                  const rule = rules[i];
+                  if (rule instanceof CSSGroupingRule && rule.cssRules.length) {
+                    removeOklabRules(rule.cssRules, rule);
+                  }
+                  if (rule.cssText?.includes("color-mix(in oklab")) {
+                    parent.deleteRule(i);
+                  }
+                }
+              };
+              removeOklabRules(sheet.cssRules, sheet);
+            } catch {
+              /* cross-origin sheet */
+            }
+          }
+          const style = clonedDoc.createElement("style");
+          style.textContent = `
+            .dark\\:bg-gray-500\\/10 { background-color: rgba(107,114,128,0.1) !important; }
+            .dark\\:bg-white\\/5 { background-color: rgba(255,255,255,0.05) !important; }
+            .dark\\:text-white\\/90 { color: rgba(255,255,255,0.9) !important; }
+            .dark\\:text-gray-400 { color: #9ca3af !important; }
+            table tbody tr:nth-child(even) { background-color: #f8f9fc !important; }
+            table tbody tr td { border-bottom: 1px solid #eef0f4 !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        },
       });
-      const imgData = canvas.toDataURL("image/png");
+      const _imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = 190;
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const margin = 10;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+      const _imgWidth = pageWidth;
+      const _imgHeight = (canvas.height * _imgWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = 10;
+      // Calculate how many pixels of the canvas fit on one PDF page
+      const pxPerMm = canvas.width / (pdf.internal.pageSize.getWidth() - margin * 2);
+      const pageCanvasPx = Math.floor(pageHeight * pxPerMm);
 
-      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-      heightLeft -= pdf.internal.pageSize.height - 20;
+      let srcY = 0;
+      let pageNum = 0;
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-        heightLeft -= pdf.internal.pageSize.height - 20;
+      while (srcY < canvas.height) {
+        const sliceH = Math.min(pageCanvasPx, canvas.height - srcY);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceH;
+        const ctx = pageCanvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        }
+        const pageImgData = pageCanvas.toDataURL("image/png");
+        const renderH = (sliceH * imgWidth) / canvas.width;
+
+        if (pageNum > 0) pdf.addPage();
+        pdf.addImage(pageImgData, "PNG", margin, margin, imgWidth, renderH);
+
+        srcY += sliceH;
+        pageNum++;
       }
 
       const filename = `verri-p-report-${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -217,8 +265,7 @@ export default function ReportsPage() {
   const formatCurrency = (n: number) =>
     `₦${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+  const fmtDate = (d: string) => formatDate(d, "long");
 
   return (
     <div>
@@ -227,7 +274,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
-        <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Report Filters</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">Report Filters</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           <Select
             options={[
@@ -284,320 +331,705 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {data && (
-        <div ref={reportRef} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 space-y-8">
-          <div className="text-center border-b border-gray-200 dark:border-gray-700 pb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Verri P Water Inc</h1>
-            <p className="text-base text-gray-500 mt-1">Operations Report</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Generated {formatDate(data.meta.generatedAt)} by {data.meta.generatedBy}
-              {data.meta.filters.domainType && ` — ${data.meta.filters.domainType}: ${data.meta.filters.domainId?.slice(-8)}`}
-              {data.meta.filters.productId && ` — Product filtered`}
-              {data.meta.filters.startDate && ` — From ${data.meta.filters.startDate}`}
-              {data.meta.filters.endDate && ` To ${data.meta.filters.endDate}`}
-            </p>
-          </div>
+      {data && (<>        
+        <div ref={reportRef} className="bg-white rounded-xl border border-gray-200 p-0 overflow-hidden" style={{ fontFamily: "Outfit, sans-serif" }}>
+          <div style={{ height: "6px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)" }} />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Total Factories", value: data.entities.factories.length, color: "blue" },
-              { label: "Total Depots", value: data.entities.depots.length, color: "green" },
-              { label: "Total Trucks", value: data.entities.trucks.length, color: "purple" },
-              { label: "Products", value: data.entities.products.length, color: "orange" },
-            ].map((c) => (
-              <div key={c.label} className={`bg-${c.color}-50 dark:bg-${c.color}-500/10 rounded-lg p-4 text-center border border-${c.color}-100 dark:border-${c.color}-500/20`}>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{c.label}</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{c.value}</p>
+          <div className="px-8 pt-8 pb-6" style={{ borderBottom: "1px solid #e4e7ec" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="#465fff"><path d="M12 2C8 8 5 12 5 15.5a7 7 0 0014 0C19 12 16 8 12 2z" opacity="0.3"/><path d="M10 15.5a3 3 0 004 0" stroke="#465fff" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
+              <div>
+                <h1 className="text-2xl font-bold" style={{ color: "#101828", letterSpacing: "-0.02em" }}>Verri P Water Inc</h1>
+                <p className="text-sm mt-0.5" style={{ color: "#667085", letterSpacing: "0.02em", textTransform: "uppercase", fontWeight: 500 }}>Operations Report</p>
               </div>
-            ))}
+            </div>
+            <div className="flex flex-wrap gap-x-8 gap-y-1 text-xs" style={{ color: "#98a2b3" }}>
+              <span>
+                <span style={{ color: "#667085", fontWeight: 600 }}>Generated:</span>{" "}
+                {fmtDate(data.meta.generatedAt)} by {data.meta.generatedBy}
+              </span>
+              {data.meta.filters.domainType && (
+                <span>
+                  <span style={{ color: "#667085", fontWeight: 600 }}>Scope:</span>{" "}
+                  {data.meta.filters.domainType} — {data.meta.filters.domainId?.slice(-8)}
+                </span>
+              )}
+              {(data.meta.filters.startDate || data.meta.filters.endDate) && (
+                <span>
+                  <span style={{ color: "#667085", fontWeight: 600 }}>Period:</span>{" "}
+                  {data.meta.filters.startDate || "earliest"} — {data.meta.filters.endDate || "present"}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { label: "Total Sales", value: formatCurrency(data.totals.sales), color: "emerald" },
-              { label: "Total Costs", value: formatCurrency(data.totals.costs), color: "red" },
-              {
-                label: "Net Profit",
-                value: formatCurrency(data.totals.profit),
-                color: data.totals.profit >= 0 ? "teal" : "red",
-              },
-              { label: "Inventory (units)", value: data.totals.inventory.toLocaleString(), color: "cyan" },
-              { label: "Production Batches", value: data.totals.production.toLocaleString(), color: "indigo" },
-              { label: "Transfers", value: data.totals.transfers.toLocaleString(), color: "violet" },
-            ].map((c) => (
-              <div key={c.label} className={`bg-${c.color}-50 dark:bg-${c.color}-500/10 rounded-lg p-4 text-center border border-${c.color}-100 dark:border-${c.color}-500/20`}>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{c.label}</p>
-                <p className={`text-xl font-bold mt-1 ${c.color === "red" ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>{c.value}</p>
-              </div>
-            ))}
+          <div style={{ padding: "24px 32px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "40px" }}>
+              {[
+                { label: "Factories", value: data.entities.factories.length, color: "#3b82f6", bg: "#eff6ff" },
+                { label: "Depots", value: data.entities.depots.length, color: "#22c55e", bg: "#f0fdf4" },
+                { label: "Trucks", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
+                { label: "Products", value: data.entities.products.length, color: "#fb6514", bg: "#fffaf5" },
+              ].map((c) => (
+                <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(25% - 16px)", minWidth: "130px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#667085", margin: 0 }}>{c.label}</p>
+                  <p style={{ fontSize: "28px", fontWeight: 700, marginTop: "8px", marginBottom: 0, color: c.color }}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", margin: 0 }} />
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
+              {[
+                { label: "Total Sales", value: formatCurrency(data.totals.sales), color: "#10b981", bg: "#ecfdf5" },
+                { label: "Total Costs", value: formatCurrency(data.totals.costs), color: "#ef4444", bg: "#fef2f2" },
+                {
+                  label: "Net Profit",
+                  value: formatCurrency(data.totals.profit),
+                  color: data.totals.profit >= 0 ? "#14b8a6" : "#ef4444",
+                  bg: data.totals.profit >= 0 ? "#f0fdfa" : "#fef2f2",
+                },
+                { label: "Inventory", value: `${(data.totals.inventory ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
+                { label: "Production Batches", value: (data.totals.production ?? 0).toLocaleString(), color: "#6366f1", bg: "#eef2ff" },
+                { label: "Transfers", value: (data.totals.transfers ?? 0).toLocaleString(), color: "#8b5cf6", bg: "#f5f3ff" },
+              ].map((c) => (
+                <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(33.33% - 16px)", minWidth: "150px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#667085", margin: 0 }}>{c.label}</p>
+                  <p style={{ fontSize: "22px", fontWeight: 700, marginTop: "8px", marginBottom: 0, color: c.color }}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.inventory.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
+              <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", marginBottom: "40px" }} />
+            )}
+
+            {data.entities.factories.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Factories</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.entities.factories.length} registered</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Name</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Location</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Capacity</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.entities.factories.map((f: Entity) => (
+                      <tr key={f._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{f.name}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{f.location}</td>
+                        <td className="py-3 px-4 text-right" style={{ color: "#667085" }}>{(f.capacity ?? 0).toLocaleString()}</td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: f.isActive ? "#ecfdf5" : "#fef2f2", color: f.isActive ? "#059669" : "#dc2626" }}>
+                            {f.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.entities.depots.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Depots</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.entities.depots.length} registered</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Name</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Location</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Manager</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.entities.depots.map((d: Entity) => (
+                      <tr key={d._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{d.name}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{d.location}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{d.manager || "—"}</td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: d.isActive ? "#ecfdf5" : "#fef2f2", color: d.isActive ? "#059669" : "#dc2626" }}>
+                            {d.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.inventory.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Inventory</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{(data.totals.inventory ?? 0).toLocaleString()} total units</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Product</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Location</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.inventory.map((i: InventoryItem, idx: number) => (
+                      <tr key={idx} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{i.product}</td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{i.locationType}</td>
+                        <td className="py-3 px-4 text-right" style={{ color: "#667085" }}>{(i.quantity ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.sales.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Sales</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.sales.length} records — {formatCurrency(data.totals.sales)} total</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Date</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Depot</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Product</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Qty</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Amount</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Customer</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.sales.map((s: SaleItem) => (
+                      <tr key={s._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{fmtDate(s.date)}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{s.depot}</td>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{s.product}</td>
+                        <td className="py-3 px-4 text-right" style={{ color: "#667085" }}>{(s.quantity ?? 0).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-medium" style={{ color: "#344054" }}>{formatCurrency(s.totalAmount)}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{s.customerName || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.costs.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Costs</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.costs.length} records — {formatCurrency(data.totals.costs)} total</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Date</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Category</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Description</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Location</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.costs.map((c: CostItem) => (
+                      <tr key={c._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{fmtDate(c.date)}</td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{c.category}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{c.description || "—"}</td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{c.locationType}</td>
+                        <td className="py-3 px-4 text-right font-medium" style={{ color: "#dc2626" }}>{formatCurrency(c.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.production.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Production</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.production.length} batches</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Date</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Factory</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Product</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.production.map((p: ProductionItem) => (
+                      <tr key={p._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{fmtDate(p.date)}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{p.factory}</td>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{p.product}</td>
+                        <td className="py-3 px-4 text-right" style={{ color: "#667085" }}>{(p.quantity ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.transfers.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Transfers</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.transfers.length} records</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Date</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>From</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>To</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Product</th>
+                      <th className="py-3 px-4 text-right font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Qty</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Truck</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.transfers.map((t: TransferItem) => (
+                      <tr key={t._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{fmtDate(t.date)}</td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{t.fromType}</td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{t.toType}</td>
+                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{t.product}</td>
+                        <td className="py-3 px-4 text-right" style={{ color: "#667085" }}>{(t.quantity ?? 0).toLocaleString()}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{t.truck}</td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{
+                            backgroundColor: t.status === "delivered" ? "#ecfdf5" : t.status === "in-transit" ? "#eff6ff" : t.status === "pending" ? "#fffbeb" : "#fef2f2",
+                            color: t.status === "delivered" ? "#059669" : t.status === "in-transit" ? "#2563eb" : t.status === "pending" ? "#d97706" : "#dc2626",
+                          }}>
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.activityLogs.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div className="flex items-center gap-3 mb-5">
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Recent Activity</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{data.activityLogs.length} entries</span>
+                </div>
+                <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Date</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Action</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Entity</th>
+                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.activityLogs.map((a: ActivityLogItem) => (
+                      <tr key={a._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{fmtDate(a.createdAt)}</td>
+                        <td className="py-3 px-4 capitalize">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{
+                            backgroundColor: a.action === "created" ? "#ecfdf5" : a.action === "updated" ? "#fffbeb" : a.action === "deleted" ? "#fef2f2" : "#f2f4f7",
+                            color: a.action === "created" ? "#059669" : a.action === "updated" ? "#d97706" : a.action === "deleted" ? "#dc2626" : "#667085",
+                          }}>
+                            {a.action}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{a.entity}</td>
+                        <td className="py-3 px-4" style={{ color: "#667085" }}>{a.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
           </div>
 
-          {data.entities.factories.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Factories</h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Name</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Location</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Capacity</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.entities.factories.map((f: Entity) => (
-                    <tr key={f._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{f.name}</td>
-                      <td className="py-2 px-3 text-gray-500">{f.location}</td>
-                      <td className="py-2 px-3 text-gray-500 text-right">{f.capacity?.toLocaleString()}</td>
-                      <td className="py-2 px-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${f.isActive ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"}`}>
-                          {f.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.entities.depots.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Depots</h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Name</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Location</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Manager</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.entities.depots.map((d: Entity) => (
-                    <tr key={d._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{d.name}</td>
-                      <td className="py-2 px-3 text-gray-500">{d.location}</td>
-                      <td className="py-2 px-3 text-gray-500">{d.manager || "—"}</td>
-                      <td className="py-2 px-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${d.isActive ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"}`}>
-                          {d.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.inventory.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Inventory <span className="text-sm font-normal text-gray-400">({data.totals.inventory.toLocaleString()} total units)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Product</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Location</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.inventory.map((i: InventoryItem, idx: number) => (
-                    <tr key={idx} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{i.product}</td>
-                      <td className="py-2 px-3 text-gray-500 capitalize">{i.locationType}</td>
-                      <td className="py-2 px-3 text-gray-500 text-right">{i.quantity.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.sales.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Sales <span className="text-sm font-normal text-gray-400">({data.sales.length} records, {formatCurrency(data.totals.sales)} total)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Date</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Depot</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Product</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Qty</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Total</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Customer</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.sales.map((s: SaleItem) => (
-                    <tr key={s._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 text-gray-500">{formatDate(s.date)}</td>
-                      <td className="py-2 px-3 text-gray-500">{s.depot}</td>
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{s.product}</td>
-                      <td className="py-2 px-3 text-gray-500 text-right">{s.quantity.toLocaleString()}</td>
-                      <td className="py-2 px-3 text-gray-800 dark:text-white/90 text-right font-medium">{formatCurrency(s.totalAmount)}</td>
-                      <td className="py-2 px-3 text-gray-500">{s.customerName || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.costs.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Costs <span className="text-sm font-normal text-gray-400">({data.costs.length} records, {formatCurrency(data.totals.costs)} total)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Date</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Category</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Description</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Location</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.costs.map((c: CostItem) => (
-                    <tr key={c._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 text-gray-500">{formatDate(c.date)}</td>
-                      <td className="py-2 px-3 capitalize text-gray-500">{c.category}</td>
-                      <td className="py-2 px-3 text-gray-500">{c.description || "—"}</td>
-                      <td className="py-2 px-3 capitalize text-gray-500">{c.locationType}</td>
-                      <td className="py-2 px-3 text-right font-medium text-red-600 dark:text-red-400">{formatCurrency(c.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.production.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Production <span className="text-sm font-normal text-gray-400">({data.production.length} batches)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Date</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Factory</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Product</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.production.map((p: ProductionItem) => (
-                    <tr key={p._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 text-gray-500">{formatDate(p.date)}</td>
-                      <td className="py-2 px-3 text-gray-500">{p.factory}</td>
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{p.product}</td>
-                      <td className="py-2 px-3 text-gray-500 text-right">{p.quantity.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.transfers.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Transfers <span className="text-sm font-normal text-gray-400">({data.transfers.length} records)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Date</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">From</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">To</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Product</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium text-right">Qty</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Truck</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.transfers.map((t: TransferItem) => (
-                    <tr key={t._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 text-gray-500">{formatDate(t.date)}</td>
-                      <td className="py-2 px-3 capitalize text-gray-500">{t.fromType}</td>
-                      <td className="py-2 px-3 capitalize text-gray-500">{t.toType}</td>
-                      <td className="py-2 px-3 font-medium text-gray-800 dark:text-white/90">{t.product}</td>
-                      <td className="py-2 px-3 text-gray-500 text-right">{t.quantity.toLocaleString()}</td>
-                      <td className="py-2 px-3 text-gray-500">{t.truck}</td>
-                      <td className="py-2 px-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          t.status === "delivered" ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400" :
-                          t.status === "in-transit" ? "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" :
-                          t.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400" :
-                          "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
-                        }`}>
-                          {t.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.activityLogs.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Recent Activity <span className="text-sm font-normal text-gray-400">({data.activityLogs.length} entries)</span>
-              </h2>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                    <th className="py-2 px-3 text-gray-500 font-medium">Date</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Action</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Entity</th>
-                    <th className="py-2 px-3 text-gray-500 font-medium">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.activityLogs.map((a: ActivityLogItem) => (
-                    <tr key={a._id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2 px-3 text-gray-500">{formatDate(a.createdAt)}</td>
-                      <td className="py-2 px-3 capitalize">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          a.action === "created" ? "bg-green-100 text-green-700" :
-                          a.action === "updated" ? "bg-yellow-100 text-yellow-700" :
-                          a.action === "deleted" ? "bg-red-100 text-red-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
-                          {a.action}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 capitalize text-gray-500">{a.entity}</td>
-                      <td className="py-2 px-3 text-gray-500">{a.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-6 text-center">
-            <p className="text-xs text-gray-400">
-              Verri P Water Inc — Operations Management System
+          <div style={{ borderTop: "1px solid #e4e7ec", padding: "16px 32px", textAlign: "center" }}>
+            <p className="text-xs" style={{ color: "#98a2b3" }}>
+              <span style={{ fontWeight: 600, color: "#667085" }}>Verri P Water Inc</span> — Operations Management System
               <br />
-              This report was generated on {new Date(data.meta.generatedAt).toLocaleString("en-NG")}
+              Generated {new Date(data.meta.generatedAt).toLocaleString("en-NG")}
               {data.meta.filters.startDate && ` for period ${data.meta.filters.startDate} to ${data.meta.filters.endDate || "present"}`}
             </p>
+            <div style={{ marginTop: "8px", height: "3px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)", borderRadius: "2px", maxWidth: "240px", marginLeft: "auto", marginRight: "auto" }} />
           </div>
         </div>
-      )}
+
+        <div ref={pdfRef} style={{
+          position: "absolute", left: "-9999px", top: 0, width: "1200px",
+          fontFamily: "Outfit, sans-serif", backgroundColor: "#ffffff",
+        }}>
+          <div style={{ height: "6px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)" }} />
+
+          <div style={{ padding: "32px 32px 24px", borderBottom: "1px solid #e4e7ec" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="#465fff"><path d="M12 2C8 8 5 12 5 15.5a7 7 0 0014 0C19 12 16 8 12 2z" opacity="0.3"/><path d="M10 15.5a3 3 0 004 0" stroke="#465fff" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
+              <div>
+                <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#101828", letterSpacing: "-0.02em", margin: 0 }}>Verri P Water Inc</h1>
+                <p style={{ fontSize: "14px", margin: "2px 0 0", color: "#667085", textTransform: "uppercase", letterSpacing: "0.02em", fontWeight: 500 }}>Operations Report</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px", fontSize: "12px", color: "#98a2b3" }}>
+              <span><span style={{ color: "#667085", fontWeight: 600 }}>Generated:</span> {fmtDate(data.meta.generatedAt)} by {data.meta.generatedBy}</span>
+              {data.meta.filters.domainType && <span><span style={{ color: "#667085", fontWeight: 600 }}>Scope:</span> {data.meta.filters.domainType} — {data.meta.filters.domainId?.slice(-8)}</span>}
+              {(data.meta.filters.startDate || data.meta.filters.endDate) && (
+                <span><span style={{ color: "#667085", fontWeight: 600 }}>Period:</span> {data.meta.filters.startDate || "earliest"} — {data.meta.filters.endDate || "present"}</span>
+              )}
+            </div>
+          </div>
+
+          <div style={{ padding: "24px 32px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "40px" }}>
+              {[
+                { label: "Factories", value: data.entities.factories.length, color: "#3b82f6", bg: "#eff6ff" },
+                { label: "Depots", value: data.entities.depots.length, color: "#22c55e", bg: "#f0fdf4" },
+                { label: "Trucks", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
+                { label: "Products", value: data.entities.products.length, color: "#fb6514", bg: "#fffaf5" },
+              ].map((c) => (
+                <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(25% - 16px)", minWidth: "130px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#667085", margin: 0 }}>{c.label}</p>
+                  <p style={{ fontSize: "28px", fontWeight: 700, marginTop: "8px", marginBottom: 0, color: c.color }}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", margin: 0 }} />
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
+              {[
+                { label: "Total Sales", value: formatCurrency(data.totals.sales), color: "#10b981", bg: "#ecfdf5" },
+                { label: "Total Costs", value: formatCurrency(data.totals.costs), color: "#ef4444", bg: "#fef2f2" },
+                {
+                  label: "Net Profit",
+                  value: formatCurrency(data.totals.profit),
+                  color: data.totals.profit >= 0 ? "#14b8a6" : "#ef4444",
+                  bg: data.totals.profit >= 0 ? "#f0fdfa" : "#fef2f2",
+                },
+                { label: "Inventory", value: `${(data.totals.inventory ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
+                { label: "Production Batches", value: (data.totals.production ?? 0).toLocaleString(), color: "#6366f1", bg: "#eef2ff" },
+                { label: "Transfers", value: (data.totals.transfers ?? 0).toLocaleString(), color: "#8b5cf6", bg: "#f5f3ff" },
+              ].map((c) => (
+                <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(33.33% - 16px)", minWidth: "150px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#667085", margin: 0 }}>{c.label}</p>
+                  <p style={{ fontSize: "22px", fontWeight: 700, marginTop: "8px", marginBottom: 0, color: c.color }}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.inventory.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
+              <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", marginBottom: "40px" }} />
+            )}
+
+            {data.entities.factories.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Factories</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.entities.factories.length} registered</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Name</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Location</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Capacity</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.entities.factories.map((f: Entity) => (
+                      <tr key={f._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{f.name}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{f.location}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", color: "#667085" }}>{(f.capacity ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500, backgroundColor: f.isActive ? "#ecfdf5" : "#fef2f2", color: f.isActive ? "#059669" : "#dc2626" }}>{f.isActive ? "Active" : "Inactive"}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.entities.depots.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Depots</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.entities.depots.length} registered</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Name</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Location</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Manager</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.entities.depots.map((d: Entity) => (
+                      <tr key={d._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{d.name}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{d.location}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{d.manager || "—"}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500, backgroundColor: d.isActive ? "#ecfdf5" : "#fef2f2", color: d.isActive ? "#059669" : "#dc2626" }}>{d.isActive ? "Active" : "Inactive"}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.inventory.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Inventory</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{(data.totals.inventory ?? 0).toLocaleString()} total units</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Product</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Location</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.inventory.map((i: InventoryItem, idx: number) => (
+                      <tr key={idx} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{i.product}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{i.locationType}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", color: "#667085" }}>{(i.quantity ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.sales.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Sales</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.sales.length} records — {formatCurrency(data.totals.sales)} total</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Depot</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Product</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Qty</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Amount</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Customer</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.sales.map((s: SaleItem) => (
+                      <tr key={s._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{fmtDate(s.date)}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{s.depot}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{s.product}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", color: "#667085" }}>{(s.quantity ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 500, color: "#344054" }}>{formatCurrency(s.totalAmount)}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{s.customerName || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.costs.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Costs</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.costs.length} records — {formatCurrency(data.totals.costs)} total</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Category</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Description</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Location</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.costs.map((c: CostItem) => (
+                      <tr key={c._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{fmtDate(c.date)}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{c.category}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{c.description || "—"}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{c.locationType}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 500, color: "#dc2626" }}>{formatCurrency(c.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.production.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Production</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.production.length} batches</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Factory</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Product</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.production.map((p: ProductionItem) => (
+                      <tr key={p._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{fmtDate(p.date)}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{p.factory}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{p.product}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", color: "#667085" }}>{(p.quantity ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.transfers.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Transfers</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.transfers.length} records</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>From</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>To</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Product</th>
+                      <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Qty</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Truck</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.transfers.map((t: TransferItem) => (
+                      <tr key={t._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{fmtDate(t.date)}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{t.fromType}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{t.toType}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{t.product}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right", color: "#667085" }}>{(t.quantity ?? 0).toLocaleString()}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{t.truck}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500,
+                            backgroundColor: t.status === "delivered" ? "#ecfdf5" : t.status === "in-transit" ? "#eff6ff" : t.status === "pending" ? "#fffbeb" : "#fef2f2",
+                            color: t.status === "delivered" ? "#059669" : t.status === "in-transit" ? "#2563eb" : t.status === "pending" ? "#d97706" : "#dc2626",
+                          }}>{t.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {data.activityLogs.length > 0 && (
+              <section style={{ marginBottom: "40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+                  <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Recent Activity</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{data.activityLogs.length} entries</span>
+                </div>
+                <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eef1f5" }}>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Date</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Action</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Entity</th>
+                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ backgroundColor: "#ffffff" }}>
+                    {data.activityLogs.map((a: ActivityLogItem) => (
+                      <tr key={a._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{fmtDate(a.createdAt)}</td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500,
+                            backgroundColor: a.action === "created" ? "#ecfdf5" : a.action === "updated" ? "#fffbeb" : a.action === "deleted" ? "#fef2f2" : "#f2f4f7",
+                            color: a.action === "created" ? "#059669" : a.action === "updated" ? "#d97706" : a.action === "deleted" ? "#dc2626" : "#667085",
+                          }}>{a.action}</span>
+                        </td>
+                        <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{a.entity}</td>
+                        <td style={{ padding: "12px 16px", color: "#667085" }}>{a.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+          </div>
+
+          <div style={{ borderTop: "1px solid #e4e7ec", padding: "16px 32px", textAlign: "center" }}>
+            <p style={{ fontSize: "12px", color: "#98a2b3", margin: 0 }}>
+              <span style={{ fontWeight: 600, color: "#667085" }}>Verri P Water Inc</span> — Operations Management System
+              <br />
+              Generated {new Date(data.meta.generatedAt).toLocaleString("en-NG")}
+              {data.meta.filters.startDate && ` for period ${data.meta.filters.startDate} to ${data.meta.filters.endDate || "present"}`}
+            </p>
+            <div style={{ marginTop: "8px", height: "3px", background: "linear-gradient(90deg, #465fff 0%, #3641f5 100%)", borderRadius: "2px", maxWidth: "240px", marginLeft: "auto", marginRight: "auto" }} />
+          </div>
+        </div>
+      </>)}
     </div>
   );
 }

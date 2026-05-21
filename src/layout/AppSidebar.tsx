@@ -41,6 +41,12 @@ const navItems: NavItem[] = [
     color: "text-brand-500",
   },
   {
+    icon: <TruckIcon />,
+    name: "Driver Portal",
+    path: "/driver",
+    color: "text-orange-500",
+  },
+  {
     icon: <FactoryIcon />,
     name: "Factories",
     color: "text-blue-500",
@@ -73,8 +79,11 @@ const othersItems: NavItem[] = [
   {
     icon: <WaterDropIcon />,
     name: "Inventory",
-    path: "/inventory",
     color: "text-cyan-500",
+    subItems: [
+      { name: "Stock Levels", path: "/inventory", pro: false },
+      { name: "Wastage", path: "/wastage", pro: false },
+    ],
   },
   {
     icon: <TransferIcon />,
@@ -92,6 +101,8 @@ const othersItems: NavItem[] = [
     subItems: [
       { name: "Sales", path: "/sales", pro: false },
       { name: "Costs", path: "/costs", pro: false },
+      { name: "POS Devices", path: "/pos-devices", pro: false },
+      { name: "POS Transactions", path: "/payment-transactions", pro: false },
     ],
   },
   {
@@ -128,18 +139,35 @@ const othersItems: NavItem[] = [
     color: "text-sky-500",
   },
   {
+    icon: <AlertIcon />,
+    name: "Disputes",
+    path: "/disputes",
+    color: "text-red-500",
+  },
+  {
     icon: <TimeIcon />,
     name: "Activity Log",
     path: "/activity",
     color: "text-violet-500",
   },
+  {
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/></svg>,
+    name: "Getting Started",
+    path: "/onboarding",
+    color: "text-amber-500",
+  },
+  {
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.611 3.611 0 0112 15.6z" fill="currentColor"/></svg>,
+    name: "Settings",
+    path: "/settings",
+    color: "text-gray-500",
+  },
 ];
 
 const roleFilter = (role: string | undefined, item: NavItem): boolean => {
   if (role === "admin") return true;
-  const adminOnly = ["Analysis", "Reports", "Users"];
-  if (adminOnly.includes(item.name)) return false;
-  if (role === "factory-manager" && item.name === "Sales & Costs") return false;
+  if (item.name === "Users" || item.name === "Disputes") return false;
+  if (item.name === "Driver Portal") return role === "driver";
   return true;
 };
 
@@ -211,6 +239,11 @@ const AppSidebar: React.FC = () => {
                 {(isExpanded || isHovered || isMobileOpen) && (
                   <span className="menu-item-text">{nav.name}</span>
                 )}
+                {nav.name === "Notifications" && unreadCount > 0 && (
+                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Link>
             )
           )}
@@ -281,6 +314,7 @@ const AppSidebar: React.FC = () => {
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
     {}
   );
+  const [unreadCount, setUnreadCount] = useState(0);
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
@@ -319,6 +353,18 @@ const AppSidebar: React.FC = () => {
       }
     }
   }, [openSubmenu]);
+
+  useEffect(() => {
+    const fetchCount = () => {
+      fetch("/api/notifications")
+        .then((r) => r.json())
+        .then((data) => setUnreadCount(data.unreadCount ?? 0))
+        .catch(() => {});
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
     setOpenSubmenu((prevOpenSubmenu) => {
@@ -401,7 +447,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(navItems.filter((i) => roleFilter(user?.role, i)), "main")}
             </div>
 
             <div className="">

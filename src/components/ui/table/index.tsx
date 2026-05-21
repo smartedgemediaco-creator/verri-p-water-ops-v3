@@ -61,7 +61,7 @@ const TableCell: React.FC<TableCellProps> = ({
   colSpan,
 }) => {
   const CellTag = isHeader ? "th" : "td";
-  return <CellTag className={` ${className}`} colSpan={colSpan}>{children}</CellTag>;
+  return <CellTag className={`px-4 py-3 ${className}`} colSpan={colSpan}>{children}</CellTag>;
 };
 
 export { Table, TableHeader, TableBody, TableRow, TableCell };
