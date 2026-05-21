@@ -4,6 +4,7 @@ import { Wastage, Factory, Depot, Truck } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function populateLocation(item: any) {
   if (!item) return item;
   const obj = item.toObject ? item.toObject() : item;
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
 
-  const filter: Record<string, any> = {};
+  const filter: Record<string, unknown> = {};
 
   if (user.role === "factory-manager" && user.factoryId) {
     filter.locationType = "factory";

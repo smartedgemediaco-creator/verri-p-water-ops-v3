@@ -6,7 +6,7 @@ export interface IActivityLog extends Document {
   entityId: string;
   description: string;
   userId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   domainType?: "factory" | "depot" | "truck";
   domainId?: string;
   productId?: string;

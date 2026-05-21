@@ -59,7 +59,7 @@ export default function NewUserPage() {
     setSubmitting(true);
     setError("");
 
-    const body: Record<string, any> = { name, email, password, role };
+    const body: Record<string, unknown> = { name, email, password, role };
     if (role === "factory-manager") body.factoryId = factoryId;
     if (role === "depot-manager") body.depotId = depotId;
     if (role === "driver") body.truckId = truckId;

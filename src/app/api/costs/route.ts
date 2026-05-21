@@ -4,7 +4,16 @@ import { Cost, Factory, Depot, Truck } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
-async function populateLocation(cost: any) {
+interface CostDoc {
+  _id: string;
+  locationType: string;
+  locationId: string;
+  locationName?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+async function populateLocation(cost: CostDoc) {
   if (!cost) return cost;
   if (cost.locationType === "factory") {
     const loc = await Factory.findById(cost.locationId).select("name").lean();
@@ -28,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const filter: Record<string, any> = {};
+  const filter: Record<string, unknown> = {};
   if (user.role === "factory-manager" && user.factoryId) {
     filter.locationType = "factory";
     filter.locationId = user.factoryId;
@@ -88,11 +97,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(cost, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Costs POST error:", e);
-    return NextResponse.json(
-      { error: e?.message ?? "Internal server error" },
-      { status: 500 }
-    );
+    const msg = e instanceof Error ? e.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

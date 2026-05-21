@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const isAdmin = user.role === "admin";
   const isFactoryMgr = user.role === "factory-manager";
   const isDepotMgr = user.role === "depot-manager";
   const toObj = (id: string) => new mongoose.Types.ObjectId(id);
@@ -18,7 +17,7 @@ export async function GET(req: NextRequest) {
   // Build role-scoped filters
   const factoryFilter = (isFactoryMgr && user.factoryId) ? { _id: user.factoryId } : {};
   const depotFilter = (isDepotMgr && user.depotId) ? { _id: user.depotId } : {};
-  const truckFilter: Record<string, any> = {};
+  const truckFilter: Record<string, unknown> = {};
   if (isFactoryMgr && user.factoryId) {
     truckFilter.assignedToType = "factory";
     truckFilter.assignedToId = user.factoryId;
@@ -28,8 +27,8 @@ export async function GET(req: NextRequest) {
   }
 
   const isDriver = user.role === "driver";
-  const saleCostFilter: Record<string, any> = {};
-  const invFilter: Record<string, any> = {};
+  const saleCostFilter: Record<string, unknown> = {};
+  const invFilter: Record<string, unknown> = {};
   if (isDriver) {
     saleCostFilter._id = null;
     invFilter._id = null;

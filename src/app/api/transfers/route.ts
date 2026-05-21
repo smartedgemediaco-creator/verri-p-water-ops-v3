@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const truckId = searchParams.get("truckId");
   const statusFilter = searchParams.get("status");
 
-  const filter: Record<string, any> = {};
+  const filter: Record<string, unknown> = {};
 
   if (user.role !== "admin" && user.role !== "factory-manager" && user.role !== "depot-manager" && user.role !== "driver") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -115,10 +115,10 @@ export async function POST(req: NextRequest) {
   }
 
     return NextResponse.json(transfer, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Transfers POST error:", e);
     return NextResponse.json(
-      { error: e?.message ?? "Internal server error" },
+      { error: e instanceof Error ? e.message : "Internal server error" },
       { status: 500 }
     );
   }

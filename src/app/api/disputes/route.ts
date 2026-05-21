@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
 
-  const filter: Record<string, any> = {};
+  const filter: Record<string, unknown> = {};
   if (status && status !== "all") filter.status = status;
 
   if (user.role !== "admin") {

@@ -68,9 +68,9 @@ export default function CostBreakdownChart() {
       .then((data) => {
         const costs = data.costByCategory || [];
         if (costs.length > 0) {
-          setLabels(costs.map((c: any) => c._id.charAt(0).toUpperCase() + c._id.slice(1)));
-          setSeries(costs.map((c: any) => c.total));
-          setTotal(costs.reduce((s: number, c: any) => s + c.total, 0));
+          setLabels(costs.map((c: { _id: string; total: number }) => c._id.charAt(0).toUpperCase() + c._id.slice(1)));
+          setSeries(costs.map((c: { _id: string; total: number }) => c.total));
+          setTotal(costs.reduce((s: number, c: { _id: string; total: number }) => s + c.total, 0));
         } else {
           setLabels([]);
           setSeries([]);

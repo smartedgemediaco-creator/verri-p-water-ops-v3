@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const filter: Record<string, any> = {};
+  const filter: Record<string, unknown> = {};
   if (user.role === "depot-manager" && user.depotId) {
     filter._id = user.depotId;
   }

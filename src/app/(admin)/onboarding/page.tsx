@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 
@@ -30,14 +30,14 @@ const STEPS: Step[] = [
 const ACCOMPLISHED_KEY = "water-ops-onboarding-done";
 
 export default function OnboardingPage() {
-  const [done, setDone] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
+  const [done, setDone] = useState<Set<string>>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(ACCOMPLISHED_KEY) || "[]");
-      if (Array.isArray(stored)) setDone(new Set(stored));
-    } catch { /* ignore */ }
-  }, []);
+      return new Set<string>(Array.isArray(stored) ? stored : []);
+    } catch {
+      return new Set<string>();
+    }
+  });
 
   const toggle = (id: string) => {
     const next = new Set(done);

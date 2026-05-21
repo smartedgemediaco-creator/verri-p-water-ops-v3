@@ -49,7 +49,7 @@ export function getUserFromRequest(req: NextRequest): JWTPayload | null {
   return verifyToken(token);
 }
 
-export function getScopeFilter(user: JWTPayload | null): Record<string, any> {
+export function getScopeFilter(user: JWTPayload | null): Record<string, unknown> {
   if (!user || user.role === "admin") return {};
   if (user.role === "factory-manager" && user.factoryId) {
     return { locationType: "factory", locationId: user.factoryId };

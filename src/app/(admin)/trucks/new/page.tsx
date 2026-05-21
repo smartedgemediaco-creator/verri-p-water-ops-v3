@@ -19,11 +19,11 @@ export default function NewTruckPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/factories").then(r => r.json()).then(data =>
-      setFactories(data.map((f: any) => ({ value: f._id, label: f.name })))
+    fetch("/api/factories").then(r => r.json()).then((data: { _id: string; name: string }[]) =>
+      setFactories(data.map((f) => ({ value: f._id, label: f.name })))
     );
-    fetch("/api/depots").then(r => r.json()).then(data =>
-      setDepots(data.map((d: any) => ({ value: d._id, label: d.name })))
+    fetch("/api/depots").then(r => r.json()).then((data: { _id: string; name: string }[]) =>
+      setDepots(data.map((d) => ({ value: d._id, label: d.name })))
     );
   }, []);
 
@@ -44,7 +44,7 @@ export default function NewTruckPage() {
 
   const doSubmit = async () => {
     setSubmitting(true);
-    const body: any = { ...form, capacity: Number(form.capacity) };
+    const body: Record<string, unknown> = { ...form, capacity: Number(form.capacity) };
     if (assignedToType && assignedToId) {
       body.assignedToType = assignedToType;
       body.assignedToId = assignedToId;

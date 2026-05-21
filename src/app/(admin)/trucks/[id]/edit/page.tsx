@@ -31,8 +31,8 @@ export default function EditTruckPage() {
       setForm({ plateNumber: truck.plateNumber, driverName: truck.driverName, capacity: String(truck.capacity) });
       setAssignedToType(truck.assignedToType ?? "");
       setAssignedToId(truck.assignedToId ?? "");
-      setFactories(facData.map((f: any) => ({ value: f._id, label: f.name })));
-      setDepots(depData.map((d: any) => ({ value: d._id, label: d.name })));
+      setFactories(facData.map((f: { _id: string; name: string }) => ({ value: f._id, label: f.name })));
+      setDepots(depData.map((d: { _id: string; name: string }) => ({ value: d._id, label: d.name })));
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -44,7 +44,7 @@ export default function EditTruckPage() {
 
   const doSubmit = async () => {
     setSubmitting(true);
-    const body: any = { ...form, capacity: Number(form.capacity) };
+    const body: Record<string, unknown> = { ...form, capacity: Number(form.capacity) };
     if (assignedToType && assignedToId) {
       body.assignedToType = assignedToType;
       body.assignedToId = assignedToId;

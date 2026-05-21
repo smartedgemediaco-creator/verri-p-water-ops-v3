@@ -7,7 +7,7 @@ interface LogActivityOptions {
   entityId: string;
   description: string;
   userId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   domainType?: "factory" | "depot";
   domainId?: string;
   productId?: string;

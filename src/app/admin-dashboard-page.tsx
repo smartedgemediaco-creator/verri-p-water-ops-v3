@@ -55,12 +55,12 @@ export default function AdminDashboardPage() {
         fetch("/api/disputes?status=pending").then((r) => r.json()),
       ])
         .then(([analysis, inv, products, disputes]) => {
-          const a = analysis as Record<string, any>;
+          const a = analysis as { factories?: { sales?: number; costs?: number; activeTransfers?: number }[]; depots?: { sales?: number; costs?: number }[]; trucks?: { sales?: number; costs?: number; activeTransfers?: number }[] };
           const factories = Array.isArray(a?.factories) ? a.factories : [];
           const depots = Array.isArray(a?.depots) ? a.depots : [];
           const trucks = Array.isArray(a?.trucks) ? a.trucks : [];
-          const totalSales = factories.reduce((s: number, f: any) => s + (f.sales ?? 0), 0) + depots.reduce((s: number, d: any) => s + (d.sales ?? 0), 0);
-          const totalCosts = factories.reduce((s: number, f: any) => s + (f.costs ?? 0), 0) + depots.reduce((s: number, d: any) => s + (d.costs ?? 0), 0);
+          const totalSales = factories.reduce((s, f) => s + (f.sales ?? 0), 0) + depots.reduce((s, d) => s + (d.sales ?? 0), 0);
+          const totalCosts = factories.reduce((s, f) => s + (f.costs ?? 0), 0) + depots.reduce((s, d) => s + (d.costs ?? 0), 0);
           setStats({
             factories: factories.length,
             depots: depots.length,
@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
             totalSales,
             totalCosts,
             profit: totalSales - totalCosts,
-            activeTransfers: trucks.reduce((s: number, t: any) => s + (t.activeTransfers ?? 0), 0),
+            activeTransfers: trucks.reduce((s, t) => s + (t.activeTransfers ?? 0), 0),
           });
           setInvStats(inv);
           setPendingDisputes(Array.isArray(disputes) ? disputes.length : 0);

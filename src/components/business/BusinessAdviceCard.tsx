@@ -48,7 +48,7 @@ export default function BusinessAdviceCard() {
             : 0;
 
         const lowStockAlerts = (notifications.notifications || []).filter(
-          (n: any) => n.type === "low-stock"
+          (n: { type: string }) => n.type === "low-stock"
         );
 
         if (profit < 0) {

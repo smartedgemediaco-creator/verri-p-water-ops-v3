@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
         ? new Date(0)
         : new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-    const saleMatch: Record<string, any> = { date: { $gte: fromDate } };
-    const costMatch: Record<string, any> = { date: { $gte: fromDate } };
+    const saleMatch: Record<string, unknown> = { date: { $gte: fromDate } };
+    const costMatch: Record<string, unknown> = { date: { $gte: fromDate } };
 
     // Apply role-based scope first (default filter)
     if (user.role === "factory-manager" && user.factoryId) {

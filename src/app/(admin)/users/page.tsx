@@ -103,7 +103,7 @@ export default function UsersPage() {
     if (!editTarget) return;
     setEditSaving(true);
     try {
-      const body: Record<string, any> = {};
+      const body: Record<string, unknown> = {};
       if (editTarget.role === "factory-manager") body.factoryId = editFactoryId || null;
       if (editTarget.role === "depot-manager") body.depotId = editDepotId || null;
       if (editTarget.role === "driver") body.truckId = editTruckId || null;

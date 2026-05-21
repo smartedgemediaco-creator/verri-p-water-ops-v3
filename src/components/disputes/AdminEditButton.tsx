@@ -21,14 +21,14 @@ interface Props {
   entityLabel?: string;
   apiPath: string;
   fields: Field[];
-  initialValues: Record<string, any>;
+  initialValues: Record<string, unknown>;
   onSaved?: () => void;
 }
 
 export default function AdminEditButton({ entity, entityId, entityLabel, apiPath, fields, initialValues, onSaved }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<Record<string, any>>(initialValues);
+  const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   const [saving, setSaving] = useState(false);
 
   if (user?.role !== "admin") return null;
@@ -41,7 +41,7 @@ export default function AdminEditButton({ entity, entityId, entityLabel, apiPath
   const save = async () => {
     setSaving(true);
     try {
-      const body: Record<string, any> = {};
+      const body: Record<string, unknown> = {};
       for (const f of fields) {
         if (values[f.key] !== initialValues[f.key]) {
           body[f.key] = values[f.key];
