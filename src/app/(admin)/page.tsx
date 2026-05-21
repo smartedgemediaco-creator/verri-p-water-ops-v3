@@ -17,8 +17,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <img src="/images/logo/auth-logo.svg" alt="" className="w-12 h-12 opacity-60" />
+        <div className="text-gray-400 text-sm">Loading...</div>
       </div>
     );
   }

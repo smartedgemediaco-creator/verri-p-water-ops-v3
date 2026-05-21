@@ -1,11 +1,18 @@
-import SignInForm from "@/components/auth/SignInForm";
-import { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Sign In - Verri P Water Inc",
-  description: "Sign in to Verri P Water Operations Dashboard",
-};
+import { useState, useEffect } from "react";
+import SignInForm from "@/components/auth/SignInForm";
+import BrandedSplash from "@/components/common/BrandedSplash";
 
 export default function SignIn() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!ready) return <BrandedSplash />;
+
   return <SignInForm />;
 }

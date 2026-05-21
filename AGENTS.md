@@ -187,6 +187,9 @@ All stats support role-based scoping (factory-manager → own factory, depot-man
 - SVGs imported as React components: `import { PlusIcon } from "@/icons"`
 - API polling intervals: 15s for dashboard + inventory pages
 - Toast notifications for all CRUD actions via `@/lib/toast`
+- Type-safety: prefer `Record<string, unknown>` over `Record<string, any>`; use `catch (e: unknown)` + `instanceof Error` checks over `catch (e: any)`
+- Theme: use `useState` lazy initializer (`() => localStorage.getItem(...)`) for client-only state instead of `useEffect` to sync from localStorage
+- Lint suppressions: add `// eslint-disable-next-line @typescript-eslint/no-explicit-any` inline when `any` is unavoidable (e.g., jsvectormap d.ts, populateLocation helpers)
 
 ## Commands
 
@@ -261,18 +264,38 @@ Creates only the admin user. Workflow from empty state:
 4. Record Sales (auto-decrements Inventory)
 5. Record Costs
 
-## Work-in-Progress (Untracked New Features)
+## Completed Features (Session: May 2026)
 
-| Feature | Files |
-|---------|-------|
-| Payment Transactions | API routes, model, pages |
-| POS Devices | API routes, model, pages |
-| Wastage Tracking | API routes, model |
-| Change Password | API route, component |
-| Inventory Activity | API route `inventory/[id]/activity` |
-| Inventory Stats | API route `inventory/stats/` |
-| Sales Detail + Stats | API routes `sales/[id]/`, `sales/stats/` |
-| Webhooks | API routes |
+The following were delivered as part of commit `8d4ed81` (feat: complete WIP features):
+
+| Feature | Details |
+|---------|---------|
+| Wastage Tracking | Model, API routes (`GET`, `POST`), management page, dashboard integration |
+| Disputes System | Model, API routes, management page, `AdminEditButton` reusable component |
+| POS Devices | Model (`PosDevice`), API routes, device management page |
+| Payment Transactions | Model (`PaymentTransaction`), API routes, manual entry, auto-convert-to-sale |
+| Webhooks | API routes for Moniepoint, OPay, PalmPay integration |
+| Driver Portal | Dashboard with assigned truck inventory & transfer actions |
+| Settings Page | Factory-reset capability, system configuration |
+| Onboarding Wizard | 10-step getting-started flow with localStorage progress tracking |
+| Change Password | API route + profile page integration |
+| Inventory Stats | Aggregation API across 6 collections (`GET /api/inventory/stats`) |
+| Sales Stats | API route (`GET /api/sales/stats`) |
+| Command Palette | Cmd+K palette wired into app header |
+| Toast Notifications | `react-hot-toast` library integrated across all CRUD operations |
 | AutoAmount | UI component for formatted currency display |
-| dateFormat | Lib utility |
-| toast | Toast notification component |
+| dateFormat | `formatDate()` utility function |
+| ConfirmDialog | Reusable confirmation dialog component |
+| RecordCostForm | Inline cost recording form |
+| PaymentMethodChart | ApexCharts pie chart for payment method breakdown |
+| Dashboard Overhaul | Role-based cards, payment chart, wastage stats, stock overview |
+| Sidebar Update | Added links for Wastage, POS Devices, POS Transactions, Disputes, Driver Portal, Activity Log, Getting Started, Settings |
+
+**Cleanup (commit `87eeba1`):**
+- Replaced `Record<string, any>` with `Record<string, unknown>` across 15 files
+- Replaced `catch (e: any)` with `catch (e: unknown)` + `instanceof Error` across 5 files
+- Refactored `ThemeContext` to use lazy `useState` init (no more `useEffect` flash)
+- Removed unused `useEffect` import from onboarding page
+- Added eslint-disable comments where `any` is unavoidable
+- Fixed filter/type annotations in analysis, costs, depots, disputes, factories, transfers, wastage APIs
+- Fixed `getScopeFilter` return type, `logActivity` metadata type, `ActivityLog` model type

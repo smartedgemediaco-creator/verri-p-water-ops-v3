@@ -59,8 +59,8 @@ export default function AdminDashboardPage() {
           const factories = Array.isArray(a?.factories) ? a.factories : [];
           const depots = Array.isArray(a?.depots) ? a.depots : [];
           const trucks = Array.isArray(a?.trucks) ? a.trucks : [];
-          const totalSales = factories.reduce((s, f) => s + (f.sales ?? 0), 0) + depots.reduce((s, d) => s + (d.sales ?? 0), 0);
-          const totalCosts = factories.reduce((s, f) => s + (f.costs ?? 0), 0) + depots.reduce((s, d) => s + (d.costs ?? 0), 0);
+          const totalSales = factories.reduce((s, f) => s + (f.sales ?? 0), 0) + depots.reduce((s, d) => s + (d.sales ?? 0), 0) + trucks.reduce((s, t) => s + (t.sales ?? 0), 0);
+          const totalCosts = factories.reduce((s, f) => s + (f.costs ?? 0), 0) + depots.reduce((s, d) => s + (d.costs ?? 0), 0) + trucks.reduce((s, t) => s + (t.costs ?? 0), 0);
           setStats({
             factories: factories.length,
             depots: depots.length,
