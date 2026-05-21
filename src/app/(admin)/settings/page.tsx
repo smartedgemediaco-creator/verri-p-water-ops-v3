@@ -54,6 +54,7 @@ export default function SettingsPage() {
       setConfirmText("");
       setStep("idle");
 
+      localStorage.removeItem("water-ops-onboarding-done");
       setTimeout(() => router.push("/onboarding"), 1500);
     } catch {
       showError("Network error");
