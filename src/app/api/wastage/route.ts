@@ -90,9 +90,9 @@ export async function GET(req: NextRequest) {
   if (source && source !== "all") filter.source = source;
 
   if (startDate || endDate) {
-    filter.date = {};
-    if (startDate) filter.date.$gte = new Date(startDate);
-    if (endDate) filter.date.$lte = new Date(endDate + "T23:59:59.999Z");
+    filter.date = {} as Record<string, unknown>;
+    if (startDate) (filter.date as Record<string, unknown>).$gte = new Date(startDate);
+    if (endDate) (filter.date as Record<string, unknown>).$lte = new Date(endDate + "T23:59:59.999Z");
   }
 
   const records = await Wastage.find(filter)

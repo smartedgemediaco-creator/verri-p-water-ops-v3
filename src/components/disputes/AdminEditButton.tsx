@@ -83,7 +83,7 @@ export default function AdminEditButton({ entity, entityId, entityLabel, apiPath
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label}</label>
                   {f.type === "select" ? (
                     <select
-                      value={values[f.key] ?? ""}
+                      value={(values[f.key] as string) ?? ""}
                       onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
                       className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
                     >
@@ -92,7 +92,7 @@ export default function AdminEditButton({ entity, entityId, entityLabel, apiPath
                     </select>
                   ) : f.type === "textarea" ? (
                     <textarea
-                      value={values[f.key] ?? ""}
+                      value={(values[f.key] as string) ?? ""}
                       onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
                       rows={3}
                       className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 resize-none"

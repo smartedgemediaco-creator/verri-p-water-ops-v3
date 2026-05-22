@@ -236,7 +236,7 @@ export default function SalesPage() {
         const ctx = pageCanvas.getContext("2d");
         if (ctx) ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
         if (pageNum > 0) pdf.addPage();
-        pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", margin, margin, imgWidth, (sliceH * imgWidth) / canvas.width);
+        pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", margin, margin, _imgWidth, (sliceH * _imgWidth) / canvas.width);
         srcY += sliceH;
         pageNum++;
       }
