@@ -172,7 +172,7 @@ const roleFilter = (role: string | undefined, item: NavItem): boolean => {
 };
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const { user } = useAuth();
   const pathname = usePathname();
 
@@ -223,6 +223,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
+                onClick={toggleMobileSidebar}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -265,6 +266,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
+                      onClick={toggleMobileSidebar}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -399,7 +401,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
+        <Link href="/" onClick={toggleMobileSidebar}>
           <span
             className={`flex items-center gap-2 ${
               !isExpanded && !isHovered ? "justify-center" : ""
