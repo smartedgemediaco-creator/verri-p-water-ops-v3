@@ -172,7 +172,7 @@ const roleFilter = (role: string | undefined, item: NavItem): boolean => {
 };
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, closeMobileSidebar } = useSidebar();
   const { user } = useAuth();
   const pathname = usePathname();
 
@@ -223,7 +223,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
-                onClick={toggleMobileSidebar}
+                onClick={closeMobileSidebar}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -266,7 +266,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
-                      onClick={toggleMobileSidebar}
+                      onClick={closeMobileSidebar}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -383,16 +383,17 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`flex flex-col px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out z-50 border-r border-gray-200
+        fixed mt-16 top-0 left-0 h-screen
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:sticky lg:top-0 lg:mt-0 lg:h-screen lg:flex-shrink-0 lg:translate-x-0
         ${
           isExpanded || isMobileOpen
             ? "w-[290px]"
             : isHovered
             ? "w-[290px]"
             : "w-[90px]"
-        }
-        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0`}
+        }`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -401,7 +402,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/" onClick={toggleMobileSidebar}>
+        <Link href="/" onClick={closeMobileSidebar}>
           <span
             className={`flex items-center gap-2 ${
               !isExpanded && !isHovered ? "justify-center" : ""
