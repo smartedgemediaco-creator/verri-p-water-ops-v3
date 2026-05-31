@@ -65,15 +65,17 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "alerts" | "activity">("all");
 
   useEffect(() => {
+    let cancelled = false;
     const fetchData = () => {
       fetch("/api/notifications")
-        .then((res) => res.json())
-        .then(setData)
-        .finally(() => setLoading(false));
+        .then((res) => { if (!res.ok) throw new Error(`notifications ${res.status}`); return res.json(); })
+        .then((d) => { if (!cancelled) setData(d); })
+        .catch((e) => console.error("Failed to load notifications:", e))
+        .finally(() => { if (!cancelled) setLoading(false); });
     };
     fetchData();
     const id = setInterval(fetchData, 30000);
-    return () => clearInterval(id);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   if (loading) {
@@ -118,7 +120,7 @@ export default function AlertsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 mb-6">
-        <Link href="/inventory" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+        <Link href="/stock" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <AlertIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>

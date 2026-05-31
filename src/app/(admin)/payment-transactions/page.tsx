@@ -8,6 +8,7 @@ import Input from "@/components/form/input/InputField";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Pagination from "@/components/tables/Pagination";
 import DatePicker from "@/components/form/date-picker";
+import Link from "next/link";
 import { BoxIconLine, DollarLineIcon, PlusIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 
@@ -90,10 +91,10 @@ export default function PaymentTransactionsPage() {
   }, []);
 
   useEffect(() => {
-    if (convertLocationType === "factory") setConvertLocations(factories);
-    else if (convertLocationType === "depot") setConvertLocations(depots);
-    else setConvertLocations([]);
-    setConvertLocationId("");
+    if (convertLocationType === "factory") setConvertLocations(factories); // eslint-disable-line react-hooks/set-state-in-effect
+    else if (convertLocationType === "depot") setConvertLocations(depots); // eslint-disable-line react-hooks/set-state-in-effect
+    else setConvertLocations([]); // eslint-disable-line react-hooks/set-state-in-effect
+    setConvertLocationId(""); // eslint-disable-line react-hooks/set-state-in-effect
   }, [convertLocationType, factories, depots]);
 
   const submitManual = async () => {
@@ -236,34 +237,34 @@ export default function PaymentTransactionsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{pagination.total}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <BoxIconLine className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Matched</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{matchedCount}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
             <BoxIconLine className="text-amber-600 size-5 dark:text-amber-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Unmatched</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{unmatchedCount}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <DollarLineIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Value</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalAmount.toLocaleString()}</h4>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
+import LocationPicker from "@/components/location/LocationPicker";
+import type { LocationValue } from "@/components/location/LocationPicker";
 import Button from "@/components/ui/button/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
@@ -12,7 +14,8 @@ export default function EditFactoryPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [form, setForm] = useState({ name: "", location: "", capacity: "" });
+  const [form, setForm] = useState({ name: "", capacity: "" });
+  const [locationData, setLocationData] = useState<LocationValue>({ address: "", lat: 0, lng: 0, placeId: "" });
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -20,13 +23,25 @@ export default function EditFactoryPage() {
   useEffect(() => {
     fetch(`/api/factories/${id}`)
       .then(r => r.json())
-      .then(data => setForm({ name: data.name, location: data.location, capacity: String(data.capacity) }))
+      .then(data => {
+        setForm({ name: data.name, capacity: String(data.capacity) });
+        setLocationData({
+          address: data.location ?? "",
+          lat: data.coordinates?.lat ?? 0,
+          lng: data.coordinates?.lng ?? 0,
+          placeId: data.placeId ?? "",
+        });
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  const handleLocationChange = useCallback((loc: LocationValue) => {
+    setLocationData(loc);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +54,13 @@ export default function EditFactoryPage() {
       const res = await fetch(`/api/factories/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, capacity: Number(form.capacity) }),
+        body: JSON.stringify({
+          name: form.name,
+          location: locationData.address,
+          coordinates: { lat: locationData.lat, lng: locationData.lng },
+          placeId: locationData.placeId,
+          capacity: Number(form.capacity),
+        }),
       });
       if (!res.ok) {
         showError("Failed to update factory");
@@ -66,7 +87,7 @@ export default function EditFactoryPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-          <InputField id="location" name="location" value={form.location} onChange={handleChange} />
+          <LocationPicker value={locationData.address} latValue={locationData.lat} lngValue={locationData.lng} onChange={handleLocationChange} placeholder="Search for factory location…" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity</label>
@@ -91,7 +112,7 @@ export default function EditFactoryPage() {
             You are about to update this factory:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Name:</strong> {form.name}</li>
-              <li><strong>Location:</strong> {form.location}</li>
+              <li><strong>Location:</strong> {locationData.address}</li>
               <li><strong>Capacity:</strong> {form.capacity}</li>
             </ul>
             <p className="mt-2">Changes will be applied immediately. Are you sure?</p>

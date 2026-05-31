@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
@@ -23,7 +24,7 @@ interface Transfer {
   notes: string;
 }
 
-interface InventoryItem {
+interface StockItem {
   _id: string;
   productId: { _id: string; name: string };
   quantity: number;
@@ -41,31 +42,34 @@ const statusBadge = (status: string) => {
 };
 
 export default function DriverDashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventory, setInventory] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const truckId =
-    user?.truckId && typeof user.truckId === "object"
+  useEffect(() => {
+    if (user && user.role !== "driver") {
+      router.replace("/");
+    }
+  }, [user, router]);
+
+  const truckIdVal =
+    user?.truckId && typeof user.truckId === "object" && user.truckId._id
       ? user.truckId._id
       : user?.truckId ?? null;
   const truckPlate =
-    user?.truckId && typeof user.truckId === "object"
+    user?.truckId && typeof user.truckId === "object" && user.truckId.plateNumber
       ? user.truckId.plateNumber
-      : truckId
-      ? `Truck (${(truckId as string).slice(-6)})`
+      : truckIdVal
+      ? `Truck (${(truckIdVal as string).slice(-6)})`
       : "";
 
   const fetchData = useCallback(() => {
-    if (!truckId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!truckIdVal) return;
     Promise.all([
-      fetch(`/api/transfers?truckId=${truckId}&status=pending,in-transit`).then((r) => r.json()),
-      fetch(`/api/inventory?locationType=truck&locationId=${truckId}`).then((r) => r.json()),
+      fetch(`/api/transfers?truckId=${truckIdVal}&status=pending,in-transit`).then((r) => r.json()),
+      fetch(`/api/stock?locationType=truck&locationId=${truckIdVal}`).then((r) => r.json()),
     ])
       .then(([transfersData, invData]) => {
         setTransfers(Array.isArray(transfersData) ? transfersData : []);
@@ -73,9 +77,9 @@ export default function DriverDashboardPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [truckId]);
+  }, [truckIdVal]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const updateStatus = async (id: string, status: string) => {
     try {
@@ -101,7 +105,7 @@ export default function DriverDashboardPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-            {user?.role === "driver" ? `My Dashboard` : `Driver Portal`}
+            My Dashboard
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {truckPlate ? `Truck: ${truckPlate}` : "No truck assigned"}
@@ -110,7 +114,7 @@ export default function DriverDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/stock" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <TruckIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
@@ -118,21 +122,21 @@ export default function DriverDashboardPage() {
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">
             {(truckStock ?? 0).toLocaleString()}
           </h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
             <AlertIcon className="text-amber-600 size-5 dark:text-amber-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Pending Pickups</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{pendingCount}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <TruckIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active Deliveries</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{activeCount}</h4>
-        </div>
+        </Link>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
@@ -140,7 +144,7 @@ export default function DriverDashboardPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Quick Actions</p>
           <div className="mt-2 flex gap-2">
             <Link href="/sales/new"><Button variant="primary" size="sm">Record Sale</Button></Link>
-            <Link href="/inventory"><Button variant="outline" size="sm">Stock</Button></Link>
+            <Link href="/stock"><Button variant="outline" size="sm">Stock</Button></Link>
           </div>
         </div>
       </div>
@@ -154,7 +158,7 @@ export default function DriverDashboardPage() {
 
           {loading ? (
             <p className="text-sm text-gray-400 py-8 text-center">Loading transfers...</p>
-          ) : !truckId ? (
+          ) : !truckIdVal ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No truck assigned to your account.</p>
               <p className="text-xs text-gray-400 dark:text-gray-500">Contact an admin to link your account to a truck.</p>
@@ -213,9 +217,9 @@ export default function DriverDashboardPage() {
               <DollarLineIcon className="w-5 h-5 text-brand-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Record New Sale</span>
             </Link>
-            <Link href="/inventory" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+            <Link href="/stock" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
               <WaterDropIcon className="w-5 h-5 text-cyan-500" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Inventory</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Stock</span>
             </Link>
             <Link href="/transfers" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
               <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

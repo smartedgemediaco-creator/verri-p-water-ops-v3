@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   LightbulbIcon,
   TrendingUpIcon,
@@ -14,6 +15,7 @@ interface Advice {
   icon: React.ReactNode;
   title: string;
   message: string;
+  href: string;
 }
 
 export default function BusinessAdviceCard() {
@@ -32,7 +34,7 @@ export default function BusinessAdviceCard() {
         const fArr = analysis.factories || [];
         const dArr = analysis.depots || [];
         const tArr = analysis.trucks || [];
-        const inventory = fArr.reduce((s: number, f: { inventory: number }) => s + f.inventory, 0) + dArr.reduce((s: number, d: { inventory: number }) => s + d.inventory, 0) + tArr.reduce((s: number, t: { inventory: number }) => s + (t.inventory ?? 0), 0);
+        const inventory = fArr.reduce((s: number, f: { stock: number }) => s + f.stock, 0) + dArr.reduce((s: number, d: { stock: number }) => s + d.stock, 0) + tArr.reduce((s: number, t: { stock: number }) => s + (t.stock ?? 0), 0);
         const sales = fArr.reduce((s: number, f: { sales: number }) => s + f.sales, 0) + dArr.reduce((s: number, d: { sales: number }) => s + d.sales, 0);
         const costs = fArr.reduce((s: number, f: { costs: number }) => s + f.costs, 0) + dArr.reduce((s: number, d: { costs: number }) => s + d.costs, 0);
         const profit = sales - costs;
@@ -56,6 +58,7 @@ export default function BusinessAdviceCard() {
             type: "warning",
             icon: <AlertTriangleIcon className="w-5 h-5 text-red-500" />,
             title: "Loss Warning",
+            href: "/analysis",
             message: `Your costs (₦${costs.toLocaleString()}) exceed sales (₦${sales.toLocaleString()}). Consider reviewing operational expenses or adjusting pricing.`,
           });
         } else if (profit > 0 && profit < sales * 0.15) {
@@ -63,6 +66,7 @@ export default function BusinessAdviceCard() {
             type: "warning",
             icon: <TrendingUpIcon className="w-5 h-5 text-amber-500" />,
             title: "Thin Margins",
+            href: "/analysis",
             message: `Profit margin is ${((profit / sales) * 100).toFixed(1)}%. Consider reducing costs or increasing prices to improve profitability.`,
           });
         } else if (profit > 0) {
@@ -70,6 +74,7 @@ export default function BusinessAdviceCard() {
             type: "positive",
             icon: <CheckCircleIcon className="w-5 h-5 text-emerald-500" />,
             title: "Healthy Profit",
+            href: "/analysis",
             message: `Profit margin is ${((profit / sales) * 100).toFixed(1)}%. Your operations are running efficiently. Keep up the good work!`,
           });
         }
@@ -79,13 +84,15 @@ export default function BusinessAdviceCard() {
             type: "positive",
             icon: <TrendingUpIcon className="w-5 h-5 text-emerald-500" />,
             title: "Sales Rising",
-            message: `Sales grew by ₦${salesTrend.toLocaleString()} this month. Demand is increasing — ensure adequate inventory to fulfill orders.`,
+            href: "/sales",
+            message: `Sales grew by ₦${salesTrend.toLocaleString()} this month. Demand is increasing — ensure adequate stock to fulfill orders.`,
           });
         } else if (salesTrend < 0) {
           messages.push({
             type: "warning",
             icon: <TrendingDownIcon className="w-5 h-5 text-red-500" />,
             title: "Sales Dropping",
+            href: "/sales",
             message: `Sales declined by ₦${Math.abs(salesTrend).toLocaleString()} this month. Consider promotions, expanding routes, or checking product availability.`,
           });
         }
@@ -95,7 +102,8 @@ export default function BusinessAdviceCard() {
             type: "warning",
             icon: <AlertTriangleIcon className="w-5 h-5 text-orange-500" />,
             title: "Low Stock Alert",
-            message: `${lowStockAlerts.length} product(s) are running low on inventory. Schedule production or restocking to avoid stockouts.`,
+            href: "/stock",
+            message: `${lowStockAlerts.length} product(s) are running low on stock. Schedule production or restocking to avoid stockouts.`,
           });
         }
 
@@ -105,14 +113,16 @@ export default function BusinessAdviceCard() {
             messages.push({
               type: "insight",
               icon: <LightbulbIcon className="w-5 h-5 text-yellow-500" />,
-              title: "Inventory Efficiency",
-              message: `Inventory turnover is low (${turnoverRate.toFixed(2)}x). You may be holding excess stock. Review reorder quantities.`,
+              title: "Stock Efficiency",
+              href: "/analysis",
+              message: `Stock turnover is low (${turnoverRate.toFixed(2)}x). You may be holding excess stock. Review reorder quantities.`,
             });
           } else if (turnoverRate > 5) {
             messages.push({
               type: "insight",
               icon: <LightbulbIcon className="w-5 h-5 text-yellow-500" />,
-              title: "High Inventory Turnover",
+              title: "High Stock Turnover",
+              href: "/analysis",
               message: `Products are moving fast (${turnoverRate.toFixed(1)}x turnover). Consider increasing production to meet demand.`,
             });
           }
@@ -123,6 +133,7 @@ export default function BusinessAdviceCard() {
             type: "insight",
             icon: <LightbulbIcon className="w-5 h-5 text-blue-500" />,
             title: "Active Transfers",
+            href: "/transfers",
             message: `${activeTransfers} transfer(s) are in progress. Monitor delivery status and ensure timely receipt at destination depots.`,
           });
         }
@@ -131,8 +142,9 @@ export default function BusinessAdviceCard() {
           messages.push({
             type: "warning",
             icon: <AlertTriangleIcon className="w-5 h-5 text-red-500" />,
-            title: "Empty Inventory",
-            message: `You have ${factories} factory(ies) and ${depots} depot(s) but no inventory recorded. Start by logging initial stock levels.`,
+            title: "Empty Stock",
+            href: "/stock",
+            message: `You have ${factories} factory(ies) and ${depots} depot(s) but no stock recorded. Start by logging initial stock levels.`,
           });
         }
 
@@ -141,7 +153,8 @@ export default function BusinessAdviceCard() {
             type: "insight",
             icon: <LightbulbIcon className="w-5 h-5 text-blue-500" />,
             title: "Getting Started",
-            message: "Add some products, record inventory, and log sales to receive actionable business insights here.",
+            href: "/onboarding",
+            message: "Add some products, record stock, and log sales to receive actionable business insights here.",
           });
         }
 
@@ -178,9 +191,10 @@ export default function BusinessAdviceCard() {
       </div>
       <div className="space-y-3">
         {advice.map((item, idx) => (
-          <div
+          <Link
             key={idx}
-            className={`flex gap-3 p-3 rounded-lg ${
+            href={item.href}
+            className={`flex gap-3 p-3 rounded-lg hover:shadow-theme-sm transition-shadow ${
               item.type === "warning"
                 ? "bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/10"
                 : item.type === "positive"
@@ -197,7 +211,7 @@ export default function BusinessAdviceCard() {
                 {item.message}
               </p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

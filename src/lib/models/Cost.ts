@@ -6,6 +6,7 @@ export interface ICost extends Document {
   description: string;
   locationType: "factory" | "depot" | "truck";
   locationId: Types.ObjectId;
+  staffId?: Types.ObjectId;
   date: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +23,7 @@ const CostSchema = new Schema<ICost>(
     description: { type: String, default: "" },
     locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true },
+    staffId: { type: Schema.Types.ObjectId, ref: "Staff" },
     date: { type: Date, default: Date.now },
   },
   { timestamps: true }

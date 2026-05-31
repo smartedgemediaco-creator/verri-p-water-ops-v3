@@ -1,21 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
+import LocationPicker from "@/components/location/LocationPicker";
+import type { LocationValue } from "@/components/location/LocationPicker";
 import Button from "@/components/ui/button/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewDepotPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", location: "" });
+  const [form, setForm] = useState({ name: "" });
+  const [locationData, setLocationData] = useState<LocationValue>({ address: "", lat: 0, lng: 0, placeId: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  const handleLocationChange = useCallback((loc: LocationValue) => {
+    setLocationData(loc);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +35,12 @@ export default function NewDepotPage() {
       const res = await fetch("/api/depots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          location: locationData.address,
+          coordinates: { lat: locationData.lat, lng: locationData.lng },
+          placeId: locationData.placeId,
+        }),
       });
       if (!res.ok) {
         showError("Failed to add depot");
@@ -53,7 +65,7 @@ export default function NewDepotPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-          <InputField id="location" name="location" placeholder="Location" value={form.location} onChange={handleChange} />
+          <LocationPicker value={locationData.address} onChange={handleLocationChange} placeholder="Search for depot location…" />
         </div>
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting}>
@@ -74,7 +86,7 @@ export default function NewDepotPage() {
             You are about to create a new depot:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Name:</strong> {form.name}</li>
-              <li><strong>Location:</strong> {form.location}</li>
+              <li><strong>Location:</strong> {locationData.address}</li>
             </ul>
             <p className="mt-2">This entity will be immediately available in the system. Are you sure?</p>
           </>

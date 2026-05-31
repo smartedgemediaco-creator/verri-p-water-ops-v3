@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { User } from "@/lib/models";
+import { UserRole } from "@/lib/models/UserRole";
 import { verifyToken } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -15,14 +16,20 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
-  const user = await User.findById(payload.userId)
-    .select("-password")
-    .populate("factoryId", "name")
-    .populate("depotId", "name")
-    .populate("truckId", "plateNumber driverName");
+  const user = await User.findById(payload.userId).select("-password").lean();
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ user });
+  const userRole = await UserRole.findOne({ userId: user._id, isActive: true }).populate("scopeId").lean();
+
+  return NextResponse.json({
+    user: {
+      ...user,
+      role: userRole?.role ?? "admin",
+      factoryId: userRole?.scopeType === "factory" ? userRole.scopeId : undefined,
+      depotId: userRole?.scopeType === "depot" ? userRole.scopeId : undefined,
+      truckId: userRole?.scopeType === "truck" ? userRole.scopeId : undefined,
+    },
+  });
 }

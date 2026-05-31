@@ -49,8 +49,7 @@ export default function NewTransferPage() {
 
   useEffect(() => {
     if (fromType && fromId && productId) {
-      setStockLoading(true);
-      fetch(`/api/inventory?locationType=${fromType}&locationId=${fromId}&productId=${productId}`)
+      fetch(`/api/stock?locationType=${fromType}&locationId=${fromId}&productId=${productId}`)
         .then((r) => r.json())
         .then((data: { quantity?: number }[]) => {
           const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
@@ -58,8 +57,6 @@ export default function NewTransferPage() {
         })
         .catch(() => setAvailableStock(null))
         .finally(() => setStockLoading(false));
-    } else {
-      setAvailableStock(null);
     }
   }, [fromType, fromId, productId]);
 
@@ -89,18 +86,18 @@ export default function NewTransferPage() {
   }, []);
 
   useEffect(() => {
-    if (isDepotManager && !fromType) setFromType("depot");
-    if (isFactoryManager && !fromType) setFromType("factory");
+    if (isDepotManager && !fromType) setFromType("depot"); // eslint-disable-line react-hooks/set-state-in-effect
+    if (isFactoryManager && !fromType) setFromType("factory"); // eslint-disable-line react-hooks/set-state-in-effect
   }, [isDepotManager, isFactoryManager, fromType]);
 
   useEffect(() => {
     if (isDepotManager && user?.depotId && !fromId) {
       const id = typeof user.depotId === "string" ? user.depotId : user.depotId._id;
-      setFromId(id);
+      setFromId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
     if (isFactoryManager && user?.factoryId && !fromId) {
       const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
-      setFromId(id);
+      setFromId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [isDepotManager, isFactoryManager, user?.depotId, user?.factoryId, fromId]);
 
@@ -114,6 +111,11 @@ export default function NewTransferPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fromId) { showError("Please select a source location"); return; }
+    if (!toId) { showError("Please select a destination location"); return; }
+    if (!productId) { showError("Please select a product"); return; }
+    if (!quantity || Number(quantity) <= 0) { showError("Please enter a valid quantity"); return; }
+    if (!truckId) { showError("Please select a truck"); return; }
     setConfirmOpen(true);
   };
 
@@ -268,7 +270,7 @@ export default function NewTransferPage() {
         title="Create Transfer"
         message={
           <>
-            You are about to create a new stock transfer. This will affect inventory levels at both locations.
+            You are about to create a new stock transfer. This will affect stock levels at both locations.
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>From:</strong> {locationName(fromId, fromType)} ({fromType})</li>
               <li><strong>To:</strong> {locationName(toId, toType)} ({toType})</li>

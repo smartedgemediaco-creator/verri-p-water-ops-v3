@@ -59,27 +59,27 @@ export default function ProductsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg dark:bg-teal-500/10 mb-3">
             <BottleIcon className="text-teal-600 size-5 dark:text-teal-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Products</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{products.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BottleIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Categories</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{categories.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BoxIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Units</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{[...new Set(products.map((p) => p.unit))].length}</h4>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
@@ -105,7 +105,7 @@ export default function ProductsPage() {
             ) : (
               products.map((product) => (
                 <TableRow key={product._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{product.name}</TableCell>
+                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90"><Link href={`/products/${product._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{product.name}</Link></TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{product.unit}</TableCell>
                   <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">
                     <span className="capitalize">{product.category}</span>

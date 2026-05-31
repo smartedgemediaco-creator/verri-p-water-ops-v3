@@ -4,7 +4,7 @@ import { getUserFromRequest, comparePassword } from "@/lib/auth";
 import { User } from "@/lib/models/User";
 
 const MODELS = [
-  "Factory", "Depot", "Truck", "Product", "Inventory",
+  "Factory", "Depot", "Truck", "Product", "Stock",
   "Sale", "Cost", "Transfer", "Production", "Wastage",
   "ActivityLog", "PaymentTransaction", "PosDevice",
 ];

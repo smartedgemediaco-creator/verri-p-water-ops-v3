@@ -26,23 +26,21 @@ export default function NewCostPage() {
   const [locationType, setLocationType] = useState("");
   const [locationId, setLocationId] = useState("");
   const [date, setDate] = useState("");
+  const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
+  const [staffId, setStaffId] = useState("");
 
   useEffect(() => {
-    fetch("/api/factories")
-      .then((r) => r.json())
-      .then((data: { _id: string; name: string }[]) =>
-        setFactories(data.map((f) => ({ value: f._id, label: f.name })))
-      );
-    fetch("/api/depots")
-      .then((r) => r.json())
-      .then((data: { _id: string; name: string }[]) =>
-        setDepots(data.map((d) => ({ value: d._id, label: d.name })))
-      );
-    fetch("/api/trucks")
-      .then((r) => r.json())
-      .then((data: { _id: string; plateNumber: string }[]) =>
-        setTrucks(data.map((t) => ({ value: t._id, label: `Truck: ${t.plateNumber}` })))
-      );
+    Promise.all([
+      fetch("/api/factories").then((r) => r.json()),
+      fetch("/api/depots").then((r) => r.json()),
+      fetch("/api/trucks").then((r) => r.json()),
+      fetch("/api/staff").then((r) => r.json()),
+    ]).then(([f, d, t, s]) => {
+      setFactories(f.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
+      setDepots(d.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
+      setTrucks(t.map((x: { _id: string; plateNumber: string }) => ({ value: x._id, label: `Truck: ${x.plateNumber}` })));
+      setStaffList(s.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
+    });
   }, []);
 
   const locationOptions = locationType === "factory" ? factories : locationType === "depot" ? depots : locationType === "truck" ? trucks : [];
@@ -55,18 +53,18 @@ export default function NewCostPage() {
   const userFactoryName = user?.factoryName ?? (typeof user?.factoryId === "object" ? user.factoryId?.name : undefined) ?? "Your Factory";
 
   useEffect(() => {
-    if (isDepotManager && !locationType) setLocationType("depot");
-    if (isFactoryManager && !locationType) setLocationType("factory");
+    if (isDepotManager && !locationType) setLocationType("depot"); // eslint-disable-line react-hooks/set-state-in-effect
+    if (isFactoryManager && !locationType) setLocationType("factory"); // eslint-disable-line react-hooks/set-state-in-effect
   }, [isDepotManager, isFactoryManager, locationType]);
 
   useEffect(() => {
     if (isDepotManager && user?.depotId && !locationId) {
       const id = typeof user.depotId === "string" ? user.depotId : user.depotId._id;
-      setLocationId(id);
+      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
     if (isFactoryManager && user?.factoryId && !locationId) {
       const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
-      setLocationId(id);
+      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [isDepotManager, isFactoryManager, user?.depotId, user?.factoryId, locationId]);
 
@@ -84,6 +82,7 @@ export default function NewCostPage() {
           locationType,
           locationId,
           date: date || undefined,
+          ...(category === "salary" && staffId ? { staffId } : {}),
         }),
       });
       if (!res.ok) {
@@ -139,6 +138,13 @@ export default function NewCostPage() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <TextArea placeholder="Description" value={description} onChange={setDescription} />
         </div>
+
+        {category === "salary" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
+            <Select options={staffList} placeholder="Select staff" onChange={setStaffId} />
+          </div>
+        )}
 
         {isDepotManager || isFactoryManager ? (
           <div className="p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-sm text-blue-700 dark:text-blue-400 font-medium">
@@ -196,6 +202,7 @@ export default function NewCostPage() {
               <li><strong>Category:</strong> {category}</li>
               <li><strong>Amount:</strong> ₦{Number(amount).toLocaleString()}</li>
               <li><strong>Description:</strong> {description || "—"}</li>
+              {category === "salary" && staffId && <li><strong>Staff:</strong> {staffList.find((s) => s.value === staffId)?.label ?? "—"}</li>}
             </ul>
             <p className="mt-2">This cost will be reflected in financial reports. Are you sure?</p>
           </>

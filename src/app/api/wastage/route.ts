@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Wastage, Factory, Depot, Truck } from "@/lib/models";
+import { Wastage, Factory, Depot, Truck, Product } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { notifyWastage } from "@/lib/notifications";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function populateLocation(item: any) {
@@ -53,6 +54,21 @@ export async function POST(req: NextRequest) {
     productId: body.productId,
     metadata: { quantity: body.quantity, source: body.source },
   });
+
+  const prod = await Product.findById(body.productId).select("name").lean();
+  const loc = body.locationType === "factory"
+    ? await Factory.findById(body.locationId).select("name").lean()
+    : body.locationType === "depot"
+    ? await Depot.findById(body.locationId).select("name").lean()
+    : await Truck.findById(body.locationId).select("plateNumber").lean();
+  const locName = (loc as { name?: string; plateNumber?: string } | null)?.name ?? (loc as { plateNumber?: string } | null)?.plateNumber ?? body.locationType;
+
+  notifyWastage(
+    (prod as { name?: string } | null)?.name ?? "Unknown product",
+    body.quantity,
+    locName,
+    body.source
+  ).catch(() => {});
 
   return NextResponse.json(wastage, { status: 201 });
 }

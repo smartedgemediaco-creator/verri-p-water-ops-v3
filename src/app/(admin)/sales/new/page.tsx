@@ -42,8 +42,7 @@ export default function NewSalePage() {
 
   useEffect(() => {
     if (locationType && locationId && productId) {
-      setStockLoading(true);
-      fetch(`/api/inventory?locationType=${locationType}&locationId=${locationId}&productId=${productId}`)
+      fetch(`/api/stock?locationType=${locationType}&locationId=${locationId}&productId=${productId}`)
         .then((r) => r.json())
         .then((data: { quantity?: number }[]) => {
           const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
@@ -51,15 +50,11 @@ export default function NewSalePage() {
         })
         .catch(() => setAvailableStock(null))
         .finally(() => setStockLoading(false));
-    } else {
-      setAvailableStock(null);
     }
   }, [locationType, locationId, productId]);
 
   const isDepotManager = user?.role === "depot-manager";
   const isFactoryManager = user?.role === "factory-manager";
-  const isAdmin = user?.role === "admin";
-  const priceLocked = !isAdmin;
 
   const userDisplayName = user?.name ?? user?.email ?? "User";
   const userDepotName = user?.depotName ?? (typeof user?.depotId === "object" ? user.depotId?.name : undefined) ?? "Your Depot";
@@ -67,10 +62,10 @@ export default function NewSalePage() {
 
   useEffect(() => {
     if (isDepotManager && !locationType) {
-      setLocationType("depot");
+      setLocationType("depot"); // eslint-disable-line react-hooks/set-state-in-effect
     }
     if (isFactoryManager && !locationType) {
-      setLocationType("factory");
+      setLocationType("factory"); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [isDepotManager, isFactoryManager, locationType]);
 
@@ -78,14 +73,14 @@ export default function NewSalePage() {
     if (isDepotManager && user?.depotId && locations.length === 0) {
       const id = typeof user.depotId === "string" ? user.depotId : user.depotId._id;
       const name = user.depotName ?? (typeof user.depotId === "object" ? user.depotId.name : "My Depot");
-      setLocations([{ value: id, label: name }]);
-      setLocationId(id);
+      setLocations([{ value: id, label: name }]); // eslint-disable-line react-hooks/set-state-in-effect
+      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
     if (isFactoryManager && user?.factoryId && locations.length === 0) {
       const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
       const name = user.factoryName ?? (typeof user.factoryId === "object" ? user.factoryId.name : "My Factory");
-      setLocations([{ value: id, label: name }]);
-      setLocationId(id);
+      setLocations([{ value: id, label: name }]); // eslint-disable-line react-hooks/set-state-in-effect
+      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [isDepotManager, isFactoryManager, user?.depotId, user?.factoryId, user?.depotName, user?.factoryName, locations.length]);
 
@@ -102,24 +97,18 @@ export default function NewSalePage() {
     if (!productId) return;
     const found = productsList.find((p) => p.value === productId);
     if (found) {
-      setUnitPrice(String(found.unitPrice));
+      setUnitPrice(String(found.unitPrice)); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [productId, productsList]);
 
   useEffect(() => {
-    const hasAutoLocation =
-      (isDepotManager && user?.depotId) ||
-      (isFactoryManager && user?.factoryId);
-    if (!locationType) {
-      setLocations([]);
-      if (!hasAutoLocation) setLocationId("");
-      return;
-    }
-    const endpoint = locationType === "truck" ? "/api/trucks" : `/api/${locationType}s`;
+    if (!locationType) return;
+    let cancelled = false;
+    const endpoint = locationType === "truck" ? "/api/trucks" : locationType === "factory" ? "/api/factories" : `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {
-        if (Array.isArray(data)) {
+        if (!cancelled && Array.isArray(data)) {
           setLocations(
             data.map((d) => ({
               value: d._id,
@@ -128,15 +117,18 @@ export default function NewSalePage() {
           );
         }
       });
-    // Don't clear locationId for role-scoped users with auto-assigned locations
+    const hasAutoLocation =
+      (isDepotManager && user?.depotId) ||
+      (isFactoryManager && user?.factoryId);
     if (!hasAutoLocation) {
-      setLocationId("");
+      setLocationId(""); // eslint-disable-line react-hooks/set-state-in-effect
     }
-    setPosDeviceId("");
+    setPosDeviceId(""); // eslint-disable-line react-hooks/set-state-in-effect
+    return () => { cancelled = true; };
   }, [locationType, isDepotManager, isFactoryManager, user?.depotId, user?.factoryId]);
 
   useEffect(() => {
-    if (!locationType) { setPosDevices([]); return; }
+    if (!locationType) { setPosDevices([]); return; } // eslint-disable-line react-hooks/set-state-in-effect
     fetch(`/api/pos-devices?locationType=${locationType}`)
       .then((r) => r.json())
       .then((data: { _id: string; name: string; terminalSerial: string }[]) => {
@@ -231,7 +223,7 @@ export default function NewSalePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
-            <Select options={productsList} placeholder="Select product" onChange={setProductId} />
+            <Select options={productsList} placeholder="Select product" value={productId} onChange={setProductId} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
@@ -257,12 +249,12 @@ export default function NewSalePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦)</label>
-            <InputField type="number" id="unitPrice" placeholder="Unit price" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} disabled={priceLocked} />
-            {priceLocked && unitPrice && <p className="text-xs text-gray-400 mt-1">Price from product catalog — contact admin to change</p>}
+            <InputField type="number" id="unitPrice" placeholder="Unit price" value={unitPrice} disabled />
+            {unitPrice && <p className="text-xs text-gray-400 mt-1">Price from product catalog — set on product record</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name</label>
-            <InputField id="customerName" placeholder="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name <span className="text-gray-400 font-normal">(Optional)</span></label>
+            <InputField id="customerName" placeholder="Leave blank for walk-in" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
           </div>
         </div>
 
@@ -325,13 +317,13 @@ export default function NewSalePage() {
         title="Record Sale"
         message={
           <>
-            You are about to record a sale that will <strong>permanently deduct inventory</strong>:
+            You are about to record a sale that will <strong>permanently deduct stock</strong>:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Quantity:</strong> {quantity}</li>
               <li><strong>Total:</strong> ₦{(Number(quantity) * Number(unitPrice)).toLocaleString()}</li>
               <li><strong>Payment:</strong> {paymentMethod}</li>
             </ul>
-            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action cannot be undone — inventory will be reduced.</p>
+            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action cannot be undone — stock will be reduced.</p>
           </>
         }
         confirmLabel="Record Sale"

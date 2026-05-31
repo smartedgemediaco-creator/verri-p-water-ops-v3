@@ -71,3 +71,23 @@ export async function fetchFullUser(userId: string) {
 export function isAdmin(user: JWTPayload | null): boolean {
   return user?.role === "admin";
 }
+
+// --- Email Token Helpers ---
+
+export function createInviteToken(userId: string): string {
+  return jwt.sign({ userId, type: "invite" }, JWT_SECRET, { expiresIn: "48h" });
+}
+
+export function createResetToken(userId: string): string {
+  return jwt.sign({ userId, type: "reset" }, JWT_SECRET, { expiresIn: "1h" });
+}
+
+export function verifyEmailToken(token: string): { userId: string; type: string } | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; type: string };
+    if (!payload.userId || !payload.type) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}

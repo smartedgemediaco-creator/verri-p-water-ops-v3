@@ -146,46 +146,46 @@ export default function TransfersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Transfers" />
+        <PageBreadcrumb pageTitle="Truck Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
           <Link href="/transfers/new">
             <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-              New Transfer
+              Load Truck
             </Button>
           </Link>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <TransferIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Transfers</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{transfers.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg dark:bg-yellow-500/10 mb-3">
             <ListIcon className="text-yellow-600 size-5 dark:text-yellow-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("pending")}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">In Transit</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("in-transit")}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <ListIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Delivered</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("delivered")}</h4>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
@@ -214,11 +214,11 @@ export default function TransfersPage() {
             ) : (
               transfers.map((t) => (
                 <TableRow key={t._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.fromName ?? `${t.fromType} (${(t.fromId ?? "").slice(-6)})`}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.toName ?? `${t.toType} (${(t.toId ?? "").slice(-6)})`}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{t.productId?.name ?? "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.fromName ? <Link href={`/${t.fromType === "factory" ? "factories" : `${t.fromType}s`}/${t.fromId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.fromName}</Link> : `${t.fromType} (${(t.fromId ?? "").slice(-6)})`}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{t.toName ? <Link href={`/${t.toType === "factory" ? "factories" : `${t.toType}s`}/${t.toId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.toName}</Link> : `${t.toType} (${(t.toId ?? "").slice(-6)})`}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{t.productId?._id ? <Link href={`/products/${t.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{t.productId.name}</Link> : "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(t.quantity ?? 0).toLocaleString()}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.truckId?.plateNumber ?? <span className="text-gray-400">—</span>}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{t.truckId?._id ? <Link href={`/trucks/${t.truckId._id}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.truckId.plateNumber}</Link> : <span className="text-gray-400">—</span>}</TableCell>
                   <TableCell className="py-3">{statusBadge(t.status)}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(t.date)}</TableCell>
                   <TableCell className="py-3">
@@ -257,7 +257,7 @@ export default function TransfersPage() {
             </p>
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Damaged / Spoiled</label>
-              <input type="number" min="0" max={spoilageTarget.quantity} value={spoilageQty} onChange={(e) => setSpoilageQty(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+              <input type="text" inputMode="numeric" min="0" max={spoilageTarget.quantity} value={spoilageQty} onChange={(e) => { const raw = e.target.value; if (raw === "" || /^\d+$/.test(raw)) setSpoilageQty(raw); }} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>

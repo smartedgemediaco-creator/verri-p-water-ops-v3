@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Factory, Depot, Truck, Inventory, Sale, Cost, Transfer, Wastage } from "@/lib/models";
+import { Factory, Depot, Truck, Stock, Sale, Cost, Transfer, Wastage } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 
@@ -19,11 +19,9 @@ export async function GET(req: NextRequest) {
   const depotFilter = (isDepotMgr && user.depotId) ? { _id: user.depotId } : {};
   const truckFilter: Record<string, unknown> = {};
   if (isFactoryMgr && user.factoryId) {
-    truckFilter.assignedToType = "factory";
-    truckFilter.assignedToId = user.factoryId;
+    truckFilter._id = user.factoryId;
   } else if (isDepotMgr && user.depotId) {
-    truckFilter.assignedToType = "depot";
-    truckFilter.assignedToId = user.depotId;
+    truckFilter._id = user.depotId;
   }
 
   const isDriver = user.role === "driver";
@@ -76,7 +74,7 @@ export async function GET(req: NextRequest) {
           },
         ]),
     // Inventory grouped by locationType + locationId
-    Inventory.aggregate([
+    Stock.aggregate([
       { $match: { quantity: { $gt: 0 }, ...invFilter } },
       {
         $group: {
@@ -153,7 +151,7 @@ export async function GET(req: NextRequest) {
       sales,
       costs,
       profit: sales - costs,
-      inventory: invMap[key] ?? 0,
+      stock: invMap[key] ?? 0,
       wastage: w?.quantity ?? 0,
       wastageCount: w?.count ?? 0,
     };
@@ -171,7 +169,7 @@ export async function GET(req: NextRequest) {
       sales,
       costs,
       profit: sales - costs,
-      inventory: invMap[key] ?? 0,
+      stock: invMap[key] ?? 0,
       wastage: w?.quantity ?? 0,
       wastageCount: w?.count ?? 0,
     };
@@ -185,11 +183,11 @@ export async function GET(req: NextRequest) {
     return {
       _id: t._id,
       plateNumber: t.plateNumber,
-      driverName: t.driverName,
+      driverName: "",
       sales,
       costs,
       profit: sales - costs,
-      inventory: invMap[key] ?? 0,
+      stock: invMap[key] ?? 0,
       activeTransfers: transferMap[t._id.toString()] ?? 0,
       wastage: w?.quantity ?? 0,
       wastageCount: w?.count ?? 0,

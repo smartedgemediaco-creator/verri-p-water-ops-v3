@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import Select from "@/components/form/Select";
+import { ArrowRightIcon } from "@/icons";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -29,7 +31,6 @@ export default function CostBreakdownChart() {
   const [entityType, setEntityType] = useState("all");
   const [entityId, setEntityId] = useState("");
 
-  const [entityOptions, setEntityOptions] = useState<Option[]>([]);
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
@@ -52,12 +53,7 @@ export default function CostBreakdownChart() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (entityType === "factory") setEntityOptions(factories);
-    else if (entityType === "depot") setEntityOptions(depots);
-    else if (entityType === "truck") setEntityOptions(trucks);
-    else setEntityOptions([]);
-  }, [entityType, factories, depots, trucks]);
+  const entityOpts = entityType === "factory" ? factories : entityType === "depot" ? depots : entityType === "truck" ? trucks : [];
 
   useEffect(() => {
     const params = new URLSearchParams({ months, entityType });
@@ -140,7 +136,7 @@ export default function CostBreakdownChart() {
           {entityType !== "all" && (
             <div className="w-44">
               <Select
-                options={entityOptions}
+                options={entityOpts}
                 placeholder={`Select ${entityType}`}
                 value={entityId}
                 onChange={setEntityId}
@@ -156,6 +152,11 @@ export default function CostBreakdownChart() {
           No data for the selected filters
         </div>
       )}
+      <div className="mt-3 text-center">
+        <Link href="/costs" className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+          Expand Cost Breakdown <ArrowRightIcon className="size-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }

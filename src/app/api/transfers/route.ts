@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Transfer, Inventory, Factory, Depot, Truck } from "@/lib/models";
+import { Transfer, Stock, Factory, Depot, Truck } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import mongoose from "mongoose";
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (transfer.status === "delivered") {
-    await updateInventoryOnDelivery({
+    await updateStockOnDelivery({
       fromType: body.fromType,
       fromId: body.fromId,
       toType: body.toType,
@@ -124,13 +124,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function updateInventoryOnDelivery(transfer: { fromType: string; fromId: string; toType: string; toId: string; truckId: string; productId: string; quantity: number }) {
+async function updateStockOnDelivery(transfer: { fromType: string; fromId: string; toType: string; toId: string; truckId: string; productId: string; quantity: number }) {
   const { fromType, fromId, toType, toId, truckId, productId, quantity } = transfer;
 
   if (fromType === "truck" && toType === "truck") return;
 
   if (fromType !== "truck") {
-    await Inventory.findOneAndUpdate(
+    await Stock.findOneAndUpdate(
       { locationType: fromType, locationId: fromId, productId },
       { $inc: { quantity: -quantity } },
       { upsert: true }
@@ -138,13 +138,13 @@ async function updateInventoryOnDelivery(transfer: { fromType: string; fromId: s
   }
 
   if (toType === "truck") {
-    await Inventory.findOneAndUpdate(
+    await Stock.findOneAndUpdate(
       { locationType: "truck", locationId: truckId, productId },
       { $inc: { quantity: quantity } },
       { upsert: true }
     );
   } else {
-    await Inventory.findOneAndUpdate(
+    await Stock.findOneAndUpdate(
       { locationType: toType, locationId: toId, productId },
       { $inc: { quantity: quantity } },
       { upsert: true }

@@ -52,7 +52,7 @@ export default function DisputesPage() {
       .finally(() => setLoading(false));
   }, [statusFilter]);
 
-  useEffect(() => { fetchDisputes(); }, [fetchDisputes]);
+  useEffect(() => { fetchDisputes(); }, [fetchDisputes]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const resolveDispute = async () => {
     if (!actionTarget) return;

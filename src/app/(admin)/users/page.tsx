@@ -7,7 +7,7 @@ import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import Select from "@/components/form/Select";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { PlusIcon, UserIcon, GroupIcon, PencilIcon } from "@/icons";
+import { PlusIcon, UserIcon, GroupIcon, PencilIcon, PaperPlaneIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 
@@ -60,28 +60,41 @@ export default function UsersPage() {
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
+  const [resending, setResending] = useState<string | null>(null);
 
   const fetchUsers = useCallback(() => {
-    setLoading(true);
     fetch("/api/users")
       .then((res) => res.json())
       .then(setUsers)
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]); // eslint-disable-line react-hooks/set-state-in-effect
 
   useEffect(() => {
-    fetch("/api/factories").then((r) => r.json()).then((data: { _id: string; name: string }[]) =>
-      setFactories(data.map((f) => ({ value: f._id, label: f.name })))
-    );
-    fetch("/api/depots").then((r) => r.json()).then((data: { _id: string; name: string }[]) =>
-      setDepots(data.map((d) => ({ value: d._id, label: d.name })))
-    );
-    fetch("/api/trucks").then((r) => r.json()).then((data: { _id: string; plateNumber: string }[]) =>
-      setTrucks(data.map((t) => ({ value: t._id, label: t.plateNumber })))
-    );
+    fetch("/api/factories").then(r => { if (!r.ok) throw new Error(`factories ${r.status}`); return r.json(); }).then((data: unknown) => { if (Array.isArray(data)) setFactories((data as { _id: string; name: string }[]).map((f) => ({ value: f._id, label: f.name }))); }).catch((e) => console.error("Failed to load factories:", e));
+    fetch("/api/depots").then(r => { if (!r.ok) throw new Error(`depots ${r.status}`); return r.json(); }).then((data: unknown) => { if (Array.isArray(data)) setDepots((data as { _id: string; name: string }[]).map((d) => ({ value: d._id, label: d.name }))); }).catch((e) => console.error("Failed to load depots:", e));
+    fetch("/api/trucks").then(r => { if (!r.ok) throw new Error(`trucks ${r.status}`); return r.json(); }).then((data: unknown) => { if (Array.isArray(data)) setTrucks((data as { _id: string; plateNumber: string }[]).map((t) => ({ value: t._id, label: t.plateNumber }))); }).catch((e) => console.error("Failed to load trucks:", e));
   }, []);
+
+  const resendInvite = async (id: string) => {
+    setResending(id);
+    try {
+      const res = await fetch("/api/auth/resend-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || "Failed"); return; }
+      if (data.emailSent === false) {
+        showSuccess("Invite re-created but email failed — check SMTP");
+      } else {
+        showSuccess("Invite resent successfully");
+      }
+    } catch { showError("Network error"); }
+    finally { setResending(null); }
+  };
 
   const toggleActive = async (id: string, current: boolean) => {
     await fetch(`/api/users/${id}`, {
@@ -141,27 +154,27 @@ export default function UsersPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/users" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{users.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/users" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <GroupIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/users" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <UserIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Roles</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{new Set(users.map((u) => u.role)).size}</h4>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
@@ -206,6 +219,16 @@ export default function UsersPage() {
                       <Button variant="outline" size="sm" onClick={() => openEdit(u)}>
                         <PencilIcon className="w-4 h-4" />
                       </Button>
+                      {!u.isActive && (
+                        <button
+                          onClick={() => resendInvite(u._id)}
+                          disabled={resending === u._id}
+                          className="p-1.5 text-gray-400 hover:text-brand-500 transition-colors disabled:opacity-40"
+                          title="Resend invite email"
+                        >
+                          <PaperPlaneIcon className="w-4 h-4" />
+                        </button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => toggleActive(u._id, u.isActive)}>
                         {u.isActive ? "Revoke" : "Activate"}
                       </Button>

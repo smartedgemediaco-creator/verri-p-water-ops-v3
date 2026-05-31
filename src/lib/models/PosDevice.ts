@@ -1,11 +1,9 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IPosDevice extends Document {
   terminalSerial: string;
   name: string;
   provider: "moniepoint" | "opay" | "palmpay" | "other";
-  locationType: "factory" | "depot" | "truck";
-  locationId: Types.ObjectId;
   isActive: boolean;
   meta?: Record<string, unknown>;
   createdAt: Date;
@@ -21,12 +19,6 @@ const PosDeviceSchema = new Schema<IPosDevice>(
       enum: ["moniepoint", "opay", "palmpay", "other"],
       default: "moniepoint",
     },
-    locationType: {
-      type: String,
-      enum: ["factory", "depot", "truck"],
-      required: true,
-    },
-    locationId: { type: Schema.Types.ObjectId, required: true },
     isActive: { type: Boolean, default: true },
     meta: { type: Schema.Types.Mixed },
   },

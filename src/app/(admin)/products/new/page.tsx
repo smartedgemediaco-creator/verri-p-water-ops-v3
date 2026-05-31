@@ -98,7 +98,7 @@ export default function NewProductPage() {
               <li><strong>Category:</strong> {form.category}</li>
               <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
             </ul>
-            <p className="mt-2">This product will be available for inventory and sales. Are you sure?</p>
+            <p className="mt-2">This product will be available for stock and sales. Are you sure?</p>
           </>
         }
         confirmLabel="Create Product"

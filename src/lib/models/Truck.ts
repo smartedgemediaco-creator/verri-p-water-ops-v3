@@ -1,12 +1,11 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITruck extends Document {
   plateNumber: string;
-  driverName: string;
+  chassisNumber?: string;
+  engineNumber?: string;
   capacity: number;
   isActive: boolean;
-  assignedToType?: "factory" | "depot";
-  assignedToId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -14,11 +13,10 @@ export interface ITruck extends Document {
 const TruckSchema = new Schema<ITruck>(
   {
     plateNumber: { type: String, required: true, unique: true },
-    driverName: { type: String, default: "" },
+    chassisNumber: { type: String, default: "" },
+    engineNumber: { type: String, default: "" },
     capacity: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
-    assignedToType: { type: String, enum: ["factory", "depot"] },
-    assignedToId: { type: Schema.Types.ObjectId },
   },
   { timestamps: true }
 );

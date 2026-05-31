@@ -40,7 +40,7 @@ const pageItems: PaletteItem[] = [
   { id: "depots-new", label: "Add Depot", href: "/depots/new", icon: <DepotIcon />, section: "pages", description: "Open a new depot" },
   { id: "trucks", label: "All Trucks", href: "/trucks", icon: <TruckIcon />, section: "pages", description: "Manage trucks" },
   { id: "trucks-new", label: "Add Truck", href: "/trucks/new", icon: <TruckIcon />, section: "pages", description: "Add a delivery truck" },
-  { id: "inventory", label: "Inventory", href: "/inventory", icon: <WaterDropIcon />, section: "pages", description: "Stock levels & activity" },
+  { id: "stock", label: "Stock", href: "/stock", icon: <WaterDropIcon />, section: "pages", description: "Stock levels & activity" },
   { id: "transfers", label: "All Transfers", href: "/transfers", icon: <TransferIcon />, section: "pages", description: "Stock transfers" },
   { id: "transfers-new", label: "New Transfer", href: "/transfers/new", icon: <TransferIcon />, section: "pages", description: "Create a stock transfer" },
   { id: "sales", label: "Sales", href: "/sales", icon: <DollarLineIcon />, section: "pages", description: "Sales transactions" },

@@ -25,7 +25,7 @@ interface Entity {
   manager?: string;
 }
 
-interface InventoryItem {
+interface StockItem {
   product: string;
   productId?: string;
   locationType: string;
@@ -99,7 +99,7 @@ interface ReportData {
     trucks: Entity[];
     products: Entity[];
   };
-  inventory: InventoryItem[];
+  stock: StockItem[];
   sales: SaleItem[];
   costs: CostItem[];
   production: ProductionItem[];
@@ -109,7 +109,7 @@ interface ReportData {
     sales: number;
     costs: number;
     profit: number;
-    inventory: number;
+    stock: number;
     production: number;
     transfers: number;
   };
@@ -390,7 +390,7 @@ export default function ReportsPage() {
                   color: data.totals.profit >= 0 ? "#14b8a6" : "#ef4444",
                   bg: data.totals.profit >= 0 ? "#f0fdfa" : "#fef2f2",
                 },
-                { label: "Inventory", value: `${(data.totals.inventory ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
+                { label: "Stock", value: `${(data.totals.stock ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
                 { label: "Production Batches", value: (data.totals.production ?? 0).toLocaleString(), color: "#6366f1", bg: "#eef2ff" },
                 { label: "Transfers", value: (data.totals.transfers ?? 0).toLocaleString(), color: "#8b5cf6", bg: "#f5f3ff" },
               ].map((c) => (
@@ -401,7 +401,7 @@ export default function ReportsPage() {
               ))}
             </div>
 
-            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.inventory.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
+            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.stock.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
               <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", marginBottom: "40px" }} />
             )}
 
@@ -451,34 +451,32 @@ export default function ReportsPage() {
                     <tr style={{ backgroundColor: "#eef1f5" }}>
                       <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Name</th>
                       <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Location</th>
-                      <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Manager</th>
                       <th className="py-3 px-4 text-left font-semibold text-xs uppercase tracking-wider" style={{ color: "#667085" }}>Status</th>
                     </tr>
                   </thead>
                   <tbody style={{ backgroundColor: "#ffffff" }}>
                     {data.entities.depots.map((d: Entity) => (
-                      <tr key={d._id} style={{ borderTop: "1px solid #f2f4f7" }}>
-                        <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{d.name}</td>
-                        <td className="py-3 px-4" style={{ color: "#667085" }}>{d.location}</td>
-                        <td className="py-3 px-4" style={{ color: "#667085" }}>{d.manager || "—"}</td>
-                        <td className="py-3 px-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: d.isActive ? "#ecfdf5" : "#fef2f2", color: d.isActive ? "#059669" : "#dc2626" }}>
-                            {d.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                        <tr key={d._id} style={{ borderTop: "1px solid #f2f4f7" }}>
+                          <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{d.name}</td>
+                          <td className="py-3 px-4" style={{ color: "#667085" }}>{d.location}</td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: d.isActive ? "#ecfdf5" : "#fef2f2", color: d.isActive ? "#059669" : "#dc2626" }}>
+                              {d.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </section>
             )}
 
-            {data.inventory.length > 0 && (
+            {data.stock.length > 0 && (
               <section style={{ marginBottom: "40px" }}>
                 <div className="flex items-center gap-3 mb-5">
                   <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
-                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Inventory</h2>
-                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{(data.totals.inventory ?? 0).toLocaleString()} total units</span>
+                  <h2 className="text-lg font-semibold" style={{ color: "#101828" }}>Stock</h2>
+                  <span className="text-xs ml-auto" style={{ color: "#98a2b3" }}>{(data.totals.stock ?? 0).toLocaleString()} total units</span>
                 </div>
                 <table className="w-full text-sm border-collapse" style={{ borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
                   <thead>
@@ -489,7 +487,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody style={{ backgroundColor: "#ffffff" }}>
-                    {data.inventory.map((i: InventoryItem, idx: number) => (
+                    {data.stock.map((i: StockItem, idx: number) => (
                       <tr key={idx} style={{ borderTop: "1px solid #f2f4f7" }}>
                         <td className="py-3 px-4 font-medium" style={{ color: "#344054" }}>{i.product}</td>
                         <td className="py-3 px-4 capitalize" style={{ color: "#667085" }}>{i.locationType}</td>
@@ -739,7 +737,7 @@ export default function ReportsPage() {
                   color: data.totals.profit >= 0 ? "#14b8a6" : "#ef4444",
                   bg: data.totals.profit >= 0 ? "#f0fdfa" : "#fef2f2",
                 },
-                { label: "Inventory", value: `${(data.totals.inventory ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
+                { label: "Stock", value: `${(data.totals.stock ?? 0).toLocaleString()} units`, color: "#06b6d4", bg: "#ecfeff" },
                 { label: "Production Batches", value: (data.totals.production ?? 0).toLocaleString(), color: "#6366f1", bg: "#eef2ff" },
                 { label: "Transfers", value: (data.totals.transfers ?? 0).toLocaleString(), color: "#8b5cf6", bg: "#f5f3ff" },
               ].map((c) => (
@@ -750,7 +748,7 @@ export default function ReportsPage() {
               ))}
             </div>
 
-            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.inventory.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
+            {(data.entities.factories.length > 0 || data.entities.depots.length > 0 || data.stock.length > 0 || data.sales.length > 0 || data.costs.length > 0 || data.production.length > 0 || data.transfers.length > 0 || data.activityLogs.length > 0) && (
               <hr style={{ border: "none", borderTop: "1px solid #e4e7ec", marginBottom: "40px" }} />
             )}
 
@@ -798,7 +796,6 @@ export default function ReportsPage() {
                     <tr style={{ backgroundColor: "#eef1f5" }}>
                       <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Name</th>
                       <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Location</th>
-                      <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Manager</th>
                       <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#667085" }}>Status</th>
                     </tr>
                   </thead>
@@ -807,7 +804,6 @@ export default function ReportsPage() {
                       <tr key={d._id} style={{ borderTop: "1px solid #f2f4f7" }}>
                         <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{d.name}</td>
                         <td style={{ padding: "12px 16px", color: "#667085" }}>{d.location}</td>
-                        <td style={{ padding: "12px 16px", color: "#667085" }}>{d.manager || "—"}</td>
                         <td style={{ padding: "12px 16px" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500, backgroundColor: d.isActive ? "#ecfdf5" : "#fef2f2", color: d.isActive ? "#059669" : "#dc2626" }}>{d.isActive ? "Active" : "Inactive"}</span>
                         </td>
@@ -818,12 +814,12 @@ export default function ReportsPage() {
               </section>
             )}
 
-            {data.inventory.length > 0 && (
+            {data.stock.length > 0 && (
               <section style={{ marginBottom: "40px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
                   <div style={{ width: "5px", height: "24px", backgroundColor: "#465fff", borderRadius: "3px" }} />
-                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Inventory</h2>
-                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{(data.totals.inventory ?? 0).toLocaleString()} total units</span>
+                  <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#101828", margin: 0 }}>Stock</h2>
+                  <span style={{ fontSize: "12px", marginLeft: "auto", color: "#98a2b3" }}>{(data.totals.stock ?? 0).toLocaleString()} total units</span>
                 </div>
                 <table style={{ width: "100%", fontSize: "14px", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #d0d5dd" }}>
                   <thead>
@@ -834,7 +830,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody style={{ backgroundColor: "#ffffff" }}>
-                    {data.inventory.map((i: InventoryItem, idx: number) => (
+                    {data.stock.map((i: StockItem, idx: number) => (
                       <tr key={idx} style={{ borderTop: "1px solid #f2f4f7" }}>
                         <td style={{ padding: "12px 16px", fontWeight: 500, color: "#344054" }}>{i.product}</td>
                         <td style={{ padding: "12px 16px", textTransform: "capitalize", color: "#667085" }}>{i.locationType}</td>

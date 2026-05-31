@@ -266,6 +266,38 @@
   --z-index-9999: 9999;
   --z-index-99999: 99999;
   --z-index-999999: 999999;
+
+  --color-corporate-bg: #f8f9fc;
+  --color-corporate-card-bg: #ffffff;
+  --color-corporate-border: #e2e8f0;
+  --color-corporate-text: #1a202c;
+  --color-corporate-text-secondary: #64748b;
+  --color-corporate-nav: #0f172a;
+  --color-accent: #1e40af;
+  --color-accent-light: #dbeafe;
+  --radius-corporate: 0.5rem;
+}
+
+@utility card-corporate {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-corporate-border);
+  border-radius: var(--radius-corporate);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+@utility stat-value {
+  font-weight: 700;
+  font-size: var(--text-title-sm);
+  line-height: var(--text-title-sm--line-height);
+  color: var(--color-gray-900);
+}
+
+@utility stat-label {
+  font-size: var(--text-theme-xs);
+  line-height: var(--text-theme-xs--line-height);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /*

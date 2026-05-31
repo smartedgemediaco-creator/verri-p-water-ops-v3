@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Select from "@/components/form/Select";
@@ -171,20 +172,20 @@ export default function WastagePage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0">
+        <Link href="/wastage" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <TrashBinIcon className="text-red-600 size-4 dark:text-red-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Records</p>
           <p className="text-sm font-bold text-gray-800 dark:text-white/90">{records.length}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0">
+        </Link>
+        <Link href="/wastage" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <BoxIconLine className="text-red-600 size-4 dark:text-red-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Units Lost</p>
           <p className="text-sm font-bold text-gray-800 dark:text-white/90">{totalQty.toLocaleString()}</p>
-        </div>
+        </Link>
       </div>
 
       {/* Source breakdown */}
@@ -234,8 +235,8 @@ export default function WastagePage() {
             ) : (
               records.map((r) => (
                 <TableRow key={r._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{r.productId?.name ?? "N/A"}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{r.locationName ?? r.locationId?.slice(-6) ?? "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{r.productId?._id ? <Link href={`/products/${r.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{r.productId.name}</Link> : "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{r.locationId ? <Link href={`/${r.locationType === "factory" ? "factories" : r.locationType === "depot" ? "depots" : "trucks"}/${r.locationId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{r.locationName ?? r.locationId?.slice(-6) ?? "N/A"}</Link> : "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">
                     <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                       r.locationType === "factory" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :

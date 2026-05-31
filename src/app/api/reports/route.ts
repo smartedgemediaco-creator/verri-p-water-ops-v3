@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import {
-  Factory, Depot, Truck, Product, Inventory,
+  Factory, Depot, Truck, Product, Stock,
   Sale, Cost, Transfer, Production, ActivityLog,
 } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     depots,
     trucks,
     products,
-    inventory,
+    stockData,
     sales,
     costs,
     production,
@@ -95,8 +95,8 @@ export async function GET(req: NextRequest) {
     Truck.find({}).lean(),
     Product.find({}).lean(),
     scopeFilter.locationType
-      ? Inventory.find(scopeFilter).populate("productId").lean()
-      : Inventory.find({}).populate("productId").lean(),
+      ? Stock.find(scopeFilter).populate("productId").lean()
+      : Stock.find({}).populate("productId").lean(),
     Sale.find(saleFilter).populate("productId").sort({ date: -1 }).lean(),
     Cost.find(costFilter).sort({ date: -1 }).lean(),
     Production.find(productionFilter).populate("productId").populate("factoryId").sort({ date: -1 }).lean(),
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
 
   const totalSalesAmount = sales.reduce((sum: number, s: any) => sum + (s.totalAmount || 0), 0);
   const totalCostsAmount = costs.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
-  const totalInventoryQty = inventory.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
+  const totalStockQty = stockData.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
 
   return NextResponse.json({
     meta: {
@@ -121,10 +121,10 @@ export async function GET(req: NextRequest) {
     entities: {
       factories: factories.map((f: any) => ({ _id: f._id.toString(), name: f.name, location: f.location, capacity: f.capacity, isActive: f.isActive })),
       depots: depots.map((d: any) => ({ _id: d._id.toString(), name: d.name, location: d.location, isActive: d.isActive })),
-      trucks: trucks.map((t: any) => ({ _id: t._id.toString(), plateNumber: t.plateNumber, driverName: t.driverName, isActive: t.isActive })),
+      trucks: trucks.map((t: any) => ({ _id: t._id.toString(), plateNumber: t.plateNumber, isActive: t.isActive })),
       products: products.map((p: any) => ({ _id: p._id.toString(), name: p.name, category: p.category, unit: p.unit })),
     },
-    inventory: inventory.map((i: any) => ({
+    stock: stockData.map((i: any) => ({
       product: (i.productId as any)?.name ?? "Unknown",
       productId: (i.productId as any)?._id?.toString(),
       locationType: i.locationType,
@@ -181,7 +181,7 @@ export async function GET(req: NextRequest) {
       sales: totalSalesAmount,
       costs: totalCostsAmount,
       profit: totalSalesAmount - totalCostsAmount,
-      inventory: totalInventoryQty,
+      stock: totalStockQty,
       production: production.length,
       transfers: transfers.length,
     },

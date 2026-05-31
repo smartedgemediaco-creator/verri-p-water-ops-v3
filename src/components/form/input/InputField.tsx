@@ -51,16 +51,32 @@ const Input: FC<InputProps> = ({
     inputClasses += ` bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800`;
   }
 
+  const renderType = type === "number" ? "text" : type;
+  const renderInputMode = type === "number" ? "numeric" : undefined;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onChange) {
+      if (type === "number") {
+        const raw = e.target.value;
+        if (raw.length > 1 && raw.startsWith("0") && raw[1] !== ".") {
+          e.target.value = raw.replace(/^0+/, "");
+        }
+      }
+      onChange(e);
+    }
+  };
+
   return (
     <div className="relative">
       <input
-        type={type}
+        type={renderType}
+        inputMode={renderInputMode}
         id={id}
         name={name}
         placeholder={placeholder}
         defaultValue={defaultValue}
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
         min={min}
         max={max}
         step={step}

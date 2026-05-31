@@ -1,0 +1,431 @@
+"use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import Button from "@/components/ui/button/Button";
+import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import Input from "@/components/form/input/InputField";
+import Select from "@/components/form/Select";
+import TextArea from "@/components/form/input/TextArea";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon } from "@/icons";
+import { showSuccess, showError } from "@/lib/toast";
+
+
+interface StaffMember {
+  _id: string;
+  name: string;
+  phone: string;
+  email: string;
+  role: "manager" | "supervisor" | "operator" | "driver" | "loader" | "security" | "cleaner" | "other";
+  department: "production" | "logistics" | "sales" | "administration" | "maintenance";
+  locationType: "factory" | "depot";
+  locationId: string;
+  salary: number;
+  employmentType: "full-time" | "part-time" | "contract";
+  startDate: string;
+  isActive: boolean;
+  emergencyContact: string;
+  notes: string;
+}
+
+const ROLES = [
+  { value: "manager", label: "Manager" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "operator", label: "Operator" },
+  { value: "driver", label: "Driver" },
+  { value: "loader", label: "Loader" },
+  { value: "security", label: "Security" },
+  { value: "cleaner", label: "Cleaner" },
+  { value: "other", label: "Other" },
+];
+
+const DEPARTMENTS = [
+  { value: "production", label: "Production" },
+  { value: "logistics", label: "Logistics" },
+  { value: "sales", label: "Sales" },
+  { value: "administration", label: "Administration" },
+  { value: "maintenance", label: "Maintenance" },
+];
+
+const LOCATION_TYPES = [
+  { value: "factory", label: "Factory" },
+  { value: "depot", label: "Depot" },
+];
+
+const EMPLOYMENT_TYPES = [
+  { value: "full-time", label: "Full Time" },
+  { value: "part-time", label: "Part Time" },
+  { value: "contract", label: "Contract" },
+];
+
+export default function StaffPage() {
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [filterLocationType, setFilterLocationType] = useState("");
+  const [filterLocationId, setFilterLocationId] = useState("");
+  const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("operator");
+  const [department, setDepartment] = useState("production");
+  const [locationType, setLocationType] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [salary, setSalary] = useState(0);
+  const [employmentType, setEmploymentType] = useState("full-time");
+  const [startDate, setStartDate] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [emergencyContact, setEmergencyContact] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const fetchStaff = () => {
+    setLoading(true);
+    fetch("/api/staff")
+      .then((r) => r.json())
+      .then((data) => setStaff(data))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchStaff(); }, []);
+
+  useEffect(() => {
+    if (!filterLocationType) { setLocations([]); setFilterLocationId(""); return; }
+    const endpoint = `/api/${filterLocationType}s`;
+    fetch(endpoint)
+      .then((r) => r.json())
+      .then((data: { _id: string; name?: string }[]) => {
+        if (Array.isArray(data)) {
+          setLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+        }
+      });
+    setFilterLocationId("");
+  }, [filterLocationType]);
+
+  useEffect(() => {
+    if (!locationType) { setLocations([]); return; }
+    const endpoint = `/api/${locationType}s`;
+    fetch(endpoint)
+      .then((r) => r.json())
+      .then((data: { _id: string; name?: string }[]) => {
+        if (Array.isArray(data)) {
+          setLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+        }
+      });
+    setLocationId("");
+  }, [locationType]);
+
+  const resetForm = () => {
+    setName("");
+    setPhone("");
+    setEmail("");
+    setRole("operator");
+    setDepartment("production");
+    setLocationType("");
+    setLocationId("");
+    setSalary(0);
+    setEmploymentType("full-time");
+    setStartDate("");
+    setIsActive(true);
+    setEmergencyContact("");
+    setNotes("");
+  };
+
+  const openEdit = (s: StaffMember) => {
+    setEditTarget(s);
+    setName(s.name);
+    setPhone(s.phone);
+    setEmail(s.email);
+    setRole(s.role);
+    setDepartment(s.department);
+    setLocationType(s.locationType);
+    setLocationId(s.locationId);
+    setSalary(s.salary);
+    setEmploymentType(s.employmentType);
+    setStartDate(s.startDate ? new Date(s.startDate).toISOString().split("T")[0] : "");
+    setIsActive(s.isActive);
+    setEmergencyContact(s.emergencyContact);
+    setNotes(s.notes);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setEditTarget(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { showError("Name is required"); return; }
+    setSubmitting(true);
+    try {
+      const url = editTarget ? `/api/staff/${editTarget._id}` : "/api/staff";
+      const method = editTarget ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(), phone, email, role, department, locationType, locationId, salary, employmentType,
+          startDate: startDate ? new Date(startDate).toISOString() : undefined, isActive, emergencyContact, notes,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        showError(err.error || "Operation failed");
+        return;
+      }
+      showSuccess(editTarget ? "Staff updated" : "Staff added");
+      setShowModal(false);
+      setEditTarget(null);
+      resetForm();
+      fetchStaff();
+    } catch {
+      showError("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/staff/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed to delete");
+    showSuccess("Staff deleted");
+    setDeleteTarget(null);
+    fetchStaff();
+  };
+
+  const filtered = staff.filter((s) => {
+    if (filterLocationType && s.locationType !== filterLocationType) return false;
+    if (filterLocationId && s.locationId !== filterLocationId) return false;
+    return true;
+  });
+
+  const departmentCounts = staff.reduce<Record<string, number>>((acc, s) => {
+    acc[s.department] = (acc[s.department] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const roleBadge = (role: string) => {
+    const colors: Record<string, string> = {
+      manager: "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
+      supervisor: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+      operator: "bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400",
+      driver: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+      loader: "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400",
+      security: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+      cleaner: "bg-pink-100 text-pink-700 dark:bg-pink-500/10 dark:text-pink-400",
+    };
+    return `inline-block px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${colors[role] ?? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <PageBreadcrumb pageTitle="Staff" />
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={fetchStaff}>
+            Refresh
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openAdd}>
+            Add Staff
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+        <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
+            <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Staff</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.length}</h4>
+        </Link>
+        <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
+            <GroupIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Departments</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{Object.keys(departmentCounts).length}</h4>
+        </Link>
+        <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
+            <UserIcon className="text-green-600 size-5 dark:text-green-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.filter((s) => s.isActive).length}</h4>
+        </Link>
+      </div>
+
+      <div className="flex gap-4 mb-4 flex-wrap">
+        <div className="w-48">
+          <Select options={LOCATION_TYPES} placeholder="Filter by location" value={filterLocationType} onChange={(v) => setFilterLocationType(v)} />
+        </div>
+        {filterLocationType && (
+          <div className="w-48">
+            <Select options={locations} placeholder={`Select ${filterLocationType}`} value={filterLocationId} onChange={setFilterLocationId} />
+          </div>
+        )}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowModal(false); setEditTarget(null); resetForm(); } }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
+                {editTarget ? "Edit Staff Member" : "Add Staff Member"}
+              </h3>
+              <button onClick={() => { setShowModal(false); setEditTarget(null); resetForm(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <CloseIcon className="size-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                  <Input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+                  <Input placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                  <Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                  <Select options={ROLES} value={role} onChange={setRole} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+                  <Select options={DEPARTMENTS} value={department} onChange={setDepartment} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employment Type</label>
+                  <Select options={EMPLOYMENT_TYPES} value={employmentType} onChange={setEmploymentType} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
+                  <Select options={LOCATION_TYPES} value={locationType} placeholder="Select type" onChange={(v) => { setLocationType(v); setLocationId(""); }} />
+                </div>
+                {locationType && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+                    <Select options={locations} placeholder={`Select ${locationType}`} value={locationId} onChange={setLocationId} />
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Salary (₦)</label>
+                  <Input type="number" placeholder="0" value={salary} onChange={(e) => setSalary(Number(e.target.value))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Emergency Contact</label>
+                <Input placeholder="Emergency contact info" value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} />
+              </div>
+              {editTarget && (
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="staff-active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                  <label htmlFor="staff-active" className="text-sm text-gray-700 dark:text-gray-300">Active</label>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <TextArea placeholder="Optional notes..." value={notes} onChange={setNotes} rows={3} />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" size="sm" onClick={() => { setShowModal(false); setEditTarget(null); resetForm(); }} disabled={submitting}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Saving..." : editTarget ? "Update Staff" : "Add Staff"}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Department</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Salary</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Employment Type</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((s) => (
+                <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90"><Link href={`/staff/${s._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{s.name}</Link></TableCell>
+                  <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
+                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.department}</TableCell>
+                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.locationType}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.employmentType}</TableCell>
+                  <TableCell className="py-3">
+                    <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
+                      {s.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(s)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
+                        <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
+                      </button>
+                      <button onClick={() => setDeleteTarget(s._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                        <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Staff Member"
+        message="This will permanently delete this staff member and all associated data. This action cannot be undone."
+        confirmLabel="Delete Staff"
+        variant="danger"
+      />
+    </div>
+  );
+}

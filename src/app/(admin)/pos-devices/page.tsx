@@ -7,6 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Select from "@/components/form/Select";
 import Input from "@/components/form/input/InputField";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Link from "next/link";
 import { PlusIcon, TrashBinIcon, PencilIcon, BoxIconLine } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 
@@ -59,7 +60,7 @@ export default function PosDevicesPage() {
   useEffect(() => { fetchDevices(); }, []);
 
   useEffect(() => {
-    if (!locationType) { setLocations([]); return; }
+    if (!locationType) { setLocations([]); return; } // eslint-disable-line react-hooks/set-state-in-effect
     const endpoint = locationType === "truck" ? "/api/trucks" : `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
@@ -73,7 +74,7 @@ export default function PosDevicesPage() {
           );
         }
       });
-    setLocationId("");
+    setLocationId(""); // eslint-disable-line react-hooks/set-state-in-effect
   }, [locationType]);
 
   const resetForm = () => {
@@ -152,27 +153,27 @@ export default function PosDevicesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Devices</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{devices.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <BoxIconLine className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <BoxIconLine className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{devices.length - totalActive}</h4>
-        </div>
+        </Link>
       </div>
 
       {showForm && (

@@ -93,7 +93,7 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">Reset Business Data</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              This permanently deletes all factories, depots, trucks, products, inventory, sales, costs, transfers, production records, activity logs, POS data, and wastage records.
+              This permanently deletes all factories, depots, trucks, products, stock, sales, costs, transfers, production records, activity logs, POS data, and wastage records.
             </p>
           </div>
         </div>

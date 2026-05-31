@@ -1,0 +1,33 @@
+import mongoose, { Schema, Document } from "mongoose";
+
+export interface IRawMaterial extends Document {
+  name: string;
+  unit: string;
+  category: "chemical" | "packaging" | "filter" | "label" | "other";
+  currentStock: number;
+  minimumStock: number;
+  unitCost: number;
+  notes: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const RawMaterialSchema = new Schema<IRawMaterial>(
+  {
+    name: { type: String, required: true },
+    unit: { type: String, required: true, default: "kg" },
+    category: {
+      type: String,
+      enum: ["chemical", "packaging", "filter", "label", "other"],
+      default: "other",
+    },
+    currentStock: { type: Number, default: 0 },
+    minimumStock: { type: Number, default: 0 },
+    unitCost: { type: Number, default: 0 },
+    notes: { type: String, default: "" },
+  },
+  { timestamps: true }
+);
+
+export const RawMaterial =
+  mongoose.models.RawMaterial ?? mongoose.model<IRawMaterial>("RawMaterial", RawMaterialSchema);

@@ -167,17 +167,16 @@ export default function SalesPage() {
     if (!id || settling) return;
     setSettling(id);
     try {
-      const res = await fetch(`/api/sales/${id}`, { method: "PATCH" });
+      const res = await fetch(`/api/sales/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPaid: true }) });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
         showError(err.error || "Failed to settle");
-        throw new Error(err.error || "Failed to settle");
+        return;
       }
       showSuccess("Credit sale settled");
       fetchSales();
-    } catch (e) {
-      if (!(e instanceof Error) || !e.message) showError("Network error");
-      throw e;
+    } catch {
+      showError("Network error");
     } finally {
       setSettling(null);
     }
@@ -260,54 +259,54 @@ export default function SalesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
           <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{pagination.total} sales</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+        </Link>
+        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Cash</p>
           <AutoAmount value={`₦${(paymentStats?.byMethod?.cash?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.cash?.count ?? 0} transactions</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+        </Link>
+        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">POS</p>
           <AutoAmount value={`₦${(paymentStats?.byMethod?.pos?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.pos?.count ?? 0} transactions</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+        </Link>
+        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Transfer</p>
           <AutoAmount value={`₦${(paymentStats?.byMethod?.transfer?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.transfer?.count ?? 0} transactions</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+        </Link>
+        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <ListIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Credit Sales</p>
           <AutoAmount value={`₦${(paymentStats?.byMethod?.credit?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.credit?.count ?? 0} transactions</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 border-l-4 border-warning-500">
+        </Link>
+        <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow border-l-4 border-warning-500">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Credit Outstanding</p>
           <AutoAmount value={`₦${(paymentStats?.creditOutstanding ?? 0).toLocaleString()}`} className="text-red-600 dark:text-red-400" />
           <p className="text-xs text-red-400 mt-0.5">Unpaid deficit</p>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
@@ -407,9 +406,9 @@ export default function SalesPage() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
-                    {sale.location?.name ?? `${sale.locationType} (${sale.locationId?.slice(-6) ?? "N/A"})`}
+                    <Link href={`/${sale.locationType === "factory" ? "factories" : sale.locationType === "depot" ? "depots" : "trucks"}/${sale.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{sale.location?.name ?? `${sale.locationType} (${sale.locationId?.slice(-6) ?? "N/A"})`}</Link>
                   </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{sale.productId?.name ?? "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{sale.productId?._id ? <Link href={`/products/${sale.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{sale.productId.name}</Link> : "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(sale.quantity ?? 0).toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">₦{sale.totalAmount?.toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{sale.customerName}</TableCell>

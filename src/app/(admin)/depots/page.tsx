@@ -62,27 +62,27 @@ export default function DepotsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        <Link href="/depots" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DepotIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Depots</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{depots.length}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/depots" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <GroupIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+        </Link>
+        <Link href="/depots" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg dark:bg-gray-800 mb-3">
             <GroupIcon className="text-gray-600 size-5 dark:text-gray-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{depots.length - totalActive}</h4>
-        </div>
+        </Link>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
@@ -108,7 +108,7 @@ export default function DepotsPage() {
             ) : (
               depots.map((depot) => (
                 <TableRow key={depot._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{depot.name}</TableCell>
+                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90"><Link href={`/depots/${depot._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{depot.name}</Link></TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{depot.location}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{assignedUsers[depot._id] || "—"}</TableCell>
                   <TableCell className="py-3">

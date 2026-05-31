@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { User } from "@/lib/models/User";
-import { Factory } from "@/lib/models/Factory";
-import { Depot } from "@/lib/models/Depot";
-import { Truck } from "@/lib/models/Truck";
+import { StaffUserLink } from "@/lib/models/StaffUserLink";
+import { UserRole } from "@/lib/models/UserRole";
 import { comparePassword, signToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -24,46 +23,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  const staffLink = await StaffUserLink.findOne({ userId: user._id }).lean();
+  if (!staffLink) {
+    return NextResponse.json({ error: "Account not linked to any staff member. Contact admin." }, { status: 403 });
+  }
+
+  const userRole = await UserRole.findOne({ userId: user._id, isActive: true }).lean();
+  const role = userRole?.role ?? "admin";
+  const factoryId = userRole?.scopeType === "factory" ? userRole.scopeId?.toString() : undefined;
+  const depotId = userRole?.scopeType === "depot" ? userRole.scopeId?.toString() : undefined;
+  const truckId = userRole?.scopeType === "truck" ? userRole.scopeId?.toString() : undefined;
+
   const token = signToken({
     userId: user._id.toString(),
     email: user.email,
-    role: user.role,
-    factoryId: user.factoryId?.toString(),
-    depotId: user.depotId?.toString(),
-    truckId: user.truckId?.toString(),
+    role,
+    factoryId,
+    depotId,
+    truckId,
   });
-
-  let factoryName: string | undefined;
-  let depotName: string | undefined;
-  let truckName: string | undefined;
-  if (user.factoryId) {
-    const factory = await Factory.findById(user.factoryId).select("name");
-    factoryName = factory?.name;
-  }
-  if (user.depotId) {
-    const depot = await Depot.findById(user.depotId).select("name");
-    depotName = depot?.name;
-  }
-  if (user.truckId) {
-    const truck = await Truck.findById(user.truckId).select("plateNumber");
-    truckName = truck?.plateNumber;
-  }
 
   const res = NextResponse.json({
     user: {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      factoryId: user.factoryId,
-      depotId: user.depotId,
-      truckId: user.truckId ? { _id: user.truckId, plateNumber: truckName || "" } : undefined,
-      factoryName,
-      depotName,
-      truckName,
+      role,
+      factoryId,
+      depotId,
+      truckId,
     },
     token,
   });
+
   res.cookies.set("token", token, { httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
 
   return res;

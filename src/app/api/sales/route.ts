@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Inventory, Factory, Depot, Truck, PosDevice, Product } from "@/lib/models";
+import { Sale, Stock, Factory, Depot, Truck, PosDevice, Product } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -146,8 +146,8 @@ export async function POST(req: NextRequest) {
     }
 
     const inventoryFilter = { locationType: body.locationType, locationId: body.locationId, productId: body.productId };
-    const currentInventory = await Inventory.findOne(inventoryFilter);
-    const available = currentInventory?.quantity ?? 0;
+    const currentStock = await Stock.findOne(inventoryFilter);
+    const available = currentStock?.quantity ?? 0;
     if (available < body.quantity) {
       return NextResponse.json(
         { error: `Insufficient stock: ${available} available, ${body.quantity} required` },
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
 
     const sale = await Sale.create(body);
 
-    await Inventory.findOneAndUpdate(
+    await Stock.findOneAndUpdate(
       inventoryFilter,
       { $inc: { quantity: -body.quantity } },
       { upsert: true }

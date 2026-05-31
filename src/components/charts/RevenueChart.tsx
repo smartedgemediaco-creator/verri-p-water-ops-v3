@@ -32,7 +32,6 @@ export default function RevenueChart() {
   const [entityType, setEntityType] = useState("all");
   const [entityId, setEntityId] = useState("");
 
-  const [entityOptions, setEntityOptions] = useState<Option[]>([]);
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
@@ -55,12 +54,7 @@ export default function RevenueChart() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (entityType === "factory") setEntityOptions(factories);
-    else if (entityType === "depot") setEntityOptions(depots);
-    else if (entityType === "truck") setEntityOptions(trucks);
-    else setEntityOptions([]);
-  }, [entityType, factories, depots, trucks]);
+  const entityOpts = entityType === "factory" ? factories : entityType === "depot" ? depots : entityType === "truck" ? trucks : [];
 
   useEffect(() => {
     const params = new URLSearchParams({ months, entityType });
@@ -145,7 +139,7 @@ export default function RevenueChart() {
           {entityType !== "all" && (
             <div className="w-44">
               <Select
-                options={entityOptions}
+                options={entityOpts}
                 placeholder={`Select ${entityType}`}
                 value={entityId}
                 onChange={setEntityId}

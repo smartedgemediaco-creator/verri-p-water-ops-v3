@@ -41,22 +41,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Let explicit entity filter override role scope (admin can freely filter)
-    if (entityType !== "all" && entityId) {
-      const oid = new mongoose.Types.ObjectId(entityId);
-      if (entityType === "depot") {
-        saleMatch.locationType = "depot";
+    if (entityType !== "all") {
+      saleMatch.locationType = entityType;
+      costMatch.locationType = entityType;
+      if (entityId) {
+        const oid = new mongoose.Types.ObjectId(entityId);
         saleMatch.locationId = oid;
-        costMatch.locationType = "depot";
-        costMatch.locationId = oid;
-      } else if (entityType === "factory") {
-        saleMatch.locationType = "factory";
-        saleMatch.locationId = oid;
-        costMatch.locationType = "factory";
-        costMatch.locationId = oid;
-      } else if (entityType === "truck") {
-        saleMatch.locationType = "truck";
-        saleMatch.locationId = oid;
-        costMatch.locationType = "truck";
         costMatch.locationId = oid;
       }
     }

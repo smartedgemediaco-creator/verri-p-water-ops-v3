@@ -48,17 +48,14 @@ export default function ProductionForm() {
 
   useEffect(() => {
     if (effectiveFactoryId && productId) {
-      setStockLoading(true);
-      fetch(`/api/inventory?locationType=factory&locationId=${effectiveFactoryId}&productId=${productId}`)
+      fetch(`/api/stock?locationType=factory&locationId=${effectiveFactoryId}&productId=${productId}`)
         .then((r) => r.json())
         .then((data: { quantity?: number }[]) => {
           const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
           setAvailableStock(total);
+          setStockLoading(false);
         })
-        .catch(() => setAvailableStock(null))
-        .finally(() => setStockLoading(false));
-    } else {
-      setAvailableStock(null);
+        .catch(() => { setAvailableStock(null); setStockLoading(false); });
     }
   }, [effectiveFactoryId, productId]);
 
@@ -173,12 +170,12 @@ export default function ProductionForm() {
         title="Record Production"
         message={
           <>
-            You are about to record production that will <strong>permanently add inventory</strong>:
+            You are about to record production that will <strong>permanently add stock</strong>:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Quantity:</strong> {quantity} units</li>
               <li><strong>Spoilage:</strong> {spoilage || "0"} units</li>
             </ul>
-            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action affects inventory levels. Password required to confirm.</p>
+            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action affects stock levels. Password required to confirm.</p>
           </>
         }
         confirmLabel="Record Production"

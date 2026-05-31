@@ -76,7 +76,7 @@ export default function SignInForm() {
             <div className="space-y-6">
               <div>
                 <Label>Email <span className="text-error-500">*</span></Label>
-                <Input placeholder="admin@verripwater.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input placeholder="admin@verrip.com.ng" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
                 <Label>Password <span className="text-error-500">*</span></Label>
@@ -103,6 +103,12 @@ export default function SignInForm() {
               {error && (
                 <p className="text-sm text-error-500">{error}</p>
               )}
+
+              <div className="flex items-center justify-end">
+                <Link href="/forgot-password" className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
 
               <div>
                 <Button className="w-full" size="sm" type="submit" disabled={submitting}>

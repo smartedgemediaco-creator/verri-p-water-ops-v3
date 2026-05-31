@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Inventory, Transfer, ActivityLog, User } from "@/lib/models";
+import { Stock, Transfer, ActivityLog, User } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     userNameMap[u._id.toString()] = (u as any).name ?? (u as any).email ?? "Unknown";
   }
 
-  const lowStock = await Inventory.find({ quantity: { $lte: 0 } })
+  const lowStock = await Stock.find({ quantity: { $lte: 0 } })
     .populate("productId")
     .limit(10);
 

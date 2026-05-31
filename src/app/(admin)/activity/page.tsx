@@ -57,7 +57,7 @@ const ENTITIES = [
   { value: "sale", label: "Sale" },
   { value: "cost", label: "Cost" },
   { value: "transfer", label: "Transfer" },
-  { value: "inventory", label: "Inventory" },
+  { value: "stock", label: "Stock" },
   { value: "user", label: "User" },
   { value: "import", label: "Import" },
 ];
@@ -88,7 +88,7 @@ const entityIcon = (entity: string) => {
     sale: "💰",
     cost: "📉",
     transfer: "🔄",
-    inventory: "📋",
+    stock: "📋",
     user: "👤",
     import: "📥",
   };
@@ -131,7 +131,7 @@ export default function ActivityPage() {
   const entityLabel: Record<string, string> = {
     factory: "🏭", depot: "🏬", truck: "🚚", product: "📦",
     production: "⚙️", sale: "💰", cost: "📉", transfer: "🔄",
-    inventory: "📋", user: "👤", import: "📥",
+    stock: "📋", user: "👤", import: "📥",
   };
   const fmtDate = (dateStr: string) => formatDateTime(dateStr);
 
@@ -174,9 +174,11 @@ export default function ActivityPage() {
 
   useEffect(() => { fetchLogs(); /* eslint-disable-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */ }, []);
 
+  useEffect(() => { if (page > 1) fetchLogs(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [page]);
+
   const handleFilter = () => {
     setPage(1);
-    fetchLogs({ page: 1 });
+    fetchLogs();
   };
 
   const resetFilters = () => {
@@ -188,7 +190,6 @@ export default function ActivityPage() {
     setEndDate("");
     setPage(1);
     setDateKey((k) => k + 1);
-    fetchLogs({ page: 1 });
   };
 
   const downloadPDF = async () => {

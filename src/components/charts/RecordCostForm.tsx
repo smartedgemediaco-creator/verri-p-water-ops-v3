@@ -30,6 +30,8 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
   const [factories, setFactories] = useState<{ value: string; label: string }[]>([]);
   const [depots, setDepots] = useState<{ value: string; label: string }[]>([]);
   const [trucks, setTrucks] = useState<{ value: string; label: string }[]>([]);
+  const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
+  const [staffId, setStaffId] = useState("");
 
   const isAdmin = user?.role === "admin";
 
@@ -38,14 +40,18 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
       fetch("/api/factories").then((r) => r.json()),
       fetch("/api/depots").then((r) => r.json()),
       fetch("/api/trucks").then((r) => r.json()),
-    ]).then(([f, d, t]) => {
+      fetch("/api/staff").then((r) => r.json()),
+    ]).then(([f, d, t, s]) => {
       setFactories(f.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
       setDepots(d.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
       setTrucks(t.map((x: { _id: string; plateNumber: string }) => ({ value: x._id, label: `Truck: ${x.plateNumber}` })));
+      setStaffList(s.map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
     });
   }, []);
 
   const locationOptions = locationType === "factory" ? factories : locationType === "depot" ? depots : locationType === "truck" ? trucks : [];
+
+  const selectedStaff = staffList.find((s) => s.value === staffId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +68,9 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
         body.locationType = locationType;
         body.locationId = locationId;
       }
+      if (category === "salary" && staffId) {
+        body.staffId = staffId;
+      }
 
       const res = await fetch("/api/costs", {
         method: "POST",
@@ -77,6 +86,7 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
       setDescription("");
       setLocationType("");
       setLocationId("");
+      setStaffId("");
       onSuccess?.();
     } catch {
       setSuccess("");
@@ -101,6 +111,12 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <InputField id="cost-desc" placeholder="e.g. Raw materials" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+        {category === "salary" && (
+          <div className="w-44">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
+            <Select options={staffList} placeholder="Select staff" value={staffId} onChange={setStaffId} />
+          </div>
+        )}
         {isAdmin && (
           <>
             <div className="w-28">
@@ -124,7 +140,7 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
             )}
           </>
         )}
-        <Button type="submit" variant="primary" disabled={submitting || !category || !amount || (isAdmin && (!locationType || !locationId))}>
+        <Button type="submit" variant="primary" disabled={submitting || !category || !amount || (isAdmin && (!locationType || !locationId)) || (category === "salary" && !staffId)}>
           {submitting ? "Recording..." : "Record"}
         </Button>
         {success && <p className="text-sm text-success-600">{success}</p>}
@@ -137,6 +153,7 @@ export default function RecordCostForm({ onSuccess }: { onSuccess?: () => void }
         message={
           <>
             You are about to record a cost of <strong>₦{Number(amount).toLocaleString()}</strong> for <strong>{category}</strong>.
+            {category === "salary" && selectedStaff && <p className="mt-1">Staff: <strong>{selectedStaff.label}</strong></p>}
             <p className="mt-2">This expense will be reflected in financial reports. Are you sure?</p>
           </>
         }
