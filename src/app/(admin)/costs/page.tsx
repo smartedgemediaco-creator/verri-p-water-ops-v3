@@ -315,8 +315,8 @@ export default function CostsPage() {
                           {cost.category === "salary" ? (cost.staffName ?? "—") : "—"}
                         </TableCell>
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(cost.date)}</TableCell>
-                        <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-1.5 items-center">
+                        <TableCell className="py-3">
+                          <div className="flex gap-1.5 items-center" onClick={(e) => e.stopPropagation()}>
                             <AdminEditButton
                               entity="Cost"
                               entityId={cost._id}
