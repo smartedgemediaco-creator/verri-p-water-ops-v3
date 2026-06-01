@@ -70,7 +70,8 @@ export default function StaffPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [filterLocationType, setFilterLocationType] = useState("");
   const [filterLocationId, setFilterLocationId] = useState("");
-  const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
+  const [filterLocations, setFilterLocations] = useState<{ value: string; label: string }[]>([]);
+  const [formLocations, setFormLocations] = useState<{ value: string; label: string }[]>([]);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -97,26 +98,26 @@ export default function StaffPage() {
   useEffect(() => { fetchStaff(); }, []);
 
   useEffect(() => {
-    if (!filterLocationType) { setLocations([]); setFilterLocationId(""); return; }
+    if (!filterLocationType) { setFilterLocations([]); setFilterLocationId(""); return; }
     const endpoint = `/api/${filterLocationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string }[]) => {
         if (Array.isArray(data)) {
-          setLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+          setFilterLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
         }
       });
     setFilterLocationId("");
   }, [filterLocationType]);
 
   useEffect(() => {
-    if (!locationType) { setLocations([]); return; }
+    if (!locationType) { setFormLocations([]); return; }
     const endpoint = `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string }[]) => {
         if (Array.isArray(data)) {
-          setLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+          setFormLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
         }
       });
     setLocationId("");
@@ -271,7 +272,7 @@ export default function StaffPage() {
         </div>
         {filterLocationType && (
           <div className="w-48">
-            <Select options={locations} placeholder={`Select ${filterLocationType}`} value={filterLocationId} onChange={setFilterLocationId} />
+            <Select options={filterLocations} placeholder={`Select ${filterLocationType}`} value={filterLocationId} onChange={setFilterLocationId} />
           </div>
         )}
       </div>
@@ -326,7 +327,7 @@ export default function StaffPage() {
                 {locationType && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-                    <Select options={locations} placeholder={`Select ${locationType}`} value={locationId} onChange={setLocationId} />
+                    <Select options={formLocations} placeholder={`Select ${locationType}`} value={locationId} onChange={setLocationId} />
                   </div>
                 )}
               </div>
