@@ -61,7 +61,7 @@ export default function PosDevicesPage() {
 
   useEffect(() => {
     if (!locationType) { setLocations([]); return; } // eslint-disable-line react-hooks/set-state-in-effect
-    const endpoint = locationType === "truck" ? "/api/trucks" : `/api/${locationType}s`;
+    const endpoint = locationType === "truck" ? "/api/trucks" : locationType === "factory" ? "/api/factories" : `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {

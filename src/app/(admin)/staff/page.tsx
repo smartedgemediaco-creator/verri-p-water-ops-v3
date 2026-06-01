@@ -99,7 +99,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (!filterLocationType) { setFilterLocations([]); setFilterLocationId(""); return; }
-    const endpoint = `/api/${filterLocationType}s`;
+    const endpoint = filterLocationType === "factory" ? "/api/factories" : `/api/${filterLocationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string }[]) => {
@@ -112,7 +112,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (!locationType) { setFormLocations([]); return; }
-    const endpoint = `/api/${locationType}s`;
+    const endpoint = locationType === "factory" ? "/api/factories" : `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string }[]) => {
