@@ -68,8 +68,7 @@ export default function NewUserPage() {
       .catch((e) => console.error("Failed to load trucks:", e));
   }, []);
 
-  const handleCreateStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateStaff = async () => {
     if (!staffName) { showError("Staff name is required"); return; }
     setStaffCreating(true);
     try {
