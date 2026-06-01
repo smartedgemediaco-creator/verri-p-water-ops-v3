@@ -59,7 +59,7 @@ export default function SignUpForm() {
               </div>
               <div>
                 <Label>Email <span className="text-error-500">*</span></Label>
-                <Input placeholder="admin@verripwater.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input placeholder="admin@verrip.com.ng" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
                 <Label>Password <span className="text-error-500">*</span></Label>
