@@ -81,7 +81,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       const data = await res.json();
       setStaff(data);
       if (data?.locationType && data?.locationId) {
-        const locRes = await fetch(`/api/${data.locationType}s/${data.locationId}`);
+        const locRes = await fetch(`/api/${data.locationType === "factory" ? "factories" : `${data.locationType}s`}/${data.locationId}`);
         if (locRes.ok) {
           const locData = await locRes.json();
           setLocation(locData);
