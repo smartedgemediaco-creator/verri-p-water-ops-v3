@@ -1,5 +1,5 @@
 export interface DateConfig {
-  flatpickrFormat: string;
+  format: string;
   locale: string;
   display: Intl.DateTimeFormatOptions;
   longDisplay: Intl.DateTimeFormatOptions;
@@ -7,7 +7,7 @@ export interface DateConfig {
 
 const countryConfigs: Record<string, DateConfig> = {
   NG: {
-    flatpickrFormat: "d/m/Y",
+    format: "DD/MM/YYYY",
     locale: "en-NG",
     display: { day: "2-digit", month: "2-digit", year: "numeric" },
     longDisplay: { day: "numeric", month: "short", year: "numeric" },
@@ -17,7 +17,7 @@ const countryConfigs: Record<string, DateConfig> = {
 let active: DateConfig = countryConfigs.NG;
 
 export function getDateFormat(): string {
-  return active.flatpickrFormat;
+  return active.format;
 }
 
 export function formatDate(date: Date | string | number | undefined | null, style?: "short" | "long"): string {

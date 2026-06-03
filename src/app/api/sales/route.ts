@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       body.locationId = user.truckId;
     }
 
-    // Normalize date from DD/MM/YYYY (flatpickr) to ISO
+    // Normalize date from DD/MM/YYYY to ISO
     if (body.date && typeof body.date === "string") {
       const parts = body.date.split("/");
       if (parts.length === 3) {

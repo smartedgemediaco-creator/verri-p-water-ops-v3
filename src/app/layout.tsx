@@ -10,7 +10,6 @@ import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
 import '@fontsource/outfit/900.css';
 import './globals.css';
-import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProviderWrapper } from "./auth-wrapper";
