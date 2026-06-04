@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IStaffAssignment extends Document {
   staffId: Types.ObjectId;
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: Types.ObjectId;
   role: "manager" | "supervisor" | "operator" | "loader" | "security" | "cleaner" | "other";
   department: "production" | "logistics" | "sales" | "administration" | "maintenance";
@@ -16,7 +16,7 @@ export interface IStaffAssignment extends Document {
 const StaffAssignmentSchema = new Schema<IStaffAssignment>(
   {
     staffId: { type: Schema.Types.ObjectId, ref: "Staff", required: true },
-    locationType: { type: String, enum: ["factory", "depot"], required: true },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true },
     role: {
       type: String,

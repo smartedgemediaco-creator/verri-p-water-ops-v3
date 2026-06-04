@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
     filtered = filtered.filter((s) => s.locationType === "factory" && s.locationId?.toString() === user.factoryId);
   } else if (user.role === "depot-manager" && user.depotId) {
     filtered = filtered.filter((s) => s.locationType === "depot" && s.locationId?.toString() === user.depotId);
+  } else if (user.role === "driver" && user.truckId) {
+    filtered = filtered.filter((s) => s.locationType === "truck" && s.locationId?.toString() === user.truckId);
   }
 
   return NextResponse.json(filtered);

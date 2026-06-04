@@ -21,7 +21,7 @@ interface StaffMember {
   email: string;
   role: "manager" | "supervisor" | "operator" | "driver" | "loader" | "security" | "cleaner" | "other";
   department: "production" | "logistics" | "sales" | "administration" | "maintenance";
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: string;
   salary: number;
   employmentType: "full-time" | "part-time" | "contract";
@@ -53,6 +53,7 @@ const DEPARTMENTS = [
 const LOCATION_TYPES = [
   { value: "factory", label: "Factory" },
   { value: "depot", label: "Depot" },
+  { value: "truck", label: "Truck" },
 ];
 
 const EMPLOYMENT_TYPES = [
