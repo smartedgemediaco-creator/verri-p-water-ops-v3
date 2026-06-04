@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeftIcon } from "@/icons";
 import Button from "@/components/ui/button/Button";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import { showSuccess, showError } from "@/lib/toast";
 
 function ResetPasswordForm() {
@@ -88,11 +89,9 @@ function ResetPasswordForm() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white/90 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                     placeholder="At least 6 characters"
                     minLength={6}
                     required
@@ -100,11 +99,9 @@ function ResetPasswordForm() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm Password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white/90 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                     placeholder="Repeat your password"
                     required
                   />

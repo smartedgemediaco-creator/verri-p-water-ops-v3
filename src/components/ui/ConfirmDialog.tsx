@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from "react";
 import Button from "./button/Button";
+import PasswordInput from "@/components/form/input/PasswordInput";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -178,13 +179,11 @@ export default function ConfirmDialog({
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Enter your password to confirm
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setPasswordError(""); }}
                 placeholder="Your password"
                 autoFocus
-                className="w-full rounded-lg border border-gray-300 bg-transparent px-3.5 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 placeholder-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 outline-none"
               />
               {passwordError && (
                 <p className="mt-1.5 text-xs text-red-500">{passwordError}</p>

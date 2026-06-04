@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "../ui/button/Button";
 import { showSuccess, showError } from "@/lib/toast";
 import { useAuth } from "@/context/AuthContext";
+import PasswordInput from "@/components/form/input/PasswordInput";
 
 export default function ChangePasswordCard() {
   const { changePassword } = useAuth();
@@ -46,10 +47,8 @@ export default function ChangePasswordCard() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Current Password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             required
-            className="h-11 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
             placeholder="Enter current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -59,11 +58,9 @@ export default function ChangePasswordCard() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             New Password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={6}
-            className="h-11 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
             placeholder="At least 6 characters"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -73,11 +70,9 @@ export default function ChangePasswordCard() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Confirm New Password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={6}
-            className="h-11 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
             placeholder="Repeat new password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

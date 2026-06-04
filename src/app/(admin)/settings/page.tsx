@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import { showSuccess, showError } from "@/lib/toast";
 import { useAuth } from "@/context/AuthContext";
 import ChangePasswordCard from "@/components/user-profile/ChangePasswordCard";
@@ -140,8 +141,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-2 gap-4 max-w-sm">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter password</label>
-                <Input
-                  type="password"
+                <PasswordInput
                   placeholder="Your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -149,8 +149,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm password</label>
-                <Input
-                  type="password"
+                <PasswordInput
                   placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
