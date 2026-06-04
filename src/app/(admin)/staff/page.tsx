@@ -98,14 +98,19 @@ export default function StaffPage() {
 
   useEffect(() => { fetchStaff(); }, []);
 
+  const labelFor = (type: string, d: { _id: string; name?: string; plateNumber?: string }): string => {
+    if (type === "truck") return d.plateNumber ?? d._id.slice(-6);
+    return d.name ?? d._id.slice(-6);
+  };
+
   useEffect(() => {
     if (!filterLocationType) { setFilterLocations([]); setFilterLocationId(""); return; }
     const endpoint = filterLocationType === "factory" ? "/api/factories" : `/api/${filterLocationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
-      .then((data: { _id: string; name?: string }[]) => {
+      .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {
         if (Array.isArray(data)) {
-          setFilterLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+          setFilterLocations(data.map((d) => ({ value: d._id, label: labelFor(filterLocationType, d) })));
         }
       });
     setFilterLocationId("");
@@ -116,9 +121,9 @@ export default function StaffPage() {
     const endpoint = locationType === "factory" ? "/api/factories" : `/api/${locationType}s`;
     fetch(endpoint)
       .then((r) => r.json())
-      .then((data: { _id: string; name?: string }[]) => {
+      .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {
         if (Array.isArray(data)) {
-          setFormLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id.slice(-6) })));
+          setFormLocations(data.map((d) => ({ value: d._id, label: labelFor(locationType, d) })));
         }
       });
     setLocationId("");
