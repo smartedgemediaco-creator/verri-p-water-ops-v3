@@ -7,6 +7,7 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { showSuccess, showError } from "@/lib/toast";
 import { useAuth } from "@/context/AuthContext";
+import ChangePasswordCard from "@/components/user-profile/ChangePasswordCard";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -85,6 +86,10 @@ export default function SettingsPage() {
             <Input value={user?.role === "admin" ? "Administrator" : user?.role === "factory-manager" ? "Factory Manager" : user?.role === "depot-manager" ? "Depot Manager" : user?.role === "driver" ? "Driver" : ""} disabled className="max-w-sm" />
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <ChangePasswordCard />
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-red-200 dark:border-red-500/20 p-6 md:p-8">
