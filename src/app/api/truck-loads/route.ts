@@ -83,7 +83,27 @@ export async function POST(req: NextRequest) {
     if (!body.fromType || !body.fromId || !body.productId || !body.quantity || !body.truckId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    body.status = "in-transit";
     const load = await TruckLoad.create(body);
+
+    const srcStock = await Stock.findOne({ locationType: body.fromType, locationId: body.fromId, productId: body.productId });
+    const available = srcStock?.quantity ?? 0;
+    if (available < Number(body.quantity)) {
+      await TruckLoad.findByIdAndDelete(load._id);
+      return NextResponse.json({ error: `Insufficient stock at ${body.fromType}: ${available} available, ${body.quantity} required` }, { status: 400 });
+    }
+    await Stock.findOneAndUpdate(
+      { locationType: body.fromType, locationId: body.fromId, productId: body.productId },
+      { $inc: { quantity: -Number(body.quantity) } },
+      { upsert: true }
+    );
+    await Stock.findOneAndUpdate(
+      { locationType: "truck", locationId: body.truckId, productId: body.productId },
+      { $inc: { quantity: Number(body.quantity) } },
+      { upsert: true }
+    );
+
     await logActivity({
       action: "created",
       entity: "truck-load",
@@ -95,45 +115,11 @@ export async function POST(req: NextRequest) {
       productId: body.productId,
       metadata: { quantity: body.quantity, status: load.status },
     });
-    if (load.status === "delivered") {
-      await updateInventoryOnDelivery(body);
-    }
     return NextResponse.json(load, { status: 201 });
   } catch (e: unknown) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Internal server error" },
       { status: 500 }
-    );
-  }
-}
-
-async function updateInventoryOnDelivery(data: { fromType: string; fromId: string; toType: string; toId: string; truckId: string; productId: string; quantity: number }) {
-  const { fromType, toType, truckId, productId, quantity } = data;
-  if (fromType === "truck" && toType === "truck") return;
-  if (fromType !== "truck") {
-    const srcStock = await Stock.findOne({ locationType: fromType, locationId: data.fromId, productId });
-    const available = srcStock?.quantity ?? 0;
-    if (available < quantity) {
-      throw new Error(`Insufficient stock at ${fromType}: ${available} available, ${quantity} required`);
-    }
-    await Stock.findOneAndUpdate(
-      { locationType: fromType, locationId: data.fromId, productId },
-      { $inc: { quantity: -quantity } },
-      { upsert: true }
-    );
-  }
-  if (toType === "customer") return;
-  if (toType === "truck") {
-    await Stock.findOneAndUpdate(
-      { locationType: "truck", locationId: truckId, productId },
-      { $inc: { quantity } },
-      { upsert: true }
-    );
-  } else {
-    await Stock.findOneAndUpdate(
-      { locationType: toType, locationId: data.toId, productId },
-      { $inc: { quantity } },
-      { upsert: true }
     );
   }
 }

@@ -48,8 +48,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "No status change" }, { status: 400 });
   }
   const validTransitions: Record<string, string[]> = {
-    pending: ["loading", "in-transit", "cancelled"],
-    loading: ["in-transit", "cancelled"],
     "in-transit": ["delivered", "cancelled"],
   };
   const allowed = validTransitions[oldStatus];
@@ -60,9 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!load) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const { fromType, fromId, toType, toId, truckId, productId, quantity } = load;
   try {
-    if (newStatus === "in-transit" && (oldStatus === "pending" || oldStatus === "loading")) {
-      await adjustStock(fromType, fromId.toString(), "truck", truckId.toString(), productId.toString(), quantity);
-    } else if (newStatus === "delivered" && oldStatus === "in-transit") {
+    if (newStatus === "delivered" && oldStatus === "in-transit") {
       const deliveredQty = quantity - spoilageQty;
       if (deliveredQty > 0) {
         await adjustStock("truck", truckId.toString(), toType, toId.toString(), productId.toString(), deliveredQty);

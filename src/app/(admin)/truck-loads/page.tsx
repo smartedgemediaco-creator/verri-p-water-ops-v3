@@ -51,9 +51,7 @@ export default function TruckLoadsPage() {
   useEffect(() => { fetchLoads(); }, []);
 
   const statusBadge = (status: string) => {
-    const map: Record<string, { color: "warning" | "info" | "success" | "error" | "light"; label: string }> = {
-      pending: { color: "warning", label: "Pending" },
-      loading: { color: "info", label: "Loading" },
+    const map: Record<string, { color: "info" | "success" | "error" | "light"; label: string }> = {
       "in-transit": { color: "info", label: "In Transit" },
       delivered: { color: "success", label: "Delivered" },
       cancelled: { color: "error", label: "Cancelled" },
@@ -135,7 +133,6 @@ export default function TruckLoadsPage() {
       (t.toType === "depot" && user.role === "depot-manager" && uid(user.depotId) === t.toId) ||
       (t.toType === "truck" && user.role === "driver" && driverTruckId === t.toId);
     const isAssignedDriver = user.role === "driver" && driverTruckId === t.truckId?._id;
-    if (action === "in-transit") return fromMatch || isAssignedDriver;
     if (action === "delivered") return toMatch || isAssignedDriver;
     if (action === "cancelled") return fromMatch || toMatch || isAssignedDriver;
     return false;
@@ -157,7 +154,7 @@ export default function TruckLoadsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5 md:gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/truck-loads" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <TransferIcon className="text-purple-600 size-5 dark:text-purple-400" />
@@ -166,22 +163,8 @@ export default function TruckLoadsPage() {
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{loads.length}</h4>
         </Link>
         <Link href="/truck-loads" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg dark:bg-yellow-500/10 mb-3">
-            <ListIcon className="text-yellow-600 size-5 dark:text-yellow-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("pending")}</h4>
-        </Link>
-        <Link href="/truck-loads" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("loading")}</h4>
-        </Link>
-        <Link href="/truck-loads" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-lg dark:bg-indigo-500/10 mb-3">
-            <ListIcon className="text-indigo-600 size-5 dark:text-indigo-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">In Transit</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("in-transit")}</h4>
@@ -248,17 +231,12 @@ export default function TruckLoadsPage() {
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(t.date)}</TableCell>
                     <TableCell className="py-3">
                       <div className="flex gap-1.5 items-center">
-                        {(t.status === "pending" || t.status === "loading") && canAct(t, "in-transit") && (
-                          <Button size="sm" disabled={actionLoading === t._id} onClick={() => setPendingAction({ id: t._id, action: "in-transit" })}>
-                            {actionLoading === t._id ? "..." : "Dispatch"}
-                          </Button>
-                        )}
                         {t.status === "in-transit" && canAct(t, "delivered") && (
                           <Button size="sm" disabled={actionLoading === t._id} onClick={() => openSpoilage(t)}>
                             {actionLoading === t._id ? "..." : "Confirm"}
                           </Button>
                         )}
-                        {(t.status === "pending" || t.status === "loading" || t.status === "in-transit") && canAct(t, "cancelled") && (
+                        {t.status === "in-transit" && canAct(t, "cancelled") && (
                           <Button size="sm" variant="outline" disabled={actionLoading === t._id} onClick={() => setPendingAction({ id: t._id, action: "cancelled" })}>
                             {actionLoading === t._id ? "..." : "Cancel"}
                           </Button>
@@ -301,13 +279,13 @@ export default function TruckLoadsPage() {
         isOpen={pendingAction !== null}
         onClose={() => setPendingAction(null)}
         onConfirm={confirmStatusAction}
-        title={pendingAction?.action === "cancelled" ? "Cancel Load" : "Dispatch Truck"}
+        title={pendingAction?.action === "cancelled" ? "Cancel Load" : "Confirm Delivery"}
         message={
           pendingAction?.action === "cancelled"
             ? "You are about to cancel this truck load. Stock will return to the origin."
-            : "You are about to dispatch this truck. Stock will be marked as in-transit."
+            : "Confirm this delivery."
         }
-        confirmLabel={pendingAction?.action === "cancelled" ? "Cancel Load" : "Dispatch"}
+        confirmLabel={pendingAction?.action === "cancelled" ? "Cancel Load" : "Confirm Delivery"}
         variant="warning"
       />
     </div>
