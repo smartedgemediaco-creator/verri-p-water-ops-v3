@@ -77,14 +77,16 @@ export async function POST(req: NextRequest) {
     }
     if (body.toType === "customer" && !body.toId) {
       delete body.toId;
+      body.status = "dispatched";
     } else if (body.toType !== "customer" && !body.toId) {
-      return NextResponse.json({ error: "Destination is required" }, { status: 400 });
+      return NextResponse.json({ error: "Destination is required for transfers" }, { status: 400 });
+    } else {
+      body.status = "in-transit";
     }
     if (!body.fromType || !body.fromId || !body.productId || !body.quantity || !body.truckId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    body.status = "in-transit";
     const load = await TruckLoad.create(body);
 
     const srcStock = await Stock.findOne({ locationType: body.fromType, locationId: body.fromId, productId: body.productId });
@@ -104,11 +106,12 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
+    const loadType = body.status === "dispatched" ? "dispatched for direct sale" : `transferred to ${body.toType}`;
     await logActivity({
       action: "created",
       entity: "truck-load",
       entityId: load._id.toString(),
-      description: `Loaded ${body.quantity} units from ${body.fromType} to ${body.toType}`,
+      description: `Loaded ${body.quantity} units from ${body.fromType} — ${loadType}`,
       userId: user.userId,
       domainType: body.fromType,
       domainId: body.fromId,

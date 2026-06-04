@@ -11,7 +11,7 @@ export interface ITruckLoad extends Document {
   loadedBy?: string;
   loadAmount?: number;
   capacityUsed?: number;
-  status: "pending" | "loading" | "in-transit" | "delivered" | "cancelled";
+  status: "pending" | "loading" | "in-transit" | "delivered" | "cancelled" | "dispatched";
   date: Date;
   notes: string;
   createdAt: Date;
@@ -32,7 +32,7 @@ const TruckLoadSchema = new Schema<ITruckLoad>(
     capacityUsed: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["pending", "loading", "in-transit", "delivered", "cancelled"],
+      enum: ["pending", "loading", "in-transit", "delivered", "cancelled", "dispatched"],
       default: "pending",
     },
     date: { type: Date, default: Date.now },
