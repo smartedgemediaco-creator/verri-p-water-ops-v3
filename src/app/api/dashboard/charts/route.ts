@@ -38,6 +38,12 @@ export async function GET(req: NextRequest) {
       saleMatch.locationId = oid;
       costMatch.locationType = "depot";
       costMatch.locationId = oid;
+    } else if (user.role === "driver" && user.truckId) {
+      const oid = new mongoose.Types.ObjectId(user.truckId);
+      saleMatch.locationType = "truck";
+      saleMatch.locationId = oid;
+      costMatch.locationType = "truck";
+      costMatch.locationId = oid;
     }
 
     // Let explicit entity filter override role scope (admin can freely filter)

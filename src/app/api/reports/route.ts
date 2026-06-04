@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
     } else if (user.role === "depot-manager" && user.depotId) {
       scopeFilter.locationType = "depot";
       scopeFilter.locationId = user.depotId;
+    } else if (user.role === "driver" && user.truckId) {
+      scopeFilter.locationType = "truck";
+      scopeFilter.locationId = user.truckId;
     }
   }
 
@@ -53,6 +56,9 @@ export async function GET(req: NextRequest) {
     saleFilter = { ...saleFilter, locationType: "depot", locationId: scopeFilter.locationId };
     transferFilter.toType = "depot";
     transferFilter.toId = scopeFilter.locationId;
+  } else if (scopeFilter.locationType === "truck") {
+    saleFilter = { ...saleFilter, locationType: "truck", locationId: scopeFilter.locationId };
+    transferFilter.truckId = scopeFilter.locationId;
   }
 
   if (productId) {
@@ -65,11 +71,14 @@ export async function GET(req: NextRequest) {
   const isAdmin = user.role === "admin";
   const isFactoryMgr = user.role === "factory-manager";
   const isDepotMgr = user.role === "depot-manager";
+  const isDriver = user.role === "driver";
 
   if (isFactoryMgr) {
     saleFilter._id = null;
   } else if (isDepotMgr && user.depotId && !saleFilter.locationId) {
     saleFilter = { ...saleFilter, locationType: "depot", locationId: user.depotId };
+  } else if (isDriver && user.truckId && !saleFilter.locationId) {
+    saleFilter = { ...saleFilter, locationType: "truck", locationId: user.truckId };
   } else if (!isAdmin) {
     saleFilter._id = null;
   }

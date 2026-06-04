@@ -42,6 +42,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     filter.truckId = user.truckId;
+  } else if (user.role === "factory-manager" && user.factoryId) {
+    filter.$or = [
+      { fromType: "factory", fromId: user.factoryId },
+      { toType: "factory", toId: user.factoryId },
+    ];
+  } else if (user.role === "depot-manager" && user.depotId) {
+    filter.$or = [
+      { fromType: "depot", fromId: user.depotId },
+      { toType: "depot", toId: user.depotId },
+    ];
   } else if (truckId) {
     filter.truckId = truckId;
   }

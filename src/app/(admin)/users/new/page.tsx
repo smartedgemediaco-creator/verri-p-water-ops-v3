@@ -249,7 +249,7 @@ export default function NewUserPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Location Type</label>
                 <Select
-                  options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]}
+                  options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }, { value: "truck", label: "Truck" }]}
                   placeholder="Select" value={staffLocationType} onChange={v => { setStaffLocationType(v); setStaffLocationId(""); fetchLocationData(v); }}
                 />
               </div>
