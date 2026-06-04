@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const APP_URL = process.env.APP_URL || "https://app.verripwater.com";
+    const APP_URL = process.env.APP_URL || "https://verrip.com.ng";
     const token = createResetToken(user._id.toString());
     const link = `${APP_URL}/reset-password?token=${token}`;
 

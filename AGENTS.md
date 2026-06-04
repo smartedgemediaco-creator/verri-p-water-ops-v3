@@ -199,7 +199,7 @@ All stats support role-based scoping (factory-manager → own factory, depot-man
 - Role + scope stored in JWT payload at login (queried from `UserRole` model)
 - Admin layout guards unauthenticated access
 - Roles: **admin**, **factory-manager**, **depot-manager**, **driver**
-- Seed user: `admin@verripwater.com` / `admin123`
+- Seed user: `admin@verrip.com.ng` / `admin123`
 
 ### Auth Data Flow
 1. **Login**: Finds User by email → verifies `StaffUserLink` exists (user must be staff) → queries `UserRole` for role/scope → embeds in JWT + response
@@ -346,14 +346,14 @@ Transactional emails for staff invitations and password resets, with branded tem
 #### 1. Staff Invitation
 Triggered when an admin creates a User record with `staffEmail` or when a new user account is created.
 - **To:** the invited staff member's email
-- **Link:** `https://app.verripwater.com/auth/set-password?token=<JWT>`
+- **Link:** `https://verrip.com.ng/auth/set-password?token=<JWT>`
 - **Token:** JWT signed with `JWT_SECRET`, 48-hour expiry, embedded with `userId` and `type: "invite"`
 - **Flow:** Create User (isActive: false) → Send invite email → User clicks link → Set password → User activated
 
 #### 2. Password Reset
 Triggered from the sign-in page "Forgot Password?" link.
 - **To:** the user's email (lookup by email in User model)
-- **Link:** `https://app.verripwater.com/auth/reset-password?token=<JWT>`
+- **Link:** `https://verrip.com.ng/auth/reset-password?token=<JWT>`
 - **Token:** JWT signed with `JWT_SECRET`, 1-hour expiry, embedded with `userId` and `type: "reset"`
 - **Flow:** User enters email → If exists, send reset email → User clicks link → Enter new password → Password updated
 
@@ -493,7 +493,7 @@ RESEND_API_KEY=re_xxxxx
 
 # Email
 EMAIL_FROM="Verri P Water <noreply@verrip.com.ng>"
-APP_URL=https://app.verripwater.com
+APP_URL=https://verrip.com.ng
 ```
 
 ### Implementation Notes

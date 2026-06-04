@@ -106,7 +106,7 @@ docker-compose up
 
 ## Default Login
 
-- **Email:** `admin@verripwater.com`
+- **Email:** `admin@verrip.com.ng`
 - **Password:** `admin123`
 
 ## License

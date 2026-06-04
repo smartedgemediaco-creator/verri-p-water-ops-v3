@@ -203,5 +203,5 @@ export function periodicReportEmail({ name, reportHtml }: { name: string; report
 }
 
 function APP_URL(): string {
-  return process.env.APP_URL || "https://app.verripwater.com";
+  return process.env.APP_URL || "https://verrip.com.ng";
 }

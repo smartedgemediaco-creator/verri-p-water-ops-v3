@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User is already active" }, { status: 400 });
     }
 
-    const APP_URL = process.env.APP_URL || "https://app.verripwater.com";
+    const APP_URL = process.env.APP_URL || "https://verrip.com.ng";
     const token = createInviteToken(target._id.toString());
     const link = `${APP_URL}/set-password?token=${token}`;
 

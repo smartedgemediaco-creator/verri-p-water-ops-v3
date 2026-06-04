@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
     await UserRole.create(roleData);
 
-    const APP_URL = process.env.APP_URL || "https://app.verripwater.com";
+    const APP_URL = process.env.APP_URL || "https://verrip.com.ng";
     const token = createInviteToken(newUser._id.toString());
     const link = `${APP_URL}/set-password?token=${token}`;
 
