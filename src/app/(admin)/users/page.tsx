@@ -7,9 +7,10 @@ import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import Select from "@/components/form/Select";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { PlusIcon, UserIcon, GroupIcon, PencilIcon, PaperPlaneIcon } from "@/icons";
+import { PlusIcon, UserIcon, GroupIcon, PencilIcon, PaperPlaneIcon, TrashBinIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface User {
   _id: string;
@@ -61,6 +62,8 @@ export default function UsersPage() {
   const [depots, setDepots] = useState<Option[]>([]);
   const [trucks, setTrucks] = useState<Option[]>([]);
   const [resending, setResending] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(() => {
     fetch("/api/users")
@@ -103,6 +106,21 @@ export default function UsersPage() {
       body: JSON.stringify({ isActive: !current }),
     });
     fetchUsers();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${deleteTarget._id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) { showError("Failed to delete user"); return; }
+      showSuccess("User deleted");
+      setDeleteTarget(null);
+      fetchUsers();
+    } catch { showError("Network error"); }
+    finally { setDeleting(false); }
   };
 
   const openEdit = (u: User) => {
@@ -219,6 +237,13 @@ export default function UsersPage() {
                       <Button variant="outline" size="sm" onClick={() => openEdit(u)}>
                         <PencilIcon className="w-4 h-4" />
                       </Button>
+                      <button
+                        onClick={() => setDeleteTarget(u)}
+                        className="p-1.5 text-gray-400 hover:text-error-500 transition-colors"
+                        title="Delete user"
+                      >
+                        <TrashBinIcon className="w-4 h-4" />
+                      </button>
                       {!u.isActive && (
                         <button
                           onClick={() => resendInvite(u._id)}
@@ -240,6 +265,21 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete User"
+        message={
+          deleteTarget
+            ? <span>Are you sure you want to delete <strong>{deleteTarget.name}</strong> ({deleteTarget.email})? This will also remove their role and staff link. This action cannot be undone.</span>
+            : ""
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+      />
 
       {editTarget && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setEditTarget(null)}>
