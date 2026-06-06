@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Staff } from "@/lib/models";
+import mongoose from "mongoose";
+import { Staff, Factory, Depot, Truck } from "@/lib/models";
 import { StaffAssignment } from "@/lib/models/StaffAssignment";
+import { DriverAssignment } from "@/lib/models/DriverAssignment";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+
+const locationModels: Record<string, typeof Factory | typeof Depot | typeof Truck> = {
+  factory: Factory,
+  depot: Depot,
+  truck: Truck,
+};
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -18,12 +26,23 @@ export async function GET(req: NextRequest) {
   const enriched = await Promise.all(
     staff.map(async (s) => {
       const assignment = await StaffAssignment.findOne({ staffId: s._id, isActive: true }).lean();
+      let locationName: string | null = null;
+      if (assignment?.locationType && assignment?.locationId) {
+        const Model = locationModels[assignment.locationType];
+        if (Model) {
+          const loc = await Model.findById(assignment.locationId).lean();
+          if (loc) {
+            locationName = "plateNumber" in loc ? (loc as { plateNumber: string }).plateNumber : (loc as { name: string }).name;
+          }
+        }
+      }
       return {
         ...s,
         role: assignment?.role ?? "other",
         department: assignment?.department ?? "administration",
         locationType: assignment?.locationType ?? null,
         locationId: assignment?.locationId ?? null,
+        locationName,
       };
     })
   );
@@ -53,26 +72,45 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { role, department, locationType, locationId, ...staffFields } = body;
 
-  const staff = await Staff.create(staffFields);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const [staff] = await Staff.create([staffFields], { session });
 
-  if (locationType && locationId) {
-    await StaffAssignment.create({
-      staffId: staff._id,
-      locationType,
-      locationId,
-      role: role || "operator",
-      department: department || "production",
-      isActive: true,
+    if (locationType && locationId) {
+      await StaffAssignment.create([{
+        staffId: staff._id,
+        locationType,
+        locationId,
+        role: role || "operator",
+        department: department || "production",
+        isActive: true,
+      }], { session });
+
+      if (role === "driver" && locationType === "truck") {
+        await DriverAssignment.create([{
+          staffId: staff._id,
+          truckId: locationId,
+          isActive: true,
+        }], { session });
+      }
+    }
+
+    await session.commitTransaction();
+
+    await logActivity({
+      action: "created",
+      entity: "staff",
+      entityId: staff._id.toString(),
+      description: `Created staff "${body.name}" as ${role || "operator"}`,
+      userId: user.userId,
+      metadata: { name: body.name, role },
     });
+    return NextResponse.json(staff, { status: 201 });
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
   }
-
-  await logActivity({
-    action: "created",
-    entity: "staff",
-    entityId: staff._id.toString(),
-    description: `Created staff "${body.name}" as ${role || "operator"}`,
-    userId: user.userId,
-    metadata: { name: body.name, role },
-  });
-  return NextResponse.json(staff, { status: 201 });
 }

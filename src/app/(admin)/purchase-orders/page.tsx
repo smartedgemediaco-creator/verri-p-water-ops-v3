@@ -10,7 +10,7 @@ import Badge from "@/components/ui/badge/Badge";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
-import { ListIcon, DollarLineIcon, TrashBinIcon } from "@/icons";
+import { ListIcon, DollarLineIcon, TrashBinIcon, PlusIcon } from "@/icons";
 
 interface PurchaseOrderItem {
   rawMaterialId: string;
@@ -50,6 +50,57 @@ export default function PurchaseOrdersPage() {
   const [statusTarget, setStatusTarget] = useState<{ id: string; status: string; label: string } | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formSaving, setFormSaving] = useState(false);
+  const [suppliers, setSuppliers] = useState<{ _id: string; name: string }[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<{ _id: string; name: string; unit: string }[]>([]);
+  const [poForm, setPoForm] = useState({ supplierId: "", expectedDate: "", notes: "", items: [{ rawMaterialId: "", quantity: 1, unitPrice: 0 }] });
+
+  const fetchSuppliers = () => {
+    fetch("/api/suppliers").then((r) => r.json()).then((data) => setSuppliers(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+  const fetchRawMaterials = () => {
+    fetch("/api/raw-materials").then((r) => r.json()).then((data) => setRawMaterials(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+
+  const handleNewOrder = async () => {
+    if (!poForm.supplierId) { showError("Select a supplier"); return; }
+    setFormSaving(true);
+    try {
+      const res = await fetch("/api/purchase-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierId: poForm.supplierId,
+          expectedDate: poForm.expectedDate || undefined,
+          notes: poForm.notes,
+          items: poForm.items.filter((i) => i.rawMaterialId && i.quantity > 0),
+        }),
+      });
+      if (!res.ok) { showError("Failed to create order"); return; }
+      showSuccess("Purchase order created");
+      setShowForm(false);
+      setPoForm({ supplierId: "", expectedDate: "", notes: "", items: [{ rawMaterialId: "", quantity: 1, unitPrice: 0 }] });
+      fetchOrders();
+    } catch { showError("Network error"); }
+    finally { setFormSaving(false); }
+  };
+
+  const addItem = () => setPoForm({ ...poForm, items: [...poForm.items, { rawMaterialId: "", quantity: 1, unitPrice: 0 }] });
+  const updateItem = (i: number, field: string, value: string | number) => {
+    const items = [...poForm.items];
+    items[i] = { ...items[i], [field]: value };
+    setPoForm({ ...poForm, items });
+  };
+  const removeItem = (i: number) => {
+    if (poForm.items.length <= 1) return;
+    setPoForm({ ...poForm, items: poForm.items.filter((_, idx) => idx !== i) });
+  };
+
+  useEffect(() => {
+    fetchSuppliers();
+    fetchRawMaterials();
+  }, []);
 
   const fetchOrders = () => {
     setLoading(true);
@@ -139,6 +190,10 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Purchase Orders" />
         <div className="flex gap-3">
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <PlusIcon className="size-4" />
+            New Order
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchOrders}>
             Refresh
           </Button>
@@ -257,6 +312,109 @@ export default function PurchaseOrdersPage() {
         confirmLabel="Delete"
         variant="danger"
       />
+
+      {showForm && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">New Purchase Order</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier</label>
+              <select
+                value={poForm.supplierId}
+                onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              >
+                <option value="" disabled>Select supplier</option>
+                {suppliers.map((s) => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expected Delivery</label>
+              <input
+                type="date"
+                value={poForm.expectedDate}
+                onChange={(e) => setPoForm({ ...poForm, expectedDate: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Items</label>
+                <Button size="sm" variant="outline" onClick={addItem}>+ Add Item</Button>
+              </div>
+              {poForm.items.map((item, i) => (
+                <div key={i} className="flex gap-2 mb-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Material</label>
+                    <select
+                      value={item.rawMaterialId}
+                      onChange={(e) => updateItem(i, "rawMaterialId", e.target.value)}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    >
+                      <option value="" disabled>Select</option>
+                      {rawMaterials.map((rm) => (
+                        <option key={rm._id} value={rm._id}>{rm.name} ({rm.unit})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-xs text-gray-500 mb-1">Qty</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    />
+                  </div>
+                  <div className="w-28">
+                    <label className="block text-xs text-gray-500 mb-1">Unit Price (&#8358;)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(i, "unitPrice", Number(e.target.value))}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    />
+                  </div>
+                  {poForm.items.length > 1 && (
+                    <button
+                      onClick={() => removeItem(i)}
+                      className="h-10 px-2 text-red-500 hover:text-red-700 text-sm"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <textarea
+                value={poForm.notes}
+                onChange={(e) => setPoForm({ ...poForm, notes: e.target.value })}
+                placeholder="Optional notes..."
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button size="sm" disabled={formSaving} onClick={handleNewOrder}>
+                {formSaving ? "Creating..." : "Create Order"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,9 +10,10 @@ import Button from "@/components/ui/button/Button";
 import DatePicker from "@/components/form/date-picker";
 import Badge from "@/components/ui/badge/Badge";
 import { formatDate } from "@/lib/dateFormat";
-import { TrashBinIcon, BoxIconLine } from "@/icons";
+import { TrashBinIcon, BoxIconLine, PlusIcon } from "@/icons";
 import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
+import InputField from "@/components/form/input/InputField";
 
 interface WastageRecord {
   _id: string;
@@ -60,6 +61,18 @@ export default function WastagePage() {
   const [filterSource, setFilterSource] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // record spoilage modal
+  const [showSpoilageForm, setShowSpoilageForm] = useState(false);
+  const [spoilageProduct, setSpoilageProduct] = useState("");
+  const [spoilageQty, setSpoilageQty] = useState("");
+  const [spoilageLocType, setSpoilageLocType] = useState("");
+  const [spoilageLocId, setSpoilageLocId] = useState("");
+  const [spoilageSource, setSpoilageSource] = useState("");
+  const [spoilageDesc, setSpoilageDesc] = useState("");
+  const [spoilageDate, setSpoilageDate] = useState("");
+  const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
+  const [spoilageSubmitting, setSpoilageSubmitting] = useState(false);
 
   useEffect(() => {
     fetch("/api/products")
@@ -112,6 +125,45 @@ export default function WastagePage() {
     fetchRecords();
   }, [fetchRecords]);
 
+  useEffect(() => {
+    if (!spoilageLocType) { setSpoilageLocations([]); return; }
+    fetch(spoilageLocType === "factory" ? "/api/factories" : `/api/${spoilageLocType}s`)
+      .then((r) => r.json())
+      .then((data: LocationOption[]) => setSpoilageLocations(data))
+      .catch(() => setSpoilageLocations([]));
+  }, [spoilageLocType]);
+
+  const handleRecordSpoilage = async () => {
+    if (!spoilageProduct || !spoilageQty || !spoilageLocType || !spoilageLocId || !spoilageSource) {
+      showError("Fill in all required fields"); return;
+    }
+    setSpoilageSubmitting(true);
+    try {
+      const body: Record<string, unknown> = {
+        productId: spoilageProduct,
+        quantity: Number(spoilageQty),
+        locationType: spoilageLocType,
+        locationId: spoilageLocId,
+        source: spoilageSource,
+        description: spoilageDesc || "",
+      };
+      if (spoilageDate) body.date = spoilageDate;
+      const res = await fetch("/api/wastage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
+      showSuccess("Spoilage recorded");
+      setShowSpoilageForm(false);
+      setSpoilageProduct(""); setSpoilageQty(""); setSpoilageLocType(""); setSpoilageLocId(""); setSpoilageSource(""); setSpoilageDesc(""); setSpoilageDate("");
+      fetchRecords();
+    } catch (e: unknown) { showError(e instanceof Error ? e.message : "Network error"); }
+    finally { setSpoilageSubmitting(false); }
+  };
+
+  const spoilageLocationOpts = spoilageLocations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? l._id.slice(-6) }));
+
   const hasFilters = filterLocType !== "all" || filterLocId || filterProduct || filterSource !== "all" || startDate || endDate;
   const totalQty = records.reduce((s, r) => s + (r.quantity ?? 0), 0);
 
@@ -124,6 +176,9 @@ export default function WastagePage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Wastage / Spoilage" />
+        <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowSpoilageForm(true)}>
+          Record Spoilage
+        </Button>
       </div>
 
       {/* Filters */}
@@ -293,6 +348,74 @@ export default function WastagePage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Record Spoilage Modal */}
+      {showSpoilageForm && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowSpoilageForm(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Record Spoilage</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+              <Select
+                options={products.filter(p => p.value)}
+                placeholder="Select product"
+                value={spoilageProduct}
+                onChange={setSpoilageProduct}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+              <InputField type="number" placeholder="Units lost" value={spoilageQty} onChange={(e) => setSpoilageQty(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
+                <Select
+                  options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }, { value: "truck", label: "Truck" }]}
+                  placeholder="Select"
+                  value={spoilageLocType}
+                  onChange={(v) => { setSpoilageLocType(v); setSpoilageLocId(""); }}
+                />
+              </div>
+              {spoilageLocType && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{spoilageLocType}</label>
+                  <Select options={spoilageLocationOpts} placeholder={`Select ${spoilageLocType}`} value={spoilageLocId} onChange={setSpoilageLocId} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+              <Select
+                options={[
+                  { value: "production", label: "Production" },
+                  { value: "transfer", label: "Transfer" },
+                  { value: "sale", label: "Sale" },
+                  { value: "storage", label: "Storage" },
+                  { value: "other", label: "Other" },
+                ]}
+                placeholder="Select source"
+                value={spoilageSource}
+                onChange={setSpoilageSource}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <InputField placeholder="Optional description" value={spoilageDesc} onChange={(e) => setSpoilageDesc(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <InputField type="date" value={spoilageDate} onChange={(e) => setSpoilageDate(e.target.value)} />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="outline" size="sm" onClick={() => setShowSpoilageForm(false)}>Cancel</Button>
+              <Button size="sm" disabled={spoilageSubmitting} onClick={handleRecordSpoilage}>
+                {spoilageSubmitting ? "Saving..." : "Record Spoilage"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

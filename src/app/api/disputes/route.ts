@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const filter: Record<string, unknown> = {};
   if (status && status !== "all") filter.status = status;
 
-  if (user.role !== "admin") {
+  if (user.role !== "admin" && user.role !== "factory-manager" && user.role !== "depot-manager") {
     filter.createdBy = user.userId;
   }
 

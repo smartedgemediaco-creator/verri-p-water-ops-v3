@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
@@ -23,6 +24,7 @@ export default function NewProductionPage() {
   const [date, setDate] = useState("");
 
   const isFactoryManager = user?.role === "factory-manager";
+  const canRecord = user?.role === "admin" || isFactoryManager;
 
   useEffect(() => {
     fetch("/api/products")
@@ -81,10 +83,26 @@ export default function NewProductionPage() {
     }
   };
 
+  if (!canRecord) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg">
+        <p className="text-gray-500 dark:text-gray-400">You don&apos;t have permission to record production. Only admins and factory managers can do this.</p>
+        <Button className="mt-4" variant="outline" onClick={() => router.push("/stock")}>Go to Stock</Button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-white/90">Record Production</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-white/90">Record Production</h1>
+          <div className="flex gap-3">
+            <Link href="/transfers/new" className="text-sm text-brand-600 hover:underline">New Transfer</Link>
+            <Link href="/wastage" className="text-sm text-brand-600 hover:underline">Record Spoilage</Link>
+            <Link href="/stock" className="text-sm text-brand-600 hover:underline">View Stock</Link>
+          </div>
+        </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Log a production batch. Stock will be added to the selected factory automatically.
         </p>

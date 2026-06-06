@@ -45,7 +45,7 @@ function baseHtml(emoji: string, color: string, content: string): string {
     p { font-size: 15px; color: ${BRANDING.textMuted}; line-height: 1.7; margin: 0 0 16px; }
     strong { color: ${BRANDING.text}; font-weight: 600; }
     .btn-wrap { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px; background: ${BRANDING.primary}; color: #FFFFFF; box-shadow: 0 2px 8px ${BRANDING.primary}40; }
+    .btn { display: inline-block; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px; background: ${BRANDING.primary}; color: #FFFFFF; }
     .hr { border: 0; border-top: 1px solid ${BRANDING.border}; margin: 28px 0; }
     .stat-grid { background: ${BRANDING.bg}; border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
     .stat-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }

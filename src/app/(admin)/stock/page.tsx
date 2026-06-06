@@ -97,7 +97,17 @@ export default function StockPage() {
   const [activityLoading, setActivityLoading] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
 
-  // spoilage modal state
+  // add stock modal state
+  const [showAddStock, setShowAddStock] = useState(false);
+  const [addStockSubmitting, setAddStockSubmitting] = useState(false);
+  const [addStockForm, setAddStockForm] = useState({
+    locationType: "",
+    locationId: "",
+    productId: "",
+    quantity: "",
+  });
+  const [addStockLocationOptions, setAddStockLocationOptions] = useState<{ value: string; label: string }[]>([]);
+
   // spoilage modal state
   const [showSpoilage, setShowSpoilage] = useState(false);
   const [spoilSubmitting, setSpoilSubmitting] = useState(false);
@@ -213,6 +223,22 @@ export default function StockPage() {
     }
     finally { setActivityLoading(null); }
   };
+
+  // load location options for add stock form when type changes
+  useEffect(() => {
+    if (!addStockForm.locationType) return;
+    const endpoint = addStockForm.locationType === "factory" ? "/api/factories" : `/api/${addStockForm.locationType}s`;
+    let cancelled = false;
+    fetch(endpoint)
+      .then((r) => r.json())
+      .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {
+        if (!cancelled) setAddStockLocationOptions(
+          data.map((d) => ({ value: d._id, label: d.name ?? `Truck: ${d.plateNumber ?? ""}` }))
+        );
+      })
+      .catch(() => { if (!cancelled) setAddStockLocationOptions([]); });
+    return () => { cancelled = true; };
+  }, [addStockForm.locationType]);
 
   // load location options for spoilage form when type changes
   useEffect(() => {
@@ -331,6 +357,29 @@ export default function StockPage() {
     finally { setLoadTruckSubmitting(false); }
   };
 
+  const handleAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddStockSubmitting(true);
+    try {
+      const body: Record<string, unknown> = {
+        locationType: addStockForm.locationType,
+        locationId: addStockForm.locationId,
+        productId: addStockForm.productId,
+        quantity: Number(addStockForm.quantity),
+      };
+      const res = await fetch("/api/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { showError("Failed to add stock"); setAddStockSubmitting(false); return; }
+      showSuccess("Stock added");
+      setShowAddStock(false);
+      setAddStockForm({ locationType: "", locationId: "", productId: "", quantity: "" });
+    } catch { showError("Network error"); }
+    finally { setAddStockSubmitting(false); }
+  };
+
   const handleRecordSpoilage = async (e: React.FormEvent) => {
     e.preventDefault();
     setSpoilSubmitting(true);
@@ -373,6 +422,15 @@ export default function StockPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Stock" />
         <div className="flex gap-2">
+          <Link href="/production/new">
+            <Button size="sm">
+              <PlusIcon className="size-4" />
+              New Production
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" startIcon={<PlusIcon className="size-4" />} onClick={() => setShowAddStock(true)}>
+            Add Stock
+          </Button>
           <Button variant="outline" size="sm" startIcon={<TruckIcon className="w-4 h-4" />} onClick={() => openLoadTruck()}>
             Load Truck
           </Button>
@@ -706,6 +764,55 @@ export default function StockPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Add Stock modal */}
+      {showAddStock && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddStock(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Add Stock Manually</h3>
+            <form onSubmit={handleAddStock} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
+                <Select
+                  options={[
+                    { value: "factory", label: "Factory" },
+                    { value: "depot", label: "Depot" },
+                    { value: "truck", label: "Truck" },
+                  ]}
+                  placeholder="Select type"
+                  value={addStockForm.locationType}
+                  onChange={(v) => setAddStockForm({ ...addStockForm, locationType: v, locationId: "" })}
+                />
+              </div>
+              {addStockForm.locationType && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+                  <Select
+                    options={addStockLocationOptions}
+                    placeholder="Select location"
+                    value={addStockForm.locationId}
+                    onChange={(v) => setAddStockForm({ ...addStockForm, locationId: v })}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                <Select options={products.filter((p) => p.value)} placeholder="Select product" value={addStockForm.productId} onChange={(v) => setAddStockForm({ ...addStockForm, productId: v })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+                <InputField type="number" id="add-stock-qty" placeholder="Units to add" value={addStockForm.quantity} onChange={(e) => setAddStockForm({ ...addStockForm, quantity: e.target.value })} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" variant="primary" disabled={addStockSubmitting || !addStockForm.locationType || !addStockForm.locationId || !addStockForm.productId || !addStockForm.quantity}>
+                  {addStockSubmitting ? "Adding..." : "Add Stock"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddStock(false)}>Cancel</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Load Truck modal */}
       {showLoadTruck && (

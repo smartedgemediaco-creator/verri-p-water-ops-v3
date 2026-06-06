@@ -149,6 +149,11 @@ export default function TransfersPage() {
         <PageBreadcrumb pageTitle="Truck Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
+          <Link href="/wastage">
+            <Button variant="outline" size="sm">
+              Record Spoilage
+            </Button>
+          </Link>
           <Link href="/transfers/new">
             <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
               Load Truck

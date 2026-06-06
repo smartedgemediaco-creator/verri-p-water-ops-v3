@@ -30,6 +30,7 @@ export default function NewUserPage() {
   const [error, setError] = useState("");
 
   const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
+  const [staffInfoMap, setStaffInfoMap] = useState<Record<string, { name: string; email: string }>>({});
   const [factories, setFactories] = useState<{ value: string; label: string }[]>([]);
   const [depots, setDepots] = useState<{ value: string; label: string }[]>([]);
   const [trucks, setTrucks] = useState<{ value: string; label: string }[]>([]);
@@ -48,7 +49,15 @@ export default function NewUserPage() {
   const fetchStaff = () => {
     fetch("/api/staff")
       .then(r => { if (!r.ok) throw new Error(`staff ${r.status}`); return r.json(); })
-      .then((data: unknown) => { if (Array.isArray(data)) setStaffList((data as { _id: string; name: string }[]).map((s) => ({ value: s._id, label: s.name }))); })
+      .then((data: unknown) => {
+        if (Array.isArray(data)) {
+          const items = data as { _id: string; name: string; email: string }[];
+          setStaffList(items.map((s) => ({ value: s._id, label: s.name })));
+          const map: Record<string, { name: string; email: string }> = {};
+          items.forEach((s) => { map[s._id] = { name: s.name, email: s.email }; });
+          setStaffInfoMap(map);
+        }
+      })
       .catch((e) => console.error("Failed to load staff:", e));
   };
 
@@ -94,6 +103,8 @@ export default function NewUserPage() {
       setStaffLocationType(""); setStaffLocationId("");
       fetchStaff();
       setStaffId(created._id);
+      setName(created.name);
+      setEmail(created.email || "");
     } catch (e: unknown) {
       showError(e instanceof Error ? e.message : "Failed to create staff");
     } finally { setStaffCreating(false); }
@@ -141,15 +152,16 @@ export default function NewUserPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        showError(data.error || "Failed to create user");
         setSubmitting(false);
-        return;
+        throw new Error(data.error || "Failed to create user");
       }
 
+      showSuccess("User created successfully");
       setNavigateOnClose(true);
-    } catch {
-      showError("Network error");
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : "Network error");
       setSubmitting(false);
+      throw e;
     }
   };
 
@@ -187,20 +199,10 @@ export default function NewUserPage() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-          <InputField id="name" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-          <InputField id="email" type="email" placeholder="Email address (invite will be sent here)" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-
-        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Linked Staff Member <span className="text-red-500">*</span>
           </label>
-          <Select options={staffList} placeholder="Select staff member" value={staffId} onChange={setStaffId} />
+          <Select options={staffList} placeholder="Select staff member" value={staffId} onChange={(id) => { setStaffId(id); const info = staffInfoMap[id]; if (info) { setName(info.name); setEmail(info.email || ""); } }} />
           <p className="text-xs text-gray-400 mt-1">
             Every user must be linked to an existing staff record.&nbsp;
             <button type="button" onClick={() => setShowStaffForm(true)} className="text-brand-600 hover:underline">
@@ -268,6 +270,18 @@ export default function NewUserPage() {
             </div>
           </div>
         )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+          <InputField id="name" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
+          <p className="text-xs text-gray-400 mt-1">Auto-filled from staff selection, editable</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+          <InputField id="email" type="email" placeholder="Email address (invite will be sent here)" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <p className="text-xs text-gray-400 mt-1">Auto-filled from staff selection, editable</p>
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>

@@ -10,7 +10,7 @@ import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ChevronDownIcon, ChevronUpIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 
 
@@ -23,6 +23,7 @@ interface StaffMember {
   department: "production" | "logistics" | "sales" | "administration" | "maintenance";
   locationType: "factory" | "depot" | "truck";
   locationId: string;
+  locationName: string;
   salary: number;
   employmentType: "full-time" | "part-time" | "contract";
   startDate: string;
@@ -69,6 +70,7 @@ export default function StaffPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterLocationType, setFilterLocationType] = useState("");
   const [filterLocationId, setFilterLocationId] = useState("");
   const [filterLocations, setFilterLocations] = useState<{ value: string; label: string }[]>([]);
@@ -394,31 +396,75 @@ export default function StaffPage() {
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
               </TableRow>
             ) : (
-              filtered.map((s) => (
-                <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90"><Link href={`/staff/${s._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{s.name}</Link></TableCell>
-                  <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
-                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.department}</TableCell>
-                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.locationType}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
-                  <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.employmentType}</TableCell>
-                  <TableCell className="py-3">
-                    <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
-                      {s.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(s)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
-                        <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
+              filtered.flatMap((s) => {
+                const mainRow = (
+                  <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                      <button onClick={() => setExpandedId(expandedId === s._id ? null : s._id)} className="inline-flex items-center gap-1.5 text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                        {expandedId === s._id ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
+                        {s.name}
                       </button>
-                      <button onClick={() => setDeleteTarget(s._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
-                        <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
+                    <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.department}</TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{s.locationName ? `${s.locationType === "truck" ? "🚛" : s.locationType === "factory" ? "🏭" : "🏬"} ${s.locationName}` : "—"}</TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.employmentType}</TableCell>
+                    <TableCell className="py-3">
+                      <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
+                        {s.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => openEdit(s)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
+                          <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
+                        </button>
+                        <button onClick={() => setDeleteTarget(s._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                          <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+
+                if (expandedId !== s._id) return [mainRow];
+
+                return [mainRow, (
+                  <TableRow key={`${s._id}-detail`} className="bg-gray-50/50 dark:bg-gray-800/20">
+                    <TableCell colSpan={8} className="py-4 px-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</span>
+                          <span className="text-gray-800 dark:text-white/90">{s.phone || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Email</span>
+                          <span className="text-gray-800 dark:text-white/90">{s.email || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Emergency Contact</span>
+                          <span className="text-gray-800 dark:text-white/90">{s.emergencyContact || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Start Date</span>
+                          <span className="text-gray-800 dark:text-white/90">{s.startDate ? new Date(s.startDate).toLocaleDateString() : "—"}</span>
+                        </div>
+                        <div className="col-span-full sm:col-span-1">
+                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Location</span>
+                          <span className="text-gray-800 dark:text-white/90">{s.locationName ? `${s.locationType} — ${s.locationName}` : "—"}</span>
+                        </div>
+                        {s.notes && (
+                          <div className="col-span-full">
+                            <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Notes</span>
+                            <span className="text-gray-800 dark:text-white/90">{s.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )];
+              })
             )}
           </TableBody>
         </Table>

@@ -20,7 +20,7 @@ const StaffAssignmentSchema = new Schema<IStaffAssignment>(
     locationId: { type: Schema.Types.ObjectId, required: true },
     role: {
       type: String,
-      enum: ["manager", "supervisor", "operator", "loader", "security", "cleaner", "other"],
+      enum: ["manager", "supervisor", "operator", "driver", "loader", "security", "cleaner", "other"],
       default: "operator",
     },
     department: {

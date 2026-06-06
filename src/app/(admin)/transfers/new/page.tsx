@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
@@ -155,7 +156,10 @@ export default function NewTransferPage() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">New Transfer</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">New Transfer</h1>
+          <Link href="/wastage" className="text-sm text-brand-600 hover:underline">Record Spoilage</Link>
+        </div>
         <span className="text-xs text-gray-400 dark:text-gray-500">Created by: {userDisplayName}</span>
       </div>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl space-y-4">

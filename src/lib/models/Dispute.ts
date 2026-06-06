@@ -6,9 +6,10 @@ export interface IDispute extends Document {
   entityLabel: string;
   reason: string;
   description: string;
-  status: "pending" | "resolved" | "dismissed";
+  status: "pending" | "confirmed" | "resolved" | "dismissed";
   resolution?: string;
   createdBy: Types.ObjectId;
+  confirmedBy?: Types.ObjectId;
   resolvedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -23,11 +24,12 @@ const DisputeSchema = new Schema<IDispute>(
     description: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["pending", "resolved", "dismissed"],
+      enum: ["pending", "confirmed", "resolved", "dismissed"],
       default: "pending",
     },
     resolution: { type: String, default: "" },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    confirmedBy: { type: Schema.Types.ObjectId, ref: "User" },
     resolvedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }

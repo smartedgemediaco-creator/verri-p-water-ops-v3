@@ -8,7 +8,8 @@ import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Badge from "@/components/ui/badge/Badge";
 import { formatDate } from "@/lib/dateFormat";
-import { ListIcon, GroupIcon } from "@/icons";
+import { showSuccess, showError } from "@/lib/toast";
+import { ListIcon, GroupIcon, PlusIcon } from "@/icons";
 
 interface RawMaterialRef {
   _id: string;
@@ -46,6 +47,58 @@ interface GoodsReceivedNote {
 export default function GoodsReceivedNotesPage() {
   const [grns, setGrns] = useState<GoodsReceivedNote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [formSaving, setFormSaving] = useState(false);
+  const [poList, setPoList] = useState<{ _id: string; orderNumber: string }[]>([]);
+  const [rmList, setRmList] = useState<{ _id: string; name: string; unit: string }[]>([]);
+  const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+
+  const fetchPoList = () => {
+    fetch("/api/purchase-orders").then((r) => r.json()).then((data) => setPoList(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+  const fetchRmList = () => {
+    fetch("/api/raw-materials").then((r) => r.json()).then((data) => setRmList(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchPoList();
+    fetchRmList();
+  }, []);
+
+  const handleNewGrn = async () => {
+    if (!grnForm.purchaseOrderId) { showError("Select a purchase order"); return; }
+    setFormSaving(true);
+    try {
+      const res = await fetch("/api/goods-received-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purchaseOrderId: grnForm.purchaseOrderId,
+          receivedDate: grnForm.receivedDate || undefined,
+          receivedBy: grnForm.receivedBy,
+          notes: grnForm.notes,
+          items: grnForm.items.filter((i) => i.rawMaterialId && i.quantityReceived > 0),
+        }),
+      });
+      if (!res.ok) { showError("Failed to create GRN"); return; }
+      showSuccess("Goods received note created");
+      setShowForm(false);
+      setGrnForm({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+      fetchGrns();
+    } catch { showError("Network error"); }
+    finally { setFormSaving(false); }
+  };
+
+  const addGrnItem = () => setGrnForm({ ...grnForm, items: [...grnForm.items, { rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+  const updateGrnItem = (i: number, field: string, value: string | number) => {
+    const items = [...grnForm.items];
+    items[i] = { ...items[i], [field]: value };
+    setGrnForm({ ...grnForm, items });
+  };
+  const removeGrnItem = (i: number) => {
+    if (grnForm.items.length <= 1) return;
+    setGrnForm({ ...grnForm, items: grnForm.items.filter((_, idx) => idx !== i) });
+  };
 
   const fetchGrns = () => {
     setLoading(true);
@@ -82,6 +135,10 @@ export default function GoodsReceivedNotesPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Goods Received Notes" />
         <div className="flex gap-3">
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <PlusIcon className="size-4" />
+            New GRN
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchGrns}>
             Refresh
           </Button>
@@ -181,6 +238,130 @@ export default function GoodsReceivedNotesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">New Goods Received Note</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Purchase Order</label>
+              <select
+                value={grnForm.purchaseOrderId}
+                onChange={(e) => setGrnForm({ ...grnForm, purchaseOrderId: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              >
+                <option value="" disabled>Select purchase order</option>
+                {poList.map((po) => (
+                  <option key={po._id} value={po._id}>{po.orderNumber}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received Date</label>
+              <input
+                type="date"
+                value={grnForm.receivedDate}
+                onChange={(e) => setGrnForm({ ...grnForm, receivedDate: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received By</label>
+              <input
+                value={grnForm.receivedBy}
+                onChange={(e) => setGrnForm({ ...grnForm, receivedBy: e.target.value })}
+                placeholder="Name of receiver"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Items</label>
+                <Button size="sm" variant="outline" onClick={addGrnItem}>+ Add Item</Button>
+              </div>
+              {grnForm.items.map((item, i) => (
+                <div key={i} className="flex gap-2 mb-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Material</label>
+                    <select
+                      value={item.rawMaterialId}
+                      onChange={(e) => updateGrnItem(i, "rawMaterialId", e.target.value)}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    >
+                      <option value="" disabled>Select</option>
+                      {rmList.map((rm) => (
+                        <option key={rm._id} value={rm._id}>{rm.name} ({rm.unit})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-gray-500 mb-1">Qty Recv</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.quantityReceived}
+                      onChange={(e) => updateGrnItem(i, "quantityReceived", Number(e.target.value))}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-gray-500 mb-1">Qty Ord</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.quantityOrdered}
+                      onChange={(e) => updateGrnItem(i, "quantityOrdered", Number(e.target.value))}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    />
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-xs text-gray-500 mb-1">Condition</label>
+                    <select
+                      value={item.condition}
+                      onChange={(e) => updateGrnItem(i, "condition", e.target.value)}
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                    >
+                      <option value="good">Good</option>
+                      <option value="partial">Partial</option>
+                      <option value="damaged">Damaged</option>
+                    </select>
+                  </div>
+                  {grnForm.items.length > 1 && (
+                    <button
+                      onClick={() => removeGrnItem(i)}
+                      className="h-10 px-2 text-red-500 hover:text-red-700 text-sm"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <textarea
+                value={grnForm.notes}
+                onChange={(e) => setGrnForm({ ...grnForm, notes: e.target.value })}
+                placeholder="Optional notes..."
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button size="sm" disabled={formSaving} onClick={handleNewGrn}>
+                {formSaving ? "Saving..." : "Create GRN"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

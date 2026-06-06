@@ -9,13 +9,41 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = getUserFromRequest(req);
-  if (!user || user.role !== "admin") {
-    return NextResponse.json({ error: "Only admins can resolve disputes" }, { status: 403 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   await connectDB();
   const body = await req.json();
+
+  if (body.status === "confirmed") {
+    if (user.role !== "factory-manager" && user.role !== "depot-manager" && user.role !== "admin") {
+      return NextResponse.json({ error: "Only managers can confirm disputes" }, { status: 403 });
+    }
+    const dispute = await Dispute.findByIdAndUpdate(
+      id,
+      { status: "confirmed", confirmedBy: user.userId },
+      { new: true }
+    )
+      .populate("createdBy", "name email")
+      .populate("confirmedBy", "name email")
+      .populate("resolvedBy", "name email");
+
+    if (!dispute) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await logActivity({
+      action: "updated",
+      entity: "dispute",
+      entityId: id,
+      description: `Dispute confirmed: ${dispute.reason} on ${dispute.entity} #${dispute.entityId.toString().slice(-6)}`,
+      userId: user.userId,
+    });
+
+    return NextResponse.json(dispute);
+  }
+
+  if (!user || user.role !== "admin") {
+    return NextResponse.json({ error: "Only admins can resolve disputes" }, { status: 403 });
+  }
 
   if (!body.status || !["resolved", "dismissed"].includes(body.status)) {
     return NextResponse.json({ error: "Status must be 'resolved' or 'dismissed'" }, { status: 400 });
