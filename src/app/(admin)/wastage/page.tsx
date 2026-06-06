@@ -14,6 +14,7 @@ import { TrashBinIcon, BoxIconLine, PlusIcon } from "@/icons";
 import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 import InputField from "@/components/form/input/InputField";
+import { showSuccess, showError } from "@/lib/toast";
 
 interface WastageRecord {
   _id: string;
