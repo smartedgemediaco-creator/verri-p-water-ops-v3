@@ -21,6 +21,7 @@ interface ServiceRec { _id: string; truckId: string; serviceType: string; descri
 interface TruckLoad { _id: string; fromType: string; fromName?: string; toType: string; toName?: string; productId: { _id: string; name: string } | null; quantity: number; truckId: { _id: string; plateNumber: string } | null; status: string; date: string; }
 interface ProductOpt { _id: string; name: string; }
 interface Transfer { _id: string; fromType: string; fromName?: string; toType: string; toName?: string; productId: { _id: string; name: string } | null; quantity: number; status: string; date: string; }
+interface Option { value: string; label: string; }
 
 const COST_LABELS: Record<string, string> = {
   production: "Production",
@@ -66,9 +67,20 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
 
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadSubmitting, setLoadSubmitting] = useState(false);
 
   const [serviceForm, setServiceForm] = useState({ serviceType: "routine", description: "", cost: "", mileage: "", serviceCenter: "", nextServiceDate: "", date: "" });
+
+  const [factories, setFactories] = useState<Option[]>([]);
+  const [depots, setDepots] = useState<Option[]>([]);
+  const [customers, setCustomers] = useState<Option[]>([]);
+  const [loadForm, setLoadForm] = useState({
+    fromType: "", fromId: "", productId: "", quantity: "",
+    loadType: "dispatch" as "dispatch" | "transfer",
+    toType: "", toId: "", customerId: "", date: "", notes: "", loadAmount: "",
+  });
 
   const fetchAll = () => {
     Promise.all([
@@ -79,7 +91,10 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
       fetch(`/api/transfers?truckId=${id}`).then(r => r.json()),
       fetch(`/api/products`).then(r => r.json()),
       fetch(`/api/trucks/${id}/insights`).then(r => r.json()),
-    ]).then(([trk, inv, sr, ld, trn, prd, ins]) => {
+      fetch(`/api/factories`).then(r => r.json()),
+      fetch(`/api/depots`).then(r => r.json()),
+      fetch(`/api/customers`).then(r => r.json()),
+    ]).then(([trk, inv, sr, ld, trn, prd, ins, f, d, c]) => {
       setTruck(trk);
       setInventory(Array.isArray(inv) ? inv : []);
       setServiceRecords(Array.isArray(sr) ? sr : []);
@@ -88,6 +103,9 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
       setTransfers(allTransfers);
       setProducts(Array.isArray(prd) ? prd : []);
       setInsights(ins);
+      setFactories((Array.isArray(f) ? f : []).map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
+      setDepots((Array.isArray(d) ? d : []).map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
+      setCustomers((Array.isArray(c) ? c : []).map((x: { _id: string; name: string }) => ({ value: x._id, label: x.name })));
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
@@ -118,6 +136,54 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
       fetchAll();
     } catch { showError("Network error"); }
     finally { setSubmitting(false); }
+  };
+
+  const resetLoadForm = () => {
+    setLoadForm({
+      fromType: "", fromId: "", productId: "", quantity: "",
+      loadType: "dispatch", toType: "", toId: "", customerId: "",
+      date: new Date().toISOString().slice(0, 10), notes: "", loadAmount: "",
+    });
+  };
+
+  const handleCreateLoad = async () => {
+    if (!loadForm.fromType || !loadForm.fromId || !loadForm.productId || !loadForm.quantity || !truck) {
+      showError("Please fill in all required fields"); return;
+    }
+    if (loadForm.loadType === "transfer" && (!loadForm.toType || !loadForm.toId)) {
+      showError("Please select a destination for transfer"); return;
+    }
+    setLoadSubmitting(true);
+    try {
+      const body: Record<string, unknown> = {
+        fromType: loadForm.fromType,
+        fromId: loadForm.fromId,
+        productId: loadForm.productId,
+        quantity: Number(loadForm.quantity),
+        truckId: truck._id,
+        date: loadForm.date,
+        notes: loadForm.notes,
+        loadAmount: loadForm.loadAmount ? Number(loadForm.loadAmount) : 0,
+      };
+      if (loadForm.loadType === "transfer") {
+        body.toType = loadForm.toType;
+        body.toId = loadForm.toId;
+      } else {
+        body.toType = "customer";
+        if (loadForm.customerId) body.toId = loadForm.customerId;
+      }
+      const res = await fetch("/api/truck-loads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to create load"); return; }
+      showSuccess(loadForm.loadType === "dispatch" ? "Truck dispatched for direct sale" : "Truck loaded for transfer");
+      setShowLoadModal(false);
+      resetLoadForm();
+      fetchAll();
+    } catch { showError("Network error"); }
+    finally { setLoadSubmitting(false); }
   };
 
   if (loading || !truck) return (
@@ -200,6 +266,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowServiceModal(true)}>Log Service</Button>
+        <Button size="sm" startIcon={<ListIcon />} variant="outline" onClick={() => { resetLoadForm(); setShowLoadModal(true); }}>Load Truck</Button>
         <Link href={`/transfers?truckId=${id}`}>
           <Button size="sm" startIcon={<ArrowRightIcon />} variant="outline">View Transfers</Button>
         </Link>
@@ -457,6 +524,146 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
         Truck ID: {id.slice(-8)}
       </div>
+
+      {/* Load Truck Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { setShowLoadModal(false); resetLoadForm(); }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Load Truck — {truck.plateNumber}</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Load Type</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLoadForm({ ...loadForm, loadType: "dispatch" })}
+                  className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium border transition-colors ${
+                    loadForm.loadType === "dispatch"
+                      ? "bg-brand-500 text-white border-brand-500"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  Dispatch (Direct Sale)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoadForm({ ...loadForm, loadType: "transfer" })}
+                  className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium border transition-colors ${
+                    loadForm.loadType === "transfer"
+                      ? "bg-brand-500 text-white border-brand-500"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  Transfer
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+              <div className="flex gap-2">
+                <div className="w-1/3">
+                  <Select
+                    options={[
+                      { value: "factory", label: "Factory" },
+                      { value: "depot", label: "Depot" },
+                      { value: "truck", label: "This Truck" },
+                    ]}
+                    placeholder="Type"
+                    value={loadForm.fromType}
+                    onChange={(val) => setLoadForm({ ...loadForm, fromType: val, fromId: val === "truck" ? truck._id : "" })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Select
+                    options={loadForm.fromType === "factory" ? factories : loadForm.fromType === "depot" ? depots : loadForm.fromType === "truck" ? [{ value: truck._id, label: truck.plateNumber }] : []}
+                    placeholder="Location"
+                    value={loadForm.fromId}
+                    onChange={(val) => setLoadForm({ ...loadForm, fromId: val })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+              <Select
+                options={products.map((p) => ({ value: p._id, label: p.name }))}
+                placeholder="Select product"
+                value={loadForm.productId}
+                onChange={(val) => setLoadForm({ ...loadForm, productId: val })}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+              <InputField type="number" placeholder="Units" value={loadForm.quantity} onChange={(e) => setLoadForm({ ...loadForm, quantity: e.target.value })} />
+            </div>
+
+            {loadForm.loadType === "transfer" ? (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destination</label>
+                <div className="flex gap-2">
+                  <div className="w-1/3">
+                    <Select
+                      options={[
+                        { value: "factory", label: "Factory" },
+                        { value: "depot", label: "Depot" },
+                      ]}
+                      placeholder="Type"
+                      value={loadForm.toType}
+                      onChange={(val) => setLoadForm({ ...loadForm, toType: val, toId: "" })}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Select
+                      options={loadForm.toType === "factory" ? factories : loadForm.toType === "depot" ? depots : []}
+                      placeholder="Location"
+                      value={loadForm.toId}
+                      onChange={(val) => setLoadForm({ ...loadForm, toId: val })}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer <span className="text-gray-400 font-normal">(optional — empty for walk-in)</span></label>
+                <Select
+                  options={[
+                    { value: "", label: "Outside Sale / Walk-in" },
+                    ...customers,
+                  ]}
+                  placeholder="Select customer"
+                  value={loadForm.customerId}
+                  onChange={(val) => setLoadForm({ ...loadForm, customerId: val })}
+                />
+              </div>
+            )}
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <InputField type="date" value={loadForm.date} onChange={(e) => setLoadForm({ ...loadForm, date: e.target.value })} />
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Load Amount (₦) <span className="text-gray-400 font-normal">optional</span></label>
+              <InputField type="number" placeholder="0" value={loadForm.loadAmount} onChange={(e) => setLoadForm({ ...loadForm, loadAmount: e.target.value })} />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes <span className="text-gray-400 font-normal">optional</span></label>
+              <input type="text" placeholder="Any notes..." value={loadForm.notes} onChange={(e) => setLoadForm({ ...loadForm, notes: e.target.value })} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setShowLoadModal(false); resetLoadForm(); }}>Cancel</Button>
+              <Button size="sm" onClick={handleCreateLoad} disabled={loadSubmitting}>
+                {loadSubmitting ? "Loading..." : loadForm.loadType === "dispatch" ? "Dispatch Truck" : "Load Truck"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Service Modal */}
       {showServiceModal && (
