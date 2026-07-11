@@ -101,8 +101,8 @@ export default function StaffPage() {
   useEffect(() => { fetchStaff(); }, []);
 
   const labelFor = (type: string, d: { _id: string; name?: string; plateNumber?: string }): string => {
-    if (type === "truck") return d.plateNumber ?? d._id.slice(-6);
-    return d.name ?? d._id.slice(-6);
+    if (type === "truck") return d.plateNumber ?? "Truck";
+    return d.name ?? "Unknown";
   };
 
   useEffect(() => {

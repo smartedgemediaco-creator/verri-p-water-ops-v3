@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     action: "created",
     entity: "stock",
     entityId: item._id.toString(),
-    description: `Added ${body.quantity} units of ${(prod as { name?: string } | null)?.name ?? body.productId} at ${body.locationType}`,
+    description: `Added ${body.quantity} units of ${(prod as { name?: string } | null)?.name ?? "product"} at ${body.locationType}`,
     userId: user.userId,
     domainType: body.locationType,
     domainId: body.locationId,

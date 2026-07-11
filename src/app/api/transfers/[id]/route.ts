@@ -132,7 +132,7 @@ export async function PATCH(
           source: "transfer",
           locationType: toType === "truck" ? "truck" : toType,
           locationId: toType === "truck" ? truckId : toId,
-          description: body.spoilageReason || `Damaged during transfer ${id.slice(-6)}`,
+          description: body.spoilageReason || `Damaged during transfer`,
           date: new Date(),
         });
       }
@@ -171,7 +171,7 @@ export async function PATCH(
           source: "transfer",
           locationType: toType === "truck" ? "truck" : toType,
           locationId: toType === "truck" ? truckId : toId,
-          description: body.spoilageReason || `Damaged during transfer ${id.slice(-6)}`,
+          description: body.spoilageReason || `Damaged during transfer`,
           date: new Date(),
         });
       }
@@ -189,7 +189,7 @@ export async function PATCH(
     action: "updated",
     entity: "transfer",
     entityId: id,
-    description: `Transfer ${id.slice(-6)}: ${oldStatus} → ${newStatus}`,
+    description: `Transfer: ${oldStatus} → ${newStatus}`,
     userId: user.userId,
     domainType: transfer.fromType,
     domainId: transfer.fromId,

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { ActivityLog } from "@/lib/models/ActivityLog";
-import { User } from "@/lib/models";
+import { User, Product, Factory, Depot, Truck } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -63,18 +63,89 @@ export async function GET(req: NextRequest) {
     ActivityLog.countDocuments(filter),
   ]);
 
+  // Resolve user names
   const userIds = [...new Set(logs.filter((l) => l.userId).map((l) => l.userId))];
   const users = userIds.length > 0
     ? await User.find({ _id: { $in: userIds } }).select("name email role").lean()
     : [];
   const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
-  const enriched = logs.map((log) => ({
-    ...log,
-    _id: log._id.toString(),
-    entityId: log.entityId?.toString() ?? "",
-    user: log.userId ? userMap.get(log.userId) ?? null : null,
-  }));
+  // Resolve product names
+  const productIds = [...new Set(logs.filter((l) => l.productId).map((l) => l.productId))];
+  const productDocs = productIds.length > 0
+    ? await Product.find({ _id: { $in: productIds } }).select("name").lean()
+    : [];
+  const productMap = new Map(productDocs.map((p) => [p._id.toString(), (p as any).name]));
+
+  // Resolve location names (domainId + domainType → factory/depot/truck name)
+  const domainEntries = logs.filter((l) => l.domainType && l.domainId).map((l) => ({ type: l.domainType, id: l.domainId }));
+  const factoryIds = [...new Set(domainEntries.filter((e) => e.type === "factory").map((e) => e.id))];
+  const depotIds = [...new Set(domainEntries.filter((e) => e.type === "depot").map((e) => e.id))];
+  const truckIds = [...new Set(domainEntries.filter((e) => e.type === "truck").map((e) => e.id))];
+
+  const [factoryDocs, depotDocs, truckDocs] = await Promise.all([
+    factoryIds.length > 0 ? Factory.find({ _id: { $in: factoryIds } }).select("name").lean() : [],
+    depotIds.length > 0 ? Depot.find({ _id: { $in: depotIds } }).select("name").lean() : [],
+    truckIds.length > 0 ? Truck.find({ _id: { $in: truckIds } }).select("plateNumber").lean() : [],
+  ]);
+
+  const locationMap = new Map<string, string>();
+  for (const f of factoryDocs) locationMap.set(`factory:${f._id.toString()}`, (f as any).name);
+  for (const d of depotDocs) locationMap.set(`depot:${d._id.toString()}`, (d as any).name);
+  for (const t of truckDocs) locationMap.set(`truck:${t._id.toString()}`, (t as any).plateNumber);
+
+  // Resolve entity names for entityId field
+  const entityGroups: Record<string, Set<string>> = {};
+  for (const log of logs) {
+    if (!log.entityId) continue;
+    if (!entityGroups[log.entity]) entityGroups[log.entity] = new Set();
+    entityGroups[log.entity].add(log.entityId.toString());
+  }
+
+  const entityNameMap = new Map<string, string>();
+  if (entityGroups["factory"]) {
+    const docs = await Factory.find({ _id: { $in: [...entityGroups["factory"]] } }).select("name").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).name);
+  }
+  if (entityGroups["depot"]) {
+    const docs = await Depot.find({ _id: { $in: [...entityGroups["depot"]] } }).select("name").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).name);
+  }
+  if (entityGroups["truck"]) {
+    const docs = await Truck.find({ _id: { $in: [...entityGroups["truck"]] } }).select("plateNumber").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).plateNumber);
+  }
+  if (entityGroups["product"]) {
+    const docs = await Product.find({ _id: { $in: [...entityGroups["product"]] } }).select("name").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).name);
+  }
+  if (entityGroups["customer"]) {
+    const { Customer } = await import("@/lib/models");
+    const docs = await Customer.find({ _id: { $in: [...entityGroups["customer"]] } }).select("name").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).name);
+  }
+  if (entityGroups["staff"] || entityGroups["user"]) {
+    const ids = [...(entityGroups["staff"] ?? []), ...(entityGroups["user"] ?? [])];
+    const docs = await User.find({ _id: { $in: ids } }).select("name").lean();
+    for (const d of docs) entityNameMap.set(d._id.toString(), (d as any).name);
+  }
+
+  const enriched = logs.map((log) => {
+    const entityName = entityNameMap.get(log.entityId?.toString() ?? "") ?? null;
+    const productName = log.productId ? productMap.get(log.productId.toString()) ?? null : null;
+    const domainKey = log.domainType && log.domainId ? `${log.domainType}:${log.domainId.toString()}` : null;
+    const locationName = domainKey ? locationMap.get(domainKey) ?? null : null;
+
+    return {
+      ...log,
+      _id: log._id.toString(),
+      entityId: log.entityId?.toString() ?? "",
+      user: log.userId ? userMap.get(log.userId) ?? null : null,
+      entityName,
+      productName,
+      locationName,
+    };
+  });
 
   return NextResponse.json({
     logs: enriched,

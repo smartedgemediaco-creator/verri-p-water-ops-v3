@@ -88,6 +88,10 @@ export default function SalesPage() {
   const [settling, setSettling] = useState<string | null>(null);
   const [confirmSettleId, setConfirmSettleId] = useState<string | null>(null);
   const confirmSettleSale = sales.find((s) => s._id === confirmSettleId) ?? null;
+  const [shareSaleId, setShareSaleId] = useState<string | null>(null);
+  const shareSale = sales.find((s) => s._id === shareSaleId) ?? null;
+  const [receiptPdfLoading, setReceiptPdfLoading] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -179,6 +183,34 @@ export default function SalesPage() {
       showError("Network error");
     } finally {
       setSettling(null);
+    }
+  };
+
+  const downloadReceipt = async () => {
+    if (!receiptRef.current || !shareSale) return;
+    setReceiptPdfLoading(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        imageTimeout: 0,
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = pdf.internal.pageSize.getWidth();
+      const imgW = pageW - 20;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 10, 10, imgW, imgH);
+      pdf.save(`receipt-${shareSale.productId?.name ?? "sale"}-${formatDate(shareSale.date).replace(/\//g, "-")}.pdf`);
+    } catch (err) {
+      console.error("Receipt PDF failed", err);
+      showError("Failed to generate PDF");
+    } finally {
+      setReceiptPdfLoading(false);
     }
   };
 
@@ -406,7 +438,7 @@ export default function SalesPage() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
-                    <Link href={`/${sale.locationType === "factory" ? "factories" : sale.locationType === "depot" ? "depots" : "trucks"}/${sale.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{sale.location?.name ?? `${sale.locationType} (${sale.locationId?.slice(-6) ?? "N/A"})`}</Link>
+                    <Link href={`/${sale.locationType === "factory" ? "factories" : sale.locationType === "depot" ? "depots" : "trucks"}/${sale.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{sale.location?.name ?? sale.locationType}</Link>
                   </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{sale.productId?._id ? <Link href={`/products/${sale.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{sale.productId.name}</Link> : "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(sale.quantity ?? 0).toLocaleString()}</TableCell>
@@ -455,6 +487,13 @@ export default function SalesPage() {
                         }}
                       />
                       <DisputeButton entity="sale" entityId={sale._id} entityLabel={`${sale.productId?.name ?? "sale"} — ₦${sale.totalAmount?.toLocaleString()}`} />
+                      <button
+                        onClick={() => setShareSaleId(sale._id)}
+                        className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors"
+                        title="Share Receipt"
+                      >
+                        Share Receipt
+                      </button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -498,6 +537,126 @@ export default function SalesPage() {
         loading={settling !== null}
         successMessage="Credit sale settled successfully!"
       />
+
+      {shareSale && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareSaleId(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-5 text-center shrink-0">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              </div>
+              <h3 className="text-lg font-bold text-white">Share Receipt</h3>
+              <p className="text-sm text-white/70 mt-0.5">Send to your customer</p>
+            </div>
+
+            <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
+              <div ref={receiptRef} className="bg-white rounded-xl p-5 mb-5 border border-gray-200 shadow-sm" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+                <div className="text-center mb-4 pb-3" style={{ borderBottom: "2px solid #465FFF" }}>
+                  <div className="text-lg font-extrabold tracking-tight" style={{ color: "#465FFF" }}>VERRI P WATER INC</div>
+                  <div className="text-xs mt-0.5" style={{ color: "#6b7280" }}>100% Pure & Safe Drinking Water</div>
+                  <div className="text-xs" style={{ color: "#6b7280" }}>Nigeria</div>
+                </div>
+                <div className="text-center mb-3">
+                  <span className="text-xs font-bold px-3 py-1 rounded" style={{ color: "#374151", background: "#f3f4f6" }}>SALES RECEIPT</span>
+                </div>
+                <div className="text-center text-xs mb-3" style={{ color: "#6b7280" }}>{formatDate(shareSale.date, "long")}</div>
+                <div className="border-t border-dashed my-2" style={{ borderColor: "#e5e7eb" }} />
+                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Product</td><td className="py-1 text-right font-semibold">{shareSale.productId?.name ?? "N/A"}</td></tr>
+                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Quantity</td><td className="py-1 text-right font-semibold">{(shareSale.quantity ?? 0).toLocaleString()}</td></tr>
+                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Unit Price</td><td className="py-1 text-right font-semibold">₦{(shareSale.unitPrice ?? 0).toLocaleString()}</td></tr>
+                  </tbody>
+                </table>
+                <div className="my-2" style={{ borderTop: "2px solid #465FFF" }} />
+                <div className="flex justify-between text-sm font-extrabold" style={{ color: "#465FFF" }}>
+                  <span>TOTAL</span>
+                  <span>₦{(shareSale.totalAmount ?? 0).toLocaleString()}</span>
+                </div>
+                <div className="border-t border-dashed my-2" style={{ borderColor: "#e5e7eb" }} />
+                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Payment</td><td className="py-0.5 text-right font-semibold capitalize">{shareSale.paymentMethod}</td></tr>
+                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Customer</td><td className="py-0.5 text-right font-semibold">{shareSale.customerName || "Walk-in"}</td></tr>
+                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Location</td><td className="py-0.5 text-right font-semibold">{shareSale.location?.name ?? shareSale.locationType}</td></tr>
+                  </tbody>
+                </table>
+                <div className="border-t border-dashed mt-3 pt-2 text-center text-xs" style={{ borderColor: "#e5e7eb", color: "#9ca3af" }}>
+                  Thank you for your purchase!<br/>Verri P Water Inc &mdash; Nigeria
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <button
+                  onClick={downloadReceipt}
+                  disabled={receiptPdfLoading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
+                  </svg>
+                  {receiptPdfLoading ? "Generating PDF..." : "Download PDF Receipt"}
+                </button>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `*Verri P Water Inc - Sales Receipt*\n\n` +
+                      `Date: ${formatDate(shareSale.date)}\n` +
+                      `Product: ${shareSale.productId?.name ?? "N/A"}\n` +
+                      `Quantity: ${(shareSale.quantity ?? 0).toLocaleString()}\n` +
+                      `Unit Price: ₦${(shareSale.unitPrice ?? 0).toLocaleString()}\n` +
+                      `Total: ₦${(shareSale.totalAmount ?? 0).toLocaleString()}\n` +
+                      `Payment: ${shareSale.paymentMethod}\n` +
+                      `Customer: ${shareSale.customerName || "Walk-in"}\n` +
+                      `Location: ${shareSale.location?.name ?? shareSale.locationType}\n\n` +
+                      `Thank you for your purchase!`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-semibold text-sm transition-colors"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    WhatsApp
+                  </a>
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent(
+                      `Sales Receipt - Verri P Water Inc (${formatDate(shareSale.date)})`
+                    )}&body=${encodeURIComponent(
+                      `Verri P Water Inc - Sales Receipt\n` +
+                      `================================\n\n` +
+                      `Date: ${formatDate(shareSale.date)}\n` +
+                      `Product: ${shareSale.productId?.name ?? "N/A"}\n` +
+                      `Quantity: ${(shareSale.quantity ?? 0).toLocaleString()}\n` +
+                      `Unit Price: ₦${(shareSale.unitPrice ?? 0).toLocaleString()}\n` +
+                      `Total: ₦${(shareSale.totalAmount ?? 0).toLocaleString()}\n` +
+                      `Payment: ${shareSale.paymentMethod}\n` +
+                      `Customer: ${shareSale.customerName || "Walk-in"}\n` +
+                      `Location: ${shareSale.location?.name ?? shareSale.locationType}\n\n` +
+                      `Thank you for your purchase!`
+                    )}`}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                    Email
+                  </a>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShareSaleId(null)}
+                className="w-full mt-4 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

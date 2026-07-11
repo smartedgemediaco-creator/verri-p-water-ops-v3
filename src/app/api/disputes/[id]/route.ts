@@ -34,7 +34,7 @@ export async function PATCH(
       action: "updated",
       entity: "dispute",
       entityId: id,
-      description: `Dispute confirmed: ${dispute.reason} on ${dispute.entity} #${dispute.entityId.toString().slice(-6)}`,
+      description: `Dispute confirmed: ${dispute.reason} on ${dispute.entity}${dispute.entityLabel ? ` (${dispute.entityLabel})` : ""}`,
       userId: user.userId,
     });
 
@@ -67,7 +67,7 @@ export async function PATCH(
     action: "updated",
     entity: "dispute",
     entityId: id,
-    description: `Dispute ${body.status}: ${dispute.reason} on ${dispute.entity} #${dispute.entityId.toString().slice(-6)}`,
+    description: `Dispute ${body.status}: ${dispute.reason} on ${dispute.entity}${dispute.entityLabel ? ` (${dispute.entityLabel})` : ""}`,
     userId: user.userId,
     metadata: { status: body.status, resolution: body.resolution },
   });

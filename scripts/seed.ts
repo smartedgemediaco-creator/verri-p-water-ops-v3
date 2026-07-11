@@ -1,5 +1,15 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
+import { existsSync } from "fs";
+import { resolve } from "path";
+
+// Load .env.local if it exists (user's local overrides), fall back to env-specific
+const envLocal = resolve(".env.local");
+const envFile = existsSync(envLocal)
+  ? ".env.local"
+  : process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+dotenv.config({ path: envFile });
 import mongoose from "mongoose";
 
 async function hashPass(password: string): Promise<string> {

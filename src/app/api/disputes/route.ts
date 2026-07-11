@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     action: "created",
     entity: "dispute",
     entityId: dispute._id.toString(),
-    description: `Dispute filed: ${body.reason} on ${body.entity} #${(body.entityId as string).slice(-6)}`,
+    description: `Dispute filed: ${body.reason} on ${body.entity}${body.entityLabel ? ` (${body.entityLabel})` : ""}`,
     userId: user.userId,
     metadata: { entity: body.entity, entityId: body.entityId, reason: body.reason },
   });

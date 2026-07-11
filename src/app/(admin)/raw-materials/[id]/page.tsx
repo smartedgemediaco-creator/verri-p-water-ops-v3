@@ -324,7 +324,7 @@ export default function RawMaterialDetailPage({ params }: { params: Promise<{ id
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Material ID: {id.slice(-8)}
+        {material?.name ?? "Raw Material"}
       </div>
 
       {showEditModal && (

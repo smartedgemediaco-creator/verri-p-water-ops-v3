@@ -308,7 +308,7 @@ export default function CostsPage() {
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 max-w-[200px] truncate">{cost.description}</TableCell>
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                           <Link href={`/${cost.locationType === "factory" ? "factories" : cost.locationType === "depot" ? "depots" : "trucks"}/${cost.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">
-                            {cost.locationName ?? `${cost.locationType} (${(cost.locationId ?? "").slice(-6)})`}
+                            {cost.locationName ?? cost.locationType}
                           </Link>
                         </TableCell>
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">

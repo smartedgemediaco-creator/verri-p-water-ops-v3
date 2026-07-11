@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           source: "transfer",
           locationType: toType === "truck" ? "truck" : toType,
           locationId: toType === "truck" ? truckId : toId,
-          description: body.spoilageReason || `Damaged during delivery ${id.slice(-6)}`,
+          description: body.spoilageReason || `Damaged during delivery`,
           date: new Date(),
         });
       }
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     action: "updated",
     entity: "truck-load",
     entityId: id,
-    description: `Truck load ${id.slice(-6)}: ${oldStatus} → ${newStatus}`,
+    description: `Truck load: ${oldStatus} → ${newStatus}`,
     userId: user.userId,
     domainType: load.fromType,
     domainId: load.fromId,

@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
       quantity: i.quantity,
       locationType: i.locationType,
       locationId: i.locationId,
+      locationName: i.locationType,
     })),
     inTransit: recentTransfers.map((t) => ({
       product: (t as any).productId?.name ?? "Unknown",

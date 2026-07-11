@@ -144,7 +144,7 @@ export default function DisputesPage() {
             ) : (
               disputes.map((d) => (
                 <TableRow key={d._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90 capitalize">{d.entity} <span className="text-gray-400">#{d.entityId.slice(-6)}</span></TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90 capitalize">{d.entity} <span className="text-gray-400">{d.entityLabel || ""}</span></TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{d.reason.replace(/-/g, " ")}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{d.createdBy?.name ?? d.createdBy?.email ?? "—"}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 max-w-[200px] truncate">{d.description || d.entityLabel || "—"}</TableCell>
@@ -202,7 +202,7 @@ export default function DisputesPage() {
               {action === "resolved" ? "Resolve Dispute" : "Dismiss Dispute"}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {actionTarget.entity} #{actionTarget.entityId.slice(-6)} — {actionTarget.reason.replace(/-/g, " ")}
+              {actionTarget.entity} {actionTarget.entityLabel || ""} — {actionTarget.reason.replace(/-/g, " ")}
             </p>
             {actionTarget.description && (
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">

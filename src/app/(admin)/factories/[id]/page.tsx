@@ -586,7 +586,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Factory ID: {id.slice(-8)}
+        {factory?.name ?? "Factory"}
       </div>
 
       {/* Production Modal */}

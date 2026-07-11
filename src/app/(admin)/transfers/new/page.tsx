@@ -112,7 +112,7 @@ export default function NewTransferPage() {
 
   const locationName = (id: string, type: string) => {
     const opts = type === "factory" ? factories : type === "depot" ? depots : type === "truck" ? truckLocations : [];
-    return opts.find((o) => o.value === id)?.label ?? id.slice(-6);
+    return opts.find((o) => o.value === id)?.label ?? "Unknown";
   };
 
   const handleSubmit = (e: React.FormEvent) => {

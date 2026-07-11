@@ -18,6 +18,7 @@ interface LowStockItem {
   quantity: number;
   locationType: string;
   locationId: string;
+  locationName?: string;
 }
 
 interface InTransitItem {
@@ -149,7 +150,7 @@ export default function AlertsPage() {
               <div key={i} className="flex items-center justify-between px-5 py-4 hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
                 <div>
                   <p className="font-medium text-sm text-gray-800 dark:text-white/90">{item.product}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{item.locationType} &middot; {(item.locationId ?? "").slice(-6)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{item.locationType} &middot; {item.locationName ?? item.locationType}</p>
                 </div>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{item.quantity}</span>
               </div>

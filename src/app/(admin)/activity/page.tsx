@@ -30,12 +30,15 @@ interface ActivityLog {
   action: string;
   entity: string;
   entityId: string;
+  entityName?: string | null;
   description: string;
   user: ActivityUser | null;
   userId?: string;
   productId?: string;
+  productName?: string | null;
   domainType?: string;
   domainId?: string;
+  locationName?: string | null;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
@@ -367,8 +370,6 @@ export default function ActivityPage() {
                     <TableCell className="py-3">{actionBadge(log.action)}</TableCell>
                     <TableCell className="py-3">
                       <span className="capitalize text-theme-sm font-medium text-gray-800 dark:text-white/90">{log.entity}</span>
-                      <br />
-                      <span className="text-xs text-gray-400 font-mono">{(log.entityId ?? "").slice(-8)}</span>
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {log.description}
@@ -392,30 +393,41 @@ export default function ActivityPage() {
                     <TableRow key={`${log._id}-detail`}>
                       <TableCell colSpan={6} className="bg-gray-50 dark:bg-gray-800/50 p-4">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {log.productId && (
+                          {log.entityName && (
                             <div>
-                              <span className="text-xs text-gray-400 block">Product ID</span>
-                              <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{log.productId}</span>
+                              <span className="text-xs text-gray-400 block">Name</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{log.entityName}</span>
+                            </div>
+                          )}
+                          {log.productName && (
+                            <div>
+                              <span className="text-xs text-gray-400 block">Product</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{log.productName}</span>
                             </div>
                           )}
                           {log.domainType && (
                             <div>
-                              <span className="text-xs text-gray-400 block">Domain</span>
-                              <span className="text-sm capitalize text-gray-700 dark:text-gray-300">{log.domainType} ({log.domainId?.slice(-8)})</span>
+                              <span className="text-xs text-gray-400 block">Location</span>
+                              <span className="text-sm capitalize text-gray-700 dark:text-gray-300">{log.locationName ?? log.domainType}</span>
                             </div>
                           )}
                           {log.userId && (
                             <div>
-                              <span className="text-xs text-gray-400 block">User ID</span>
-                              <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{log.userId}</span>
+                              <span className="text-xs text-gray-400 block">Performed by</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{log.user?.name ?? "Unknown User"}</span>
                             </div>
                           )}
                           {log.metadata && Object.keys(log.metadata).length > 0 && (
                             <div className="col-span-2">
-                              <span className="text-xs text-gray-400 block">Metadata</span>
-                              <pre className="text-xs text-gray-600 dark:text-gray-400 mt-1 overflow-auto max-h-24">
-                                {JSON.stringify(log.metadata, null, 2)}
-                              </pre>
+                              <span className="text-xs text-gray-400 block">Details</span>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mt-1 space-y-1">
+                                {Object.entries(log.metadata).map(([key, val]) => (
+                                  <div key={key} className="flex gap-2">
+                                    <span className="capitalize font-medium">{key.replace(/([A-Z])/g, " $1")}:</span>
+                                    <span>{typeof val === "object" ? JSON.stringify(val) : String(val)}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -494,7 +506,6 @@ export default function ActivityPage() {
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ fontWeight: 500, color: "#344054", fontSize: "13px", textTransform: "capitalize" }}>{log.entity}</div>
-                      <div style={{ fontSize: "11px", color: "#98a2b3", fontFamily: "monospace" }}>{(log.entityId ?? "").slice(-8)}</div>
                     </td>
                     <td style={{ padding: "12px 16px", color: "#667085", fontSize: "13px", maxWidth: "280px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description}</td>
                     <td style={{ padding: "12px 16px", color: "#667085", fontSize: "13px" }}>

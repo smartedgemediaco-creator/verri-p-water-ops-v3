@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     action: "created",
     entity: "service-record",
     entityId: record._id.toString(),
-    description: `Service record for truck ${body.truckId}: ${body.serviceType}`,
+    description: `Service record for truck: ${body.serviceType}`,
     userId: user.userId,
     metadata: { truckId: body.truckId, serviceType: body.serviceType },
   });

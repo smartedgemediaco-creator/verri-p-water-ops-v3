@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     action: "updated",
     entity: "wastage",
     entityId: id,
-    description: `Admin edited wastage #${id.slice(-6)}: ${changes.join(", ") || "fields updated"}`,
+    description: `Admin edited wastage (${old.source}): ${changes.join(", ") || "fields updated"}`,
     userId: user.userId,
     metadata: { changes: body, oldQty, oldSource },
   });
@@ -58,7 +58,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     action: "deleted",
     entity: "wastage",
     entityId: id,
-    description: `Admin deleted wastage #${id.slice(-6)} — ${wastage.source} x${wastage.quantity}`,
+    description: `Admin deleted wastage — ${wastage.source} x${wastage.quantity}`,
     userId: user.userId,
     metadata: { source: wastage.source, quantity: wastage.quantity },
   });

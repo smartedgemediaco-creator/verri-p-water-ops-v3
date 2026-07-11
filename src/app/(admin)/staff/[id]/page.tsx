@@ -179,7 +179,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
     </div>
   );
 
-  const locName = location?.name ?? location?.location ?? staff.locationId?.slice(-6) ?? "—";
+  const locName = location?.name ?? location?.location ?? staff.locationType ?? "—";
   const startDate = staff.startDate ? new Date(staff.startDate) : null;
   const tenure = startDate ? Math.floor((Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0; // eslint-disable-line react-hooks/purity
 
@@ -372,7 +372,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Staff ID: {id.slice(-8)}
+        {staff?.name ?? "Staff"}
       </div>
 
       {showAccessForm && (

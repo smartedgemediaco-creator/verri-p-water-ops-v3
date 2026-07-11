@@ -351,7 +351,7 @@ export default function TruckLoadsPage() {
                         t.fromType === "depot" ? <Link href={`/depots/${t.fromId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.fromName}</Link> :
                         t.fromType === "truck" ? <Link href={`/trucks/${t.fromId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.fromName}</Link> :
                         <span>{t.fromName}</span>
-                      ) : `${t.fromType} (${(t.fromId ?? "").slice(-6)})`
+                      ) : t.fromType
                     }
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
@@ -362,7 +362,7 @@ export default function TruckLoadsPage() {
                         t.toType === "depot" ? <Link href={`/depots/${t.toId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.toName}</Link> :
                         t.toType === "truck" ? <Link href={`/trucks/${t.toId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{t.toName}</Link> :
                         <span>{t.toName}</span>
-                      ) : `${t.toType} (${(t.toId ?? "").slice(-6)})`
+                      ) : t.toType
                     }
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{t.productId?._id ? <Link href={`/products/${t.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{t.productId.name}</Link> : "N/A"}</TableCell>

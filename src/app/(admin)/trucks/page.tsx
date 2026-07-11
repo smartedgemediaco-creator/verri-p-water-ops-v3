@@ -284,7 +284,7 @@ function TruckRow({
                     Delete
                   </Button>
                   <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                    ID: {truck._id}
+                    {truck.plateNumber}
                   </span>
                 </div>
               </div>

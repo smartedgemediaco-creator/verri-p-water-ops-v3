@@ -62,7 +62,7 @@ export default function DriverDashboardPage() {
     user?.truckId && typeof user.truckId === "object" && user.truckId.plateNumber
       ? user.truckId.plateNumber
       : truckIdVal
-      ? `Truck (${(truckIdVal as string).slice(-6)})`
+      ? `Truck`
       : "";
 
   const fetchData = useCallback(() => {

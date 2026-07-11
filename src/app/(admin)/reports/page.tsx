@@ -351,7 +351,11 @@ export default function ReportsPage() {
               {data.meta.filters.domainType && (
                 <span>
                   <span style={{ color: "#667085", fontWeight: 600 }}>Scope:</span>{" "}
-                  {data.meta.filters.domainType} — {data.meta.filters.domainId?.slice(-8)}
+                  {(() => {
+                    const entities = data.entities?.[`${data.meta.filters.domainType}s` as keyof typeof data.entities] as { _id: string; name?: string; plateNumber?: string }[] | undefined;
+                    const match = entities?.find((e) => e._id === data.meta.filters.domainId);
+                    return data.meta.filters.domainType === "truck" ? (match as { plateNumber?: string } | undefined)?.plateNumber ?? data.meta.filters.domainType : (match as { name?: string } | undefined)?.name ?? data.meta.filters.domainType;
+                  })()}
                 </span>
               )}
               {(data.meta.filters.startDate || data.meta.filters.endDate) && (
@@ -703,7 +707,11 @@ export default function ReportsPage() {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px", fontSize: "12px", color: "#98a2b3" }}>
               <span><span style={{ color: "#667085", fontWeight: 600 }}>Generated:</span> {fmtDate(data.meta.generatedAt)} by {data.meta.generatedBy}</span>
-              {data.meta.filters.domainType && <span><span style={{ color: "#667085", fontWeight: 600 }}>Scope:</span> {data.meta.filters.domainType} — {data.meta.filters.domainId?.slice(-8)}</span>}
+              {data.meta.filters.domainType && <span><span style={{ color: "#667085", fontWeight: 600 }}>Scope:</span> {(() => {
+                const entities = data.entities?.[`${data.meta.filters.domainType}s` as keyof typeof data.entities] as { _id: string; name?: string; plateNumber?: string }[] | undefined;
+                const match = entities?.find((e) => e._id === data.meta.filters.domainId);
+                return data.meta.filters.domainType === "truck" ? (match as { plateNumber?: string } | undefined)?.plateNumber ?? data.meta.filters.domainType : (match as { name?: string } | undefined)?.name ?? data.meta.filters.domainType;
+              })()}</span>}
               {(data.meta.filters.startDate || data.meta.filters.endDate) && (
                 <span><span style={{ color: "#667085", fontWeight: 600 }}>Period:</span> {data.meta.filters.startDate || "earliest"} — {data.meta.filters.endDate || "present"}</span>
               )}

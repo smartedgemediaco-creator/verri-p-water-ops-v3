@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
     })),
     sales: sales.map((s: any) => ({
       _id: s._id.toString(),
-      location: `${s.locationType}:${s.locationId?.toString().slice(-6) ?? "N/A"}`,
+      location: `${s.locationType}:${(s.productId as any)?.name ?? s.locationType}`,
       product: (s.productId as any)?.name ?? "Unknown",
       productId: (s.productId as any)?._id?.toString(),
       quantity: s.quantity,

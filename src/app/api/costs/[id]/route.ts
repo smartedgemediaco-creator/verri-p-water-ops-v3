@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     action: "updated",
     entity: "cost",
     entityId: id,
-    description: `Admin edited cost #${id.slice(-6)}: ${changes.join(", ") || "fields updated"}`,
+    description: `Admin edited cost (${old.category}): ${changes.join(", ") || "fields updated"}`,
     userId: user.userId,
     metadata: { changes: body, oldAmount, oldCategory },
   });
@@ -58,7 +58,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     action: "deleted",
     entity: "cost",
     entityId: id,
-    description: `Admin deleted cost #${id.slice(-6)} — ${cost.category} ₦${cost.amount?.toLocaleString()}`,
+    description: `Admin deleted cost — ${cost.category} ₦${cost.amount?.toLocaleString()}`,
     userId: user.userId,
     metadata: { category: cost.category, amount: cost.amount },
   });

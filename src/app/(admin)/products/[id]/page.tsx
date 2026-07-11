@@ -313,7 +313,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Product ID: {id.slice(-8)}
+        {product?.name ?? "Product"}
       </div>
     </div>
   );

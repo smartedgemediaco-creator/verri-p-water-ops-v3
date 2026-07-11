@@ -713,7 +713,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Supplier ID: {id.slice(-8)}
+        {supplier?.name ?? "Supplier"}
       </div>
 
       {showEditModal && (

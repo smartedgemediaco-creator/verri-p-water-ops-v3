@@ -457,7 +457,7 @@ export default function StockPage() {
                   { value: "", label: `All ${filterLocation}s` },
                   ...locations.map((l) => ({
                     value: l._id,
-                    label: l.name ?? l.plateNumber ?? l._id.slice(-6),
+                    label: l.name ?? l.plateNumber ?? "Unknown",
                   })),
                 ]}
                 value={filterLocationId}
@@ -657,7 +657,7 @@ export default function StockPage() {
                         )}
                       </TableCell>
                       <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{item.productId?._id ? <Link href={`/products/${item.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{item.productId.name}</Link> : "N/A"}</TableCell>
-                      <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{item.locationId ? <Link href={`/${item.locationType === "factory" ? "factories" : item.locationType === "depot" ? "depots" : "trucks"}/${item.locationId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{item.locationName ?? item.locationId?.slice(-6) ?? "N/A"}</Link> : "N/A"}</TableCell>
+                      <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{item.locationId ? <Link href={`/${item.locationType === "factory" ? "factories" : item.locationType === "depot" ? "depots" : "trucks"}/${item.locationId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{item.locationName ?? item.locationType}</Link> : "N/A"}</TableCell>
                       <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">
                         <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                           item.locationType === "factory" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :
@@ -720,7 +720,7 @@ export default function StockPage() {
                                       <div key={t._id} className="text-sm flex items-center gap-3 text-gray-700 dark:text-gray-300">
                                         <span className="w-2 h-2 rounded-full bg-amber-400" />
                                         <span className="font-medium">{t.quantity.toLocaleString()} units</span>
-                                        <span className="text-gray-400">{t.fromName ?? `${t.fromType} (${(t.fromId ?? "").slice(-6)})`} → {t.toName ?? `${t.toType} (${(t.toId ?? "").slice(-6)})`}</span>
+                                        <span className="text-gray-400">{t.fromName ?? t.fromType} → {t.toName ?? t.toType}</span>
                                         <span className="text-gray-400">on {formatDate(t.date)}</span>
                                         <span className={`text-xs capitalize px-1.5 py-0.5 rounded-full ${
                                           t.status === "delivered" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :

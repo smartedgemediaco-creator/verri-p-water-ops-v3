@@ -522,7 +522,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        Truck ID: {id.slice(-8)}
+        {truck?.plateNumber ?? "Truck"}
       </div>
 
       {/* Load Truck Modal */}

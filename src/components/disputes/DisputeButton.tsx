@@ -52,7 +52,7 @@ export default function DisputeButton({ entity, entityId, entityLabel, variant =
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">File a Dispute</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {entityLabel || `${entity} #${entityId.slice(-6)}`}
+              {entityLabel || entity}
             </p>
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason *</label>

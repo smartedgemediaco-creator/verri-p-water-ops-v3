@@ -163,7 +163,7 @@ export default function WastagePage() {
     finally { setSpoilageSubmitting(false); }
   };
 
-  const spoilageLocationOpts = spoilageLocations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? l._id.slice(-6) }));
+  const spoilageLocationOpts = spoilageLocations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? "Unknown" }));
 
   const hasFilters = filterLocType !== "all" || filterLocId || filterProduct || filterSource !== "all" || startDate || endDate;
   const totalQty = records.reduce((s, r) => s + (r.quantity ?? 0), 0);
@@ -195,7 +195,7 @@ export default function WastagePage() {
               <Select
                 options={[
                   { value: "", label: `All ${filterLocType}s` },
-                  ...locations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? l._id.slice(-6) })),
+                  ...locations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? "Unknown" })),
                 ]}
                 value={filterLocId}
                 onChange={setFilterLocId}
@@ -292,7 +292,7 @@ export default function WastagePage() {
               records.map((r) => (
                 <TableRow key={r._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{r.productId?._id ? <Link href={`/products/${r.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{r.productId.name}</Link> : "N/A"}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{r.locationId ? <Link href={`/${r.locationType === "factory" ? "factories" : r.locationType === "depot" ? "depots" : "trucks"}/${r.locationId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{r.locationName ?? r.locationId?.slice(-6) ?? "N/A"}</Link> : "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{r.locationId ? <Link href={`/${r.locationType === "factory" ? "factories" : r.locationType === "depot" ? "depots" : "trucks"}/${r.locationId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{r.locationName ?? r.locationType}</Link> : "N/A"}</TableCell>
                   <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">
                     <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                       r.locationType === "factory" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" :

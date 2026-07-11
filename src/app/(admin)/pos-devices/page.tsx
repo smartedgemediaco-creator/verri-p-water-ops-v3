@@ -69,7 +69,7 @@ export default function PosDevicesPage() {
           setLocations(
             data.map((d) => ({
               value: d._id,
-              label: d.name ?? `Truck: ${d.plateNumber ?? d._id.slice(-6)}`,
+              label: d.name ?? `Truck: ${d.plateNumber ?? "Unknown"}`,
             }))
           );
         }
@@ -138,7 +138,7 @@ export default function PosDevicesPage() {
     if (typeof d.locationId === "object" && d.locationId) {
       return d.locationId.name ?? `Truck: ${d.locationId.plateNumber ?? ""}`;
     }
-    return typeof d.locationId === "string" ? d.locationId.slice(-6) : "";
+    return typeof d.locationId === "string" ? (d.locationType ?? "Location") : "";
   };
 
   const totalActive = devices.filter((d) => d.isActive).length;
