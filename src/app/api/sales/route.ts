@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
   const creditStatus = url.searchParams.get("creditStatus");
 
   const filter: any = {};
+  filter.status = { $ne: "cancelled" };
 
   if (user.role === "depot-manager" && user.depotId) {
     filter.locationType = "depot";

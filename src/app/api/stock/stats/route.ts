@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const isDriver = user.role === "driver";
 
   const prodFilter: Record<string, unknown> = {};
-  const saleFilter: Record<string, unknown> = {};
+  const saleFilter: Record<string, unknown> = { status: { $ne: "cancelled" } };
   const invFilter: Record<string, unknown> = {};
   const transferFilter: Record<string, unknown> = {};
   const wasteFilter: Record<string, unknown> = {};

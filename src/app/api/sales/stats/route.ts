@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const locationId = url.searchParams.get("locationId");
 
   const match: Record<string, unknown> = {};
+  match.status = { $ne: "cancelled" };
 
   if (user.role === "depot-manager" && user.depotId) {
     match.locationType = "depot";

@@ -16,6 +16,7 @@ import { showSuccess, showError } from "@/lib/toast";
 import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 import { formatDate } from "@/lib/dateFormat";
+import { useAuth } from "@/context/AuthContext";
 
 interface Sale {
   _id: string;
@@ -70,6 +71,8 @@ const PAYMENT_BADGES: Record<string, { bg: string; text: string; label: string }
 };
 
 export default function SalesPage() {
+  const { user } = useAuth();
+  const isAdminUser = user?.role === "admin";
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 30, total: 0, totalPages: 0 });
@@ -93,6 +96,10 @@ export default function SalesPage() {
   const [receiptPdfLoading, setReceiptPdfLoading] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const confirmCancelSale = sales.find((s) => s._id === confirmCancelId) ?? null;
+  const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
     fetch("/api/products")
@@ -183,6 +190,32 @@ export default function SalesPage() {
       showError("Network error");
     } finally {
       setSettling(null);
+    }
+  };
+
+  const doCancelSale = async () => {
+    const id = confirmCancelId;
+    if (!id || cancellingId) return;
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/sales/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        showError(err.error || "Failed to cancel sale");
+        return;
+      }
+      showSuccess("Sale cancelled and stock restored");
+      setConfirmCancelId(null);
+      setCancelReason("");
+      fetchSales();
+    } catch {
+      showError("Network error");
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -447,6 +480,15 @@ export default function SalesPage() {
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(sale.date)}</TableCell>
                   <TableCell className="py-3">
                     <div className="flex gap-1.5 items-center">
+                      {isAdminUser && (
+                        <button
+                          onClick={() => { setConfirmCancelId(sale._id); setCancelReason(""); }}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
+                          title="Cancel Sale"
+                        >
+                          Cancel
+                        </button>
+                      )}
                       {sale.paymentMethod === "credit" && !sale.isPaid && (
                         <button
                           onClick={() => setConfirmSettleId(sale._id)}
@@ -536,6 +578,40 @@ export default function SalesPage() {
         variant="password"
         loading={settling !== null}
         successMessage="Credit sale settled successfully!"
+      />
+
+      <ConfirmDialog
+        isOpen={confirmCancelId !== null}
+        onClose={() => { setConfirmCancelId(null); setCancelReason(""); }}
+        onConfirm={doCancelSale}
+        title="Cancel Sale"
+        message={
+          <>
+            <p>You are about to <strong>cancel</strong> this sale and restore the stock:</p>
+            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              <li><strong>Product:</strong> {confirmCancelSale?.productId?.name ?? "N/A"}</li>
+              <li><strong>Quantity:</strong> {(confirmCancelSale?.quantity ?? 0).toLocaleString()} units</li>
+              <li><strong>Amount:</strong> ₦{confirmCancelSale?.totalAmount?.toLocaleString() ?? "0"}</li>
+              <li><strong>Customer:</strong> {confirmCancelSale?.customerName || "Walk-in"}</li>
+              <li><strong>Date:</strong> {confirmCancelSale ? formatDate(confirmCancelSale.date) : "—"}</li>
+            </ul>
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
+              <input
+                type="text"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Mistaken entry, duplicate record..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">⚠ This will restore the stock at {confirmCancelSale?.locationType} and cannot be undone.</p>
+          </>
+        }
+        confirmLabel="Cancel Sale"
+        variant="danger"
+        loading={cancellingId !== null}
+        successMessage="Sale cancelled and stock restored!"
       />
 
       {shareSale && (

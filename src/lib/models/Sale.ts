@@ -19,6 +19,10 @@ export interface ISale extends Document {
   isPaid: boolean;
   paidAt?: Date;
   paidAmount?: number;
+  status: "active" | "cancelled";
+  cancelledAt?: Date;
+  cancelledBy?: Types.ObjectId;
+  cancelReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,9 +49,15 @@ const SaleSchema = new Schema<ISale>(
     isPaid: { type: Boolean, default: true },
     paidAt: { type: Date },
     paidAmount: { type: Number },
+    status: { type: String, enum: ["active", "cancelled"], default: "active" },
+    cancelledAt: { type: Date },
+    cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
+    cancelReason: { type: String, default: "" },
   },
   { timestamps: true }
 );
+
+SaleSchema.index({ status: 1 });
 
 export const Sale =
   mongoose.models.Sale ?? mongoose.model<ISale>("Sale", SaleSchema);

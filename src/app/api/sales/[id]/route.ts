@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale } from "@/lib/models";
+import { Sale, Stock } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -88,4 +88,46 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   return NextResponse.json(sale);
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = getUserFromRequest(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ error: "Only admins can cancel sales" }, { status: 403 });
+
+  const { id } = await params;
+  await connectDB();
+
+  const sale = await Sale.findById(id);
+  if (!sale) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (sale.status === "cancelled") return NextResponse.json({ error: "Sale already cancelled" }, { status: 400 });
+
+  const body = await req.json().catch(() => ({}));
+  const cancelReason = body?.reason || "";
+
+  sale.status = "cancelled";
+  sale.cancelledAt = new Date();
+  sale.cancelledBy = user.userId;
+  sale.cancelReason = cancelReason;
+  await sale.save();
+
+  await Stock.findOneAndUpdate(
+    { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
+    { $inc: { quantity: sale.quantity } },
+    { upsert: true }
+  );
+
+  await logActivity({
+    action: "deleted",
+    entity: "sale",
+    entityId: id,
+    description: `Cancelled sale of ${sale.quantity} units from ${sale.locationType} — ₦${sale.totalAmount?.toLocaleString()}${cancelReason ? ` (${cancelReason})` : ""}`,
+    userId: user.userId,
+    domainType: sale.locationType,
+    domainId: sale.locationId.toString(),
+    productId: sale.productId?.toString(),
+    metadata: { quantity: sale.quantity, totalAmount: sale.totalAmount, cancelReason },
+  });
+
+  return NextResponse.json({ success: true });
 }
