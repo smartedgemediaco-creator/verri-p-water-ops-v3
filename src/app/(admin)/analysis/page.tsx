@@ -112,7 +112,7 @@ export default function AnalysisPage() {
   const resourceCards = [
     { label: "Factories", value: totalFactories, href: "/factories", icon: <BoxCubeIcon className="text-blue-600 size-5 dark:text-blue-400" />, bg: "bg-blue-100 dark:bg-blue-500/10" },
     { label: "Depots", value: totalDepots, href: "/depots", icon: <FolderIcon className="text-green-600 size-5 dark:text-green-400" />, bg: "bg-green-100 dark:bg-green-500/10" },
-    { label: "Trucks", value: totalTrucks, href: "/trucks", icon: <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />, bg: "bg-purple-100 dark:bg-purple-500/10" },
+    { label: "Vehicles", value: totalTrucks, href: "/trucks", icon: <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />, bg: "bg-purple-100 dark:bg-purple-500/10" },
     { label: "Active Loads", value: totalTransfers, href: "/transfers", icon: <BoxIconLine className="text-indigo-600 size-5 dark:text-indigo-400" />, bg: "bg-indigo-100 dark:bg-indigo-500/10" },
     { label: "Customers", value: customers.length, href: "/customers", icon: <UserIcon className="text-indigo-600 size-5 dark:text-indigo-400" />, bg: "bg-indigo-100 dark:bg-indigo-500/10" },
     { label: "Staff", value: staff.length, href: "/staff", icon: <GroupIcon className="text-cyan-600 size-5 dark:text-cyan-400" />, bg: "bg-cyan-100 dark:bg-cyan-500/10" },
@@ -410,7 +410,7 @@ export default function AnalysisPage() {
 
         {t.length > 0 && (
           <div>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Per Truck</h3>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Per Vehicle</h3>
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
               <Table>
                 <TableHeader>

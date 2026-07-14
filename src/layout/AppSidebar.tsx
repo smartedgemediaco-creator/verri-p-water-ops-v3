@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
   { icon: <TruckIcon />, name: "Driver Portal", path: "/driver", color: "text-orange-500" },
   { icon: <FactoryIcon />, name: "Factories / Production Plants", path: "/factories", color: "text-blue-500" },
   { icon: <DepotIcon />, name: "Depots", path: "/depots", color: "text-emerald-500" },
-  { icon: <TruckIcon />, name: "Delivery Trucks", path: "/trucks", color: "text-orange-500" },
+  { icon: <TruckIcon />, name: "Delivery Trucks/Tricycles", path: "/trucks", color: "text-orange-500" },
   { icon: <WaterDropIcon />, name: "Stock", path: "/stock", color: "text-cyan-500" },
   { icon: <BottleIcon />, name: "Products", path: "/products", color: "text-teal-500" },
   { icon: <FactoryIcon />, name: "Production", path: "/production/new", color: "text-blue-500" },

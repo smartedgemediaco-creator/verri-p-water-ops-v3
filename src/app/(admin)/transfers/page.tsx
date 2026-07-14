@@ -146,7 +146,7 @@ export default function TransfersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Truck Loads" />
+        <PageBreadcrumb pageTitle="Delivery Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
           <Link href="/wastage">

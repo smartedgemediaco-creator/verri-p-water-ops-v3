@@ -372,7 +372,7 @@ export default function ReportsPage() {
               {[
                 { label: "Factories", value: data.entities.factories.length, color: "#3b82f6", bg: "#eff6ff" },
                 { label: "Depots", value: data.entities.depots.length, color: "#22c55e", bg: "#f0fdf4" },
-                { label: "Trucks", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
+                { label: "Vehicles", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
                 { label: "Products", value: data.entities.products.length, color: "#fb6514", bg: "#fffaf5" },
               ].map((c) => (
                 <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(25% - 16px)", minWidth: "130px" }}>
@@ -723,7 +723,7 @@ export default function ReportsPage() {
               {[
                 { label: "Factories", value: data.entities.factories.length, color: "#3b82f6", bg: "#eff6ff" },
                 { label: "Depots", value: data.entities.depots.length, color: "#22c55e", bg: "#f0fdf4" },
-                { label: "Trucks", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
+                { label: "Vehicles", value: data.entities.trucks.length, color: "#a855f7", bg: "#faf5ff" },
                 { label: "Products", value: data.entities.products.length, color: "#fb6514", bg: "#fffaf5" },
               ].map((c) => (
                 <div key={c.label} style={{ borderRadius: "14px", padding: "20px", textAlign: "center", backgroundColor: c.bg, border: `1px solid ${c.color}30`, flex: "1 1 calc(25% - 16px)", minWidth: "130px" }}>

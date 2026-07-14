@@ -23,10 +23,10 @@ const actions = [
     border: "border-emerald-200 dark:border-emerald-500/20",
   },
   {
-    label: "New Truck",
+    label: "New Vehicle",
     href: "/trucks/new",
     icon: <TruckIcon className="w-6 h-6" />,
-    desc: "Add a delivery truck to your fleet",
+    desc: "Add a delivery truck/tricycle to your fleet",
     bg: "bg-orange-50 dark:bg-orange-500/5",
     iconColor: "text-orange-500",
     border: "border-orange-200 dark:border-orange-500/20",

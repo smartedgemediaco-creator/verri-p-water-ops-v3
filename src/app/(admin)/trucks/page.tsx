@@ -69,10 +69,10 @@ export default function TrucksPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Trucks" />
+        <PageBreadcrumb pageTitle="Delivery Trucks/Tricycles" />
         <Link href="/trucks/new">
           <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Add Truck
+            Add Truck/Tricycle
           </Button>
         </Link>
       </div>
@@ -82,7 +82,7 @@ export default function TrucksPage() {
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <TruckIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Trucks</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Vehicles</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{trucks.length}</h4>
         </Link>
         <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
@@ -144,7 +144,7 @@ export default function TrucksPage() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>
-                  {search ? "No trucks match your search." : "No trucks found. Click \"Add Truck\" to create one."}
+                  {search ? "No delivery vehicles match your search." : "No delivery vehicles found. Click \"Add Truck/Tricycle\" to create one."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -167,9 +167,9 @@ export default function TrucksPage() {
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
-        title="Delete Truck"
-        message="This will permanently delete this truck and all associated data. This action cannot be undone."
-        confirmLabel="Delete Truck"
+        title="Delete Delivery Vehicle"
+        message="This will permanently delete this delivery vehicle and all associated data. This action cannot be undone."
+        confirmLabel="Delete Vehicle"
         variant="danger"
       />
     </div>

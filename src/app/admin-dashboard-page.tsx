@@ -176,7 +176,7 @@ export default function AdminDashboardPage() {
     ...(isOwner || isDepotManager
       ? [{ label: "Depots", value: stats.depots, icon: <DepotIcon className="w-5 h-5" />, href: "/depots", circleBg: "bg-emerald-100 dark:bg-emerald-500/10", iconColor: "text-emerald-600 dark:text-emerald-400" }]
       : []),
-    { label: "Trucks", value: stats.trucks, icon: <TruckIcon className="w-5 h-5" />, href: "/trucks", circleBg: "bg-orange-100 dark:bg-orange-500/10", iconColor: "text-orange-600 dark:text-orange-400" },
+    { label: "Vehicles", value: stats.trucks, icon: <TruckIcon className="w-5 h-5" />, href: "/trucks", circleBg: "bg-orange-100 dark:bg-orange-500/10", iconColor: "text-orange-600 dark:text-orange-400" },
     { label: "Products", value: stats.products, icon: <BottleIcon className="w-5 h-5" />, href: "/products", circleBg: "bg-pink-100 dark:bg-pink-500/10", iconColor: "text-pink-600 dark:text-pink-400" },
     { label: "Customers", value: customerCount, icon: <UserIcon />, href: "/customers", circleBg: "bg-indigo-100 dark:bg-indigo-500/10", iconColor: "text-indigo-600 dark:text-indigo-400" },
     { label: "Staff", value: staffCount, icon: <GroupIcon />, href: "/staff", circleBg: "bg-cyan-100 dark:bg-cyan-500/10", iconColor: "text-cyan-600 dark:text-cyan-400" },
@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
       ? [{ label: "Record Production", href: isFactoryManager && user?.factoryId ? `/factories/${typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id}` : "/factories", icon: <PlusIcon className="w-4 h-4" />, color: "bg-blue-500 hover:bg-blue-600" }]
       : []),
     ...(isFactoryManager || isOwner
-      ? [{ label: "Load Truck", href: "/truck-loads", icon: <TruckIcon className="w-4 h-4" />, color: "bg-orange-500 hover:bg-orange-600" }]
+      ? [{ label: "Load Vehicle", href: "/truck-loads", icon: <TruckIcon className="w-4 h-4" />, color: "bg-orange-500 hover:bg-orange-600" }]
       : []),
     ...(isDepotManager || isFactoryManager || isOwner
       ? [{ label: "Record Sale", href: "/sales/new", icon: <DollarLineIcon className="w-4 h-4" />, color: "bg-emerald-500 hover:bg-emerald-600" }]
@@ -370,7 +370,7 @@ export default function AdminDashboardPage() {
             <AutoAmount value={invStats.depotStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
           </Link>
           <Link href="/stock" className="card-corporate px-3 py-2 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-gray-400">Truck</p>
+            <p className="text-[10px] uppercase tracking-wider text-gray-400">Vehicle</p>
             <AutoAmount value={invStats.truckStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
           </Link>
         </div>

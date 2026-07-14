@@ -62,7 +62,7 @@ export default function EditTruckPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Edit Truck</h1>
+      <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Edit Truck/Tricycle</h1>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number <span className="text-red-500">*</span></label>
@@ -93,10 +93,10 @@ export default function EditTruckPage() {
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={doSubmit}
-        title="Confirm Truck Update"
+        title="Confirm Vehicle Update"
         message={
           <>
-            You are about to update this truck:
+            You are about to update this delivery vehicle:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Plate:</strong> {form.plateNumber}</li>
               <li><strong>Chassis:</strong> {form.chassisNumber || "—"}</li>
@@ -106,7 +106,7 @@ export default function EditTruckPage() {
             <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
           </>
         }
-        confirmLabel="Update Truck"
+        confirmLabel="Update Vehicle"
         variant="warning"
       />
     </div>

@@ -188,8 +188,8 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
 
   if (loading || !truck) return (
     <div>
-      <PageBreadcrumb pageTitle="Truck" />
-      <div className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm">Loading truck details...</div>
+      <PageBreadcrumb pageTitle="Delivery Vehicle" />
+      <div className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm">Loading vehicle details...</div>
     </div>
   );
 
@@ -199,10 +199,10 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle={`Truck: ${truck.plateNumber}`} />
+        <PageBreadcrumb pageTitle={`${truck.plateNumber}`} />
         <div className="flex gap-2">
           <Link href={`/trucks/${truck._id}/edit`}>
-            <Button variant="outline" size="sm">Edit Truck</Button>
+            <Button variant="outline" size="sm">Edit Vehicle</Button>
           </Link>
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="flex flex-wrap gap-2 mb-6">
         <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowServiceModal(true)}>Log Service</Button>
-        <Button size="sm" startIcon={<ListIcon />} variant="outline" onClick={() => { resetLoadForm(); setShowLoadModal(true); }}>Load Truck</Button>
+        <Button size="sm" startIcon={<ListIcon />} variant="outline" onClick={() => { resetLoadForm(); setShowLoadModal(true); }}>Load Truck/Tricycle</Button>
         <Link href={`/transfers?truckId=${id}`}>
           <Button size="sm" startIcon={<ArrowRightIcon />} variant="outline">View Transfers</Button>
         </Link>
@@ -322,7 +322,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <LightbulbIcon className="w-5 h-5 text-amber-500" />
-                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Truck Advisory</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Vehicle Advisory</h3>
                 </div>
                 <div className="space-y-3">
                   {advice.map((a, i) => (
@@ -341,7 +341,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
               <div className="flex items-center gap-2 mb-4">
                 <BoltIcon className="w-5 h-5 text-amber-500" />
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Truck Stats</h3>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Vehicle Stats</h3>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
@@ -451,7 +451,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
       {loads.length > 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Truck Load History</h3>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Delivery Load History</h3>
           </div>
           <Table>
             <TableHeader>
@@ -525,11 +525,11 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
         {truck?.plateNumber ?? "Truck"}
       </div>
 
-      {/* Load Truck Modal */}
+      {/* Load Truck/Tricycle Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { setShowLoadModal(false); resetLoadForm(); }}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Load Truck — {truck.plateNumber}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Load Truck/Tricycle — {truck.plateNumber}</h3>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Load Type</label>
@@ -658,7 +658,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => { setShowLoadModal(false); resetLoadForm(); }}>Cancel</Button>
               <Button size="sm" onClick={handleCreateLoad} disabled={loadSubmitting}>
-                {loadSubmitting ? "Loading..." : loadForm.loadType === "dispatch" ? "Dispatch Truck" : "Load Truck"}
+                {loadSubmitting ? "Loading..." : loadForm.loadType === "dispatch" ? "Dispatch Vehicle" : "Load Truck/Tricycle"}
               </Button>
             </div>
           </div>

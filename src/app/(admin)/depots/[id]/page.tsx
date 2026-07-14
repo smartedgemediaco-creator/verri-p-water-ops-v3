@@ -262,7 +262,7 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex flex-wrap gap-2 mb-6">
         <Button size="sm" startIcon={<DollarLineIcon />} onClick={() => setShowCostModal(true)}>Record Cost</Button>
         <Button size="sm" startIcon={<BottleIcon className="w-4 h-4" />} onClick={() => setShowSaleModal(true)}>Record Sale</Button>
-        <Button size="sm" startIcon={<TruckIcon className="w-4 h-4" />} onClick={() => setShowLoadModal(true)}>Load Truck</Button>
+        <Button size="sm" startIcon={<TruckIcon className="w-4 h-4" />} onClick={() => setShowLoadModal(true)}>Load Truck/Tricycle</Button>
         <Button size="sm" startIcon={<GroupIcon />} onClick={() => setShowStaffModal(true)}>Add Staff</Button>
       </div>
 
@@ -431,7 +431,7 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
       {loads.length > 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Incoming Truck Loads</h3>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Incoming Delivery Loads</h3>
           </div>
           <Table>
             <TableHeader>
@@ -585,11 +585,11 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* Load Truck Modal */}
+      {/* Load Truck/Tricycle Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowLoadModal(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Load Truck from {depot.name}</h3>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Load Truck/Tricycle from {depot.name}</h3>
             <form onSubmit={handleLoadTruck} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
                 <Select options={products.map(p => ({ value: p._id, label: p.name }))} placeholder="Select product" value={loadForm.productId} onChange={v => setLoadForm({ ...loadForm, productId: v })} />
@@ -613,7 +613,7 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               ) : null}
               <div className="flex gap-3 pt-2">
-                <Button type="submit" disabled={submitting || !loadForm.productId || !loadForm.quantity || !loadForm.truckId || (loadForm.toType !== "customer" && !loadForm.toId)}>{submitting ? "Loading..." : "Load Truck"}</Button>
+                <Button type="submit" disabled={submitting || !loadForm.productId || !loadForm.quantity || !loadForm.truckId || (loadForm.toType !== "customer" && !loadForm.toId)}>{submitting ? "Loading..." : "Load Truck/Tricycle"}</Button>
                 <Button type="button" variant="outline" onClick={() => setShowLoadModal(false)}>Cancel</Button>
               </div>
             </form>

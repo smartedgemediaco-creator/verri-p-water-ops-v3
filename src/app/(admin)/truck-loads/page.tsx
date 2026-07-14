@@ -261,11 +261,11 @@ export default function TruckLoadsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Truck Loads" />
+        <PageBreadcrumb pageTitle="Delivery Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => setShowForm(true)}>
-            Load Truck
+            Load Truck/Tricycle
           </Button>
         </div>
       </div>
@@ -338,7 +338,7 @@ export default function TruckLoadsPage() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No truck loads found.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No delivery loads found.</TableCell>
               </TableRow>
             ) : (
               filtered.map((t) => {
@@ -396,7 +396,7 @@ export default function TruckLoadsPage() {
       {showForm && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Load Truck</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Load Truck/Tricycle</h3>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Load Type</label>
@@ -539,7 +539,7 @@ export default function TruckLoadsPage() {
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
               <Button size="sm" onClick={handleCreateLoad} disabled={submitting}>
-                {submitting ? "Loading..." : formLoadType === "dispatch" ? "Dispatch Truck" : "Load Truck"}
+                {submitting ? "Loading..." : formLoadType === "dispatch" ? "Dispatch Vehicle" : "Load Truck/Tricycle"}
               </Button>
             </div>
           </div>

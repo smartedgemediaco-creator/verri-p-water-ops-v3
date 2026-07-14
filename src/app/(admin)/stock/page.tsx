@@ -432,7 +432,7 @@ export default function StockPage() {
             Add Stock
           </Button>
           <Button variant="outline" size="sm" startIcon={<TruckIcon className="w-4 h-4" />} onClick={() => openLoadTruck()}>
-            Load Truck
+            Load Truck/Tricycle
           </Button>
           <Button variant="outline" size="sm" startIcon={<TrashBinIcon />} onClick={() => setShowSpoilage(true)}>
             Record Spoilage
@@ -814,12 +814,12 @@ export default function StockPage() {
         </div>
       )}
 
-      {/* Load Truck modal */}
+      {/* Load Truck/Tricycle modal */}
       {showLoadTruck && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowLoadTruck(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">
-              {loadTruckForm.productName ? `Load "${loadTruckForm.productName}" to Truck` : "Load Truck"}
+              {loadTruckForm.productName ? `Load "${loadTruckForm.productName}" to Vehicle` : "Load Truck/Tricycle"}
             </h3>
             <form onSubmit={handleLoadTruck} className="space-y-4">
               {!loadTruckForm.productId && (
@@ -879,7 +879,7 @@ export default function StockPage() {
                   )}
                   <div className="flex gap-3 pt-2">
                     <Button type="submit" disabled={loadTruckSubmitting || !loadTruckForm.quantity || !loadTruckForm.truckId || (loadTruckForm.toType !== "customer" && !loadTruckForm.toId) || (!loadTruckForm.fromId && !filterLocationId)}>
-                      {loadTruckSubmitting ? "Loading..." : "Load Truck"}
+                      {loadTruckSubmitting ? "Loading..." : "Load Truck/Tricycle"}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setShowLoadTruck(false)}>Cancel</Button>
                   </div>

@@ -315,7 +315,7 @@ export default function NewTransferPage() {
 
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? "Saving..." : loadType === "dispatch" ? "Dispatch Truck" : "Save"}
+            {submitting ? "Saving..." : loadType === "dispatch" ? "Dispatch Vehicle" : "Save"}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/transfers")}>
             Cancel
@@ -326,7 +326,7 @@ export default function NewTransferPage() {
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={doSubmit}
-        title={loadType === "dispatch" ? "Dispatch Truck" : "Create Transfer"}
+        title={loadType === "dispatch" ? "Dispatch Vehicle" : "Create Transfer"}
         message={
           loadType === "dispatch" ? (
             <>
@@ -350,7 +350,7 @@ export default function NewTransferPage() {
             </>
           )
         }
-        confirmLabel={loadType === "dispatch" ? "Dispatch Truck" : "Create Transfer"}
+        confirmLabel={loadType === "dispatch" ? "Dispatch Vehicle" : "Create Transfer"}
         variant="warning"
         loading={submitting}
       />
