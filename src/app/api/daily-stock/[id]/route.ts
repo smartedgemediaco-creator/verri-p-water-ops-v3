@@ -8,8 +8,8 @@ import { dailyStockDeletedEmail } from "@/lib/emailTemplates";
 const BUILTIN_SALE_FIELDS = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
 const BUILTIN_RETURN_FIELDS = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
 
-async function calcTotals(record: Record<string, unknown>) {
-  const columns = await DailyStockColumn.find({}).lean();
+async function calcTotals(record: Record<string, unknown>, locationFilter: Record<string, string>) {
+  const columns = await DailyStockColumn.find(locationFilter).lean();
   const saleKeys = columns.filter((c) => c.type === "sale").map((c) => c.key);
   const returnKeys = columns.filter((c) => c.type === "return").map((c) => c.key);
 
@@ -36,13 +36,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  // Also accept custom column values
-  const customKeys = Object.keys(body).filter((k) => !editable.includes(k) && k !== "date");
+  const customKeys = Object.keys(body).filter((k) => !editable.includes(k) && k !== "date" && k !== "locationType" && k !== "locationId");
   for (const key of customKeys) {
     (record as unknown as Record<string, number>)[key] = Number(body[key]) || 0;
   }
 
-  const totals = await calcTotals(record.toObject());
+  const locationFilter = { locationType: record.locationType, locationId: record.locationId };
+  const totals = await calcTotals(record.toObject(), locationFilter);
   record.totalSold = totals.totalSold;
   record.totalReturned = totals.totalReturned;
   record.endStock = totals.endStock;
@@ -59,18 +59,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const record = await DailyStock.findById(id);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Snapshot the record before deleting
   const snapshot = record.toObject();
+  const locationFilter = { locationType: record.locationType, locationId: record.locationId };
   await record.deleteOne();
 
-  // Send delete notification email (fire-and-forget)
   const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
   if (notifyEmail) {
-    DailyStockColumn.find({}).lean().then((columns) => {
+    DailyStockColumn.find(locationFilter).lean().then((columns) => {
       const customColumns = columns.map((c) => ({ key: c.key, label: c.label }));
+      const locLabel = snapshot.locationType === "factory" ? "Factory" : "Depot";
       sendEmail({
         to: notifyEmail,
-        subject: `⚠ Daily Stock DELETED — ${snapshot.date}`,
+        subject: `⚠ Daily Stock DELETED — ${snapshot.date} (${locLabel})`,
         html: dailyStockDeletedEmail({ deletedBy: user.email, date: snapshot.date, data: snapshot as unknown as Record<string, number | string>, customColumns }),
       }).catch(() => {});
     }).catch(() => {});

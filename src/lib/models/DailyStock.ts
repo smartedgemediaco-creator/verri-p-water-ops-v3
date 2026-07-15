@@ -2,6 +2,8 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IDailyStock extends Document {
   date: string;
+  locationType: "factory" | "depot";
+  locationId: string;
   startStock: number;
   bagsProduced: number;
   factorySale: number;
@@ -24,7 +26,9 @@ export interface IDailyStock extends Document {
 
 const DailyStockSchema = new Schema<IDailyStock>(
   {
-    date: { type: String, required: true, unique: true },
+    date: { type: String, required: true },
+    locationType: { type: String, enum: ["factory", "depot"], required: true },
+    locationId: { type: String, required: true },
     startStock: { type: Number, default: 0 },
     bagsProduced: { type: Number, default: 0 },
     factorySale: { type: Number, default: 0 },
@@ -44,6 +48,8 @@ const DailyStockSchema = new Schema<IDailyStock>(
   },
   { timestamps: true }
 );
+
+DailyStockSchema.index({ date: 1, locationType: 1, locationId: 1 }, { unique: true });
 
 export const DailyStock =
   mongoose.models.DailyStock ?? mongoose.model<IDailyStock>("DailyStock", DailyStockSchema);

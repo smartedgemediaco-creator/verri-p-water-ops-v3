@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
@@ -11,6 +12,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 interface DayRecord {
   _id: string;
   date: string;
+  locationType: "factory" | "depot";
+  locationId: string;
   startStock: number;
   bagsProduced: number;
   factorySale: number;
@@ -43,7 +46,21 @@ const BUILTIN_RETURN = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmal
 
 const PAGE_SIZE = 10;
 
+const FACTORY_LOCATIONS = [
+  { id: "6a295e6ccdd91fcbe1b7f4b8", name: "Akobo Factory" },
+];
+
+const DEPOT_LOCATIONS = [
+  { id: "6a295e6ccdd91fcbe1b7f4b9", name: "Ibadan Depot" },
+];
+
 export default function DailyStockPage() {
+  const searchParams = useSearchParams();
+  const locationType = (searchParams.get("type") as "factory" | "depot") || "factory";
+  const locations = locationType === "factory" ? FACTORY_LOCATIONS : DEPOT_LOCATIONS;
+  const [selectedLocationId, setSelectedLocationId] = useState(locations[0]?.id || "");
+  const isFactory = locationType === "factory";
+
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [columns, setColumns] = useState<ColumnDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,54 +70,55 @@ export default function DailyStockPage() {
   const [adding, setAdding] = useState(false);
   const [page, setPage] = useState(1);
 
-  // Batch save state
   const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, number>>>({});
   const [savingBatch, setSavingBatch] = useState(false);
   const dirtyCount = Object.keys(pendingChanges).length;
 
-  // Add column modal
   const [showAddCol, setShowAddCol] = useState(false);
   const [newColLabel, setNewColLabel] = useState("");
   const [newColType, setNewColType] = useState<"sale" | "return" | "custom">("custom");
   const [addColConfirm, setAddColConfirm] = useState(false);
   const [addingCol, setAddingCol] = useState(false);
 
+  const locationParam = useMemo(() => JSON.stringify({ type: locationType, id: selectedLocationId }), [locationType, selectedLocationId]);
+
   const fetchRecords = useCallback(() => {
-    fetch("/api/daily-stock")
+    if (!selectedLocationId) return;
+    fetch(`/api/daily-stock?location=${encodeURIComponent(locationParam)}`)
       .then((r) => r.json())
       .then((data) => { setRecords(Array.isArray(data) ? data : []); })
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [locationParam, selectedLocationId]);
 
   const fetchColumns = useCallback(() => {
-    fetch("/api/daily-stock/columns")
+    if (!selectedLocationId) return;
+    if (!isFactory) { setColumns([]); return; }
+    fetch(`/api/daily-stock/columns?location=${encodeURIComponent(locationParam)}`)
       .then((r) => r.json())
       .then((data) => { setColumns(Array.isArray(data) ? data : []); })
       .catch(() => setColumns([]));
-  }, []);
+  }, [locationParam, selectedLocationId, isFactory]);
 
   useEffect(() => { fetchRecords(); fetchColumns(); }, [fetchRecords, fetchColumns]);
+
+  useEffect(() => { setPage(1); setPendingChanges({}); }, [selectedLocationId]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const latestRecord = records.length > 0 ? records[records.length - 1] : null;
   const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date && !records.some(r => r.date > date));
 
-  // Column helpers
   const saleKeys = columns.filter((c) => c.type === "sale").map((c) => c.key);
   const returnKeys = columns.filter((c) => c.type === "return").map((c) => c.key);
-
   const allSaleKeys = [...BUILTIN_SALE, ...saleKeys];
   const allReturnKeys = [...BUILTIN_RETURN, ...returnKeys];
 
-  // Summary stats
   const totalDays = records.length;
   const totalProduced = records.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0);
   const totalSold = records.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
   const totalReturned = records.reduce((s, r) => allReturnKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
   const currentEndStock = latestRecord?.endStock ?? 0;
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paginatedRecords = records.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -109,10 +127,8 @@ export default function DailyStockPage() {
   const calcTotalReturned = (d: DayRecord) => allReturnKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
   const calcEndStock = (d: DayRecord) => (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) + calcTotalReturned(d) - calcTotalSold(d) - (Number(d.shortage) || 0) - (Number(d.wastage) || 0);
 
-  // Track local changes without saving
   const handleChange = (id: string, field: string, rawValue: string) => {
     const num = Number(rawValue) || 0;
-    // Update display optimistically
     setRecords((prev) => prev.map((r) => {
       if (r._id !== id) return r;
       const updated = { ...r, [field]: num };
@@ -121,14 +137,12 @@ export default function DailyStockPage() {
       updated.endStock = (Number(updated.startStock) || 0) + (Number(updated.bagsProduced) || 0) + updated.totalReturned - updated.totalSold - (Number(updated.shortage) || 0) - (Number(updated.wastage) || 0);
       return updated;
     }));
-    // Track the pending change
     setPendingChanges((prev) => ({
       ...prev,
       [id]: { ...(prev[id] || {}), [field]: num },
     }));
   };
 
-  // Save all pending changes
   const saveAll = async () => {
     setSavingBatch(true);
     const ids = Object.keys(pendingChanges);
@@ -166,7 +180,7 @@ export default function DailyStockPage() {
       const res = await fetch("/api/daily-stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: addDayDate, startStock }),
+        body: JSON.stringify({ date: addDayDate, startStock, locationType, locationId: selectedLocationId }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed"); return; }
       showSuccess("New day added");
@@ -193,7 +207,7 @@ export default function DailyStockPage() {
       const res = await fetch("/api/daily-stock/columns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: newColLabel.trim(), type: newColType }),
+        body: JSON.stringify({ label: newColLabel.trim(), type: newColType, locationType, locationId: selectedLocationId }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed"); return; }
       showSuccess(`Column "${newColLabel.trim()}" added`);
@@ -212,7 +226,8 @@ export default function DailyStockPage() {
         : "border-gray-200 dark:border-gray-600"
     }`;
 
-  // Header list
+  const title = isFactory ? "Daily Stock (Factories)" : "Daily Stock (Depots)";
+
   const headerCells = [
     "Date", "Start Stock", "Produced", "Factory Sale",
     "Big Truck", "Ret. Big Truck", "Small Truck 1", "Ret. ST1",
@@ -225,11 +240,13 @@ export default function DailyStockPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Daily Stock Tracker" />
+        <PageBreadcrumb pageTitle={title} />
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
-            + Add Column
-          </Button>
+          {isFactory && (
+            <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
+              + Add Column
+            </Button>
+          )}
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -240,6 +257,21 @@ export default function DailyStockPage() {
           </Button>
         </div>
       </div>
+
+      {locations.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
+          <select
+            value={selectedLocationId}
+            onChange={(e) => setSelectedLocationId(e.target.value)}
+            className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+          >
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>{loc.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-6">
         {[
@@ -338,7 +370,6 @@ export default function DailyStockPage() {
           </table>
         </div>
 
-        {/* Pagination + Update bar */}
         <div className="border-t border-gray-200 dark:border-gray-700">
           {dirtyCount > 0 && (
             <div className="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/5 border-b border-amber-200 dark:border-amber-500/20">
@@ -391,7 +422,6 @@ export default function DailyStockPage() {
         </div>
       </div>
 
-      {/* Add New Day modal */}
       {showAddDay && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddDay(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -412,8 +442,7 @@ export default function DailyStockPage() {
         </div>
       )}
 
-      {/* Add Column modal */}
-      {showAddCol && (
+      {showAddCol && isFactory && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddCol(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add Column</h3>

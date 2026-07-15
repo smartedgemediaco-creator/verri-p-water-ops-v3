@@ -3,11 +3,27 @@ import connectDB from "@/lib/db";
 import { DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 
+function parseLocation(searchParams: URLSearchParams): { locationType: "factory" | "depot"; locationId: string } | null {
+  const loc = searchParams.get("location");
+  if (!loc) return null;
+  try {
+    const parsed = JSON.parse(loc);
+    if (parsed.type && parsed.id) return { locationType: parsed.type, locationId: parsed.id };
+  } catch { /* ignore */ }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await connectDB();
-  const columns = await DailyStockColumn.find({}).sort({ order: 1 }).lean();
+  const location = parseLocation(req.nextUrl.searchParams);
+  const filter: Record<string, string> = {};
+  if (location) {
+    filter.locationType = location.locationType;
+    filter.locationId = location.locationId;
+  }
+  const columns = await DailyStockColumn.find(filter).sort({ order: 1 }).lean();
   return NextResponse.json(columns);
 }
 
@@ -18,8 +34,8 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const body = await req.json();
 
-  if (!body.label || !body.type) {
-    return NextResponse.json({ error: "Label and type are required" }, { status: 400 });
+  if (!body.label || !body.type || !body.locationType || !body.locationId) {
+    return NextResponse.json({ error: "Label, type, and location are required" }, { status: 400 });
   }
 
   const key = body.label
@@ -27,15 +43,18 @@ export async function POST(req: NextRequest) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
 
-  const existing = await DailyStockColumn.findOne({ key });
-  if (existing) return NextResponse.json({ error: "A column with this name already exists" }, { status: 409 });
+  const locationFilter = { locationType: body.locationType, locationId: body.locationId };
+  const existing = await DailyStockColumn.findOne({ key, ...locationFilter });
+  if (existing) return NextResponse.json({ error: "A column with this name already exists at this location" }, { status: 409 });
 
-  const maxOrder = await DailyStockColumn.findOne({}).sort({ order: -1 }).lean();
+  const maxOrder = await DailyStockColumn.findOne({ ...locationFilter }).sort({ order: -1 }).lean();
   const column = await DailyStockColumn.create({
     key,
     label: body.label,
     type: body.type,
     order: (maxOrder?.order ?? 0) + 1,
+    locationType: body.locationType,
+    locationId: body.locationId,
   });
 
   return NextResponse.json(column, { status: 201 });
