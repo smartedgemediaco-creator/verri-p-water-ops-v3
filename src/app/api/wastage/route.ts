@@ -63,20 +63,22 @@ export async function POST(req: NextRequest) {
 
   let saleRecord = null;
   if (recordAsSale) {
+    const qty = Number(body.quantity) || 0;
     const unitPrice = Number(body.saleUnitPrice) || 0;
-    const totalAmount = unitPrice * Number(body.quantity);
+    const bulkPrice = Number(body.saleBulkPrice) || 0;
+    const totalAmount = body.salePriceMode === "bulk" ? bulkPrice : unitPrice * qty;
     saleRecord = await Sale.create({
       locationType: body.locationType,
       locationId: body.locationId,
       productId: body.productId,
-      quantity: Number(body.quantity),
-      unitPrice,
+      quantity: qty,
+      unitPrice: body.salePriceMode === "bulk" && qty > 0 ? bulkPrice / qty : unitPrice,
       totalAmount,
       customerName: body.customerName || "Leakage sale",
       paymentMethod: "cash",
       isPaid: true,
       condition: "ordinary",
-      notes: `Leakage sale — recorded via leakage entry`,
+      notes: `Leakage sale (${body.salePriceMode === "bulk" ? "bulk" : "unit"} price) — recorded via leakage entry`,
       date: body.date || new Date(),
     });
   }

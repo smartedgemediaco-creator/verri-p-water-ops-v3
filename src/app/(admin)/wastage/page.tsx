@@ -74,6 +74,7 @@ export default function WastagePage() {
   const [spoilageDate, setSpoilageDate] = useState("");
   const [spoilageDeductStock, setSpoilageDeductStock] = useState(false);
   const [spoilageRecordAsSale, setSpoilageRecordAsSale] = useState(false);
+  const [spoilageSalePriceMode, setSpoilageSalePriceMode] = useState<"unit" | "bulk">("unit");
   const [spoilageSalePrice, setSpoilageSalePrice] = useState("");
   const [spoilageCustomerName, setSpoilageCustomerName] = useState("");
   const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
@@ -156,7 +157,11 @@ export default function WastagePage() {
       body.deductFromStock = spoilageDeductStock;
       body.recordAsSale = spoilageRecordAsSale;
       if (spoilageRecordAsSale) {
-        body.saleUnitPrice = Number(spoilageSalePrice) || 0;
+        const price = Number(spoilageSalePrice) || 0;
+        const qty = Number(spoilageQty) || 0;
+        body.saleUnitPrice = spoilageSalePriceMode === "bulk" ? (qty > 0 ? price / qty : 0) : price;
+        body.saleBulkPrice = spoilageSalePriceMode === "bulk" ? price : 0;
+        body.salePriceMode = spoilageSalePriceMode;
         body.customerName = spoilageCustomerName || "";
       }
       const res = await fetch("/api/wastage", {
@@ -167,7 +172,7 @@ export default function WastagePage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
       showSuccess("Leakage recorded");
       setShowSpoilageForm(false);
-      setSpoilageProduct(""); setSpoilageQty(""); setSpoilageLocType(""); setSpoilageLocId(""); setSpoilageSource(""); setSpoilageDesc(""); setSpoilageDate(""); setSpoilageDeductStock(false); setSpoilageRecordAsSale(false); setSpoilageSalePrice(""); setSpoilageCustomerName("");
+      setSpoilageProduct(""); setSpoilageQty(""); setSpoilageLocType(""); setSpoilageLocId(""); setSpoilageSource(""); setSpoilageDesc(""); setSpoilageDate(""); setSpoilageDeductStock(false); setSpoilageRecordAsSale(false); setSpoilageSalePriceMode("unit"); setSpoilageSalePrice(""); setSpoilageCustomerName("");
       fetchRecords();
     } catch (e: unknown) { showError(e instanceof Error ? e.message : "Network error"); }
     finally { setSpoilageSubmitting(false); }
@@ -449,8 +454,34 @@ export default function WastagePage() {
                 <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-3 space-y-3 border border-emerald-100 dark:border-emerald-500/20">
                   <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Sale Details</p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦)</label>
-                    <InputField type="number" placeholder="Selling price per unit" value={spoilageSalePrice} onChange={(e) => setSpoilageSalePrice(e.target.value)} />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price Type</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setSpoilageSalePriceMode("unit"); setSpoilageSalePrice(""); }}
+                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${spoilageSalePriceMode === "unit" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-emerald-300"}`}
+                      >
+                        Unit Price
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSpoilageSalePriceMode("bulk"); setSpoilageSalePrice(""); }}
+                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${spoilageSalePriceMode === "bulk" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-emerald-300"}`}
+                      >
+                        Bulk Price
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {spoilageSalePriceMode === "unit" ? "Unit Price (₦)" : "Bulk Price (₦)"}
+                    </label>
+                    <InputField
+                      type="number"
+                      placeholder={spoilageSalePriceMode === "unit" ? "Price per unit" : "Total price for all units"}
+                      value={spoilageSalePrice}
+                      onChange={(e) => setSpoilageSalePrice(e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name</label>
@@ -459,7 +490,12 @@ export default function WastagePage() {
                   {spoilageSalePrice && spoilageQty && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Total sale:</span>
-                      <span className="font-bold text-emerald-700 dark:text-emerald-400">₦{(Number(spoilageSalePrice) * Number(spoilageQty)).toLocaleString()}</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                        ₦{spoilageSalePriceMode === "bulk"
+                          ? Number(spoilageSalePrice).toLocaleString()
+                          : (Number(spoilageSalePrice) * Number(spoilageQty)).toLocaleString()
+                        }
+                      </span>
                     </div>
                   )}
                 </div>
