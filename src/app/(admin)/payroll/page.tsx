@@ -147,6 +147,7 @@ export default function PayrollPage() {
   const [formStatus, setFormStatus] = useState("pending");
   const [formPaidAmount, setFormPaidAmount] = useState("0");
   const [formNotes, setFormNotes] = useState("");
+  const [autoFilling, setAutoFilling] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -218,6 +219,40 @@ export default function PayrollPage() {
     setFormStaffId(staffId);
     const found = staffList.find((s) => s._id === staffId);
     if (found) setFormBaseSalary(String(found.salary));
+  };
+
+  const autoFillFromAttendance = async () => {
+    if (!formStaffId || !formMonth) { showError("Select staff and month first"); return; }
+    setAutoFilling(true);
+    try {
+      // Fetch attendance summary from all locations
+      const locations = [
+        { type: "factory", id: "6a295e6ccdd91fcbe1b7f4b8" },
+        { type: "depot", id: "6a295e6ccdd91fcbe1b7f4b9" },
+      ];
+      let totalAbsent = 0;
+      let totalLate = 0;
+      let workingDays = 0;
+      for (const loc of locations) {
+        const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
+        if (staffSummary) {
+          totalAbsent += staffSummary.absent || 0;
+          totalLate += staffSummary.late || 0;
+          workingDays = data.workingDays || workingDays;
+        }
+      }
+      if (workingDays === 0) { showError("No attendance data found for this month"); return; }
+      const base = Number(formBaseSalary) || 0;
+      const dailyRate = base / workingDays;
+      const absenceDeduction = Math.round(totalAbsent * dailyRate);
+      const latenessDeduction = Math.round(totalLate * dailyRate * 0.5);
+      setFormAbsence(String(absenceDeduction));
+      setFormLateness(String(latenessDeduction));
+      showSuccess(`Auto-filled: ${totalAbsent} absent days (₦${absenceDeduction.toLocaleString()}), ${totalLate} late days (₦${latenessDeduction.toLocaleString()})`);
+    } catch { showError("Failed to fetch attendance"); } finally { setAutoFilling(false); }
   };
 
   const submitForm = async () => {
@@ -457,7 +492,13 @@ export default function PayrollPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deductions</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Deductions</label>
+                  <button type="button" onClick={autoFillFromAttendance} disabled={autoFilling || !formStaffId || !formMonth}
+                    className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    {autoFilling ? "Loading..." : "Auto-fill from Attendance"}
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <AdjustField label="Absence" value={formAbsence} onChange={setFormAbsence} />
                   <AdjustField label="Lateness" value={formLateness} onChange={setFormLateness} />
