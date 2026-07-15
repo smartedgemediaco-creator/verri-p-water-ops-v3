@@ -35,6 +35,7 @@ interface DayRecord {
   debts: number;
   debtStatus: string;
   cashDelivered: number;
+  staffName: string;
   [key: string]: unknown;
 }
 
@@ -60,6 +61,7 @@ const DEPOT_LOCATIONS = [
 ];
 
 const DEPOT_FIELDS = [
+  { key: "staffName", label: "Staff Name", type: "text" as const },
   { key: "startStock", label: "Start Stock", type: "number" as const },
   { key: "bagsProduced", label: "Stock Delivered", type: "number" as const },
   { key: "factorySale", label: "Bags Sold (cold)", type: "number" as const },
@@ -161,7 +163,8 @@ export default function DailyStockPage() {
 
   const handleChange = (id: string, field: string, rawValue: string) => {
     const isSelect = field === "debtStatus";
-    const val: unknown = isSelect ? rawValue : Number(rawValue) || 0;
+    const isText = field === "staffName";
+    const val: unknown = isSelect || isText ? rawValue : Number(rawValue) || 0;
     setRecords((prev) => prev.map((r) => {
       if (r._id !== id) return r;
       const updated = { ...r, [field]: val };
@@ -649,10 +652,17 @@ export default function DailyStockPage() {
                       <td className="px-1.5 py-1.5 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">{d.date}</td>
                       {DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                         <td key={f.key} className="px-1.5 py-1.5">
-                          <input type="number" value={(d as unknown as Record<string, number>)[f.key] ?? 0}
-                            onChange={(e) => handleChange(d._id, f.key, e.target.value)}
-                            disabled={f.key === "startStock" && !editable}
-                            className={`${cls(d._id, f.key)} ${f.key === "startStock" && !editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
+                          {f.type === "text" ? (
+                            <input type="text" value={(d as unknown as Record<string, string>)[f.key] || ""}
+                              onChange={(e) => handleChange(d._id, f.key, e.target.value)}
+                              placeholder="Name"
+                              className={`${cls(d._id, f.key)} text-left`} />
+                          ) : (
+                            <input type="number" value={(d as unknown as Record<string, number>)[f.key] ?? 0}
+                              onChange={(e) => handleChange(d._id, f.key, e.target.value)}
+                              disabled={f.key === "startStock" && !editable}
+                              className={`${cls(d._id, f.key)} ${f.key === "startStock" && !editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
+                          )}
                         </td>
                       ))}
                       {visibleCustomCols.map((col) => (
@@ -686,7 +696,10 @@ export default function DailyStockPage() {
                         </td>
                       ))}
                       <td className="px-1.5 py-1.5">
-                        <button onClick={() => setDeleteTarget(d._id)} className="text-red-500 hover:text-red-700 text-xs">Del</button>
+                        <button onClick={() => setDeleteTarget(d._id)}
+                          className="px-2 py-1 text-[10px] font-medium rounded bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   );
@@ -698,6 +711,7 @@ export default function DailyStockPage() {
                 <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-800 dark:text-white/90">
                   <td className="px-1.5 py-2">Totals</td>
                   {DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
+                    f.type === "text" ? <td key={f.key}></td> :
                     <td key={f.key} className="px-1.5 py-2 text-right">
                       {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
@@ -839,6 +853,7 @@ export default function DailyStockPage() {
             <div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Built-in Columns (hide)</p>
               {[
+                { key: "staffName", label: "Staff Name" },
                 { key: "bagsProduced", label: "Stock Delivered" },
                 { key: "factorySale", label: "Bags Sold (cold)" },
                 { key: "bigTruck", label: "Bags Sold (Ordinary)" },

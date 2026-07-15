@@ -6,6 +6,7 @@ import { sendEmail } from "@/lib/email";
 import { dailyStockDeletedEmail } from "@/lib/emailTemplates";
 
 const SKIP_KEYS = new Set(["date", "locationType", "locationId", "_id", "__v", "createdAt", "updatedAt"]);
+const STRING_FIELDS = new Set(["staffName", "debtStatus"]);
 
 function calcEndStock(record: Record<string, unknown>) {
   return (Number(record.startStock) || 0)
@@ -27,8 +28,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   for (const [key, val] of Object.entries(body)) {
     if (SKIP_KEYS.has(key)) continue;
-    if (key === "debtStatus") {
-      (record as unknown as Record<string, string>)[key] = String(val);
+    if (STRING_FIELDS.has(key)) {
+      (record as unknown as Record<string, string>)[key] = String(val ?? "");
     } else {
       (record as unknown as Record<string, number>)[key] = Number(val) || 0;
     }

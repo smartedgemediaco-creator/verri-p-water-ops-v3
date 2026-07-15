@@ -21,6 +21,7 @@ export interface IDailyStock extends Document {
   totalSold: number;
   totalReturned: number;
   endStock: number;
+  staffName: string;
   debtors: number;
   debts: number;
   debtStatus: "pending" | "partial" | "paid";
@@ -51,6 +52,7 @@ const DailyStockSchema = new Schema<IDailyStock>(
     totalSold: { type: Number, default: 0 },
     totalReturned: { type: Number, default: 0 },
     endStock: { type: Number, default: 0 },
+    staffName: { type: String, default: "" },
     debtors: { type: Number, default: 0 },
     debts: { type: Number, default: 0 },
     debtStatus: { type: String, enum: ["pending", "partial", "paid"], default: "pending" },
