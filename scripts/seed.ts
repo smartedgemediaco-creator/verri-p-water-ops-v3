@@ -39,7 +39,7 @@ async function seed() {
     PurchaseOrder, GoodsReceivedNote, BillOfMaterials,
     QualityCheck, Invoice, PaymentReceipt,
     FuelLog, Attendance, Leave, Trip,
-    Dispute, ScheduledOperation,
+    ScheduledOperation,
   } = await import("../src/lib/models");
 
   // Clear every collection (StaffUserLink first since it references both)
@@ -65,7 +65,6 @@ async function seed() {
     Supplier.deleteMany({}),
     RawMaterial.deleteMany({}),
     ServiceRecord.deleteMany({}),
-    Dispute.deleteMany({}),
     ScheduledOperation.deleteMany({}),
     StaffAssignment.deleteMany({}),
     DriverAssignment.deleteMany({}),
