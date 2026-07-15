@@ -17,9 +17,14 @@ export interface IDailyStock extends Document {
   tricycle: number;
   shortage: number;
   wastage: number;
+  leakages: number;
   totalSold: number;
   totalReturned: number;
   endStock: number;
+  debtors: number;
+  debts: number;
+  debtStatus: "pending" | "partial" | "paid";
+  cashDelivered: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,9 +47,14 @@ const DailyStockSchema = new Schema<IDailyStock>(
     tricycle: { type: Number, default: 0 },
     shortage: { type: Number, default: 0 },
     wastage: { type: Number, default: 0 },
+    leakages: { type: Number, default: 0 },
     totalSold: { type: Number, default: 0 },
     totalReturned: { type: Number, default: 0 },
     endStock: { type: Number, default: 0 },
+    debtors: { type: Number, default: 0 },
+    debts: { type: Number, default: 0 },
+    debtStatus: { type: String, enum: ["pending", "partial", "paid"], default: "pending" },
+    cashDelivered: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
