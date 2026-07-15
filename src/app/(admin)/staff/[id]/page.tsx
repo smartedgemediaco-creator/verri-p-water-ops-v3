@@ -31,6 +31,11 @@ interface Insights {
   salary: number; department: string; tenureMonths: number;
   attendanceCount: number; approvedLeaveCount: number; hasUserAccount: boolean;
 }
+interface PayrollItem {
+  _id: string; month: string; baseSalary: number;
+  deductions: { absence: number; lateness: number; debt: number; punishment: number; other: number };
+  bonus: number; netPay: number; status: string; paidAmount: number; paidDate?: string;
+}
 
 const ROLE_COLORS: Record<string, string> = {
   manager: "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
@@ -69,6 +74,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
   const [factoriesList, setFactoriesList] = useState<{ value: string; label: string }[]>([]);
   const [depotsList, setDepotsList] = useState<{ value: string; label: string }[]>([]);
   const [trucksList, setTrucksList] = useState<{ value: string; label: string }[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<PayrollItem[]>([]);
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "", role: "operator", department: "production",
@@ -89,6 +95,11 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       }
       const insRes = await fetch(`/api/staff/${id}/insights`);
       if (insRes.ok) setInsights(await insRes.json());
+      const payrollRes = await fetch(`/api/payroll?staffId=${id}`);
+      if (payrollRes.ok) {
+        const payrollData = await payrollRes.json();
+        setPayrollRecords(payrollData.records ?? []);
+      }
     } catch (e: unknown) { console.error("Failed to load staff:", e); } finally { setLoading(false); }
   };
 
@@ -368,6 +379,61 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
           <div><span className="text-gray-500 dark:text-gray-400">Status</span><p className="font-medium"><span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${staff.isActive ? "bg-success-50 text-success-700" : "bg-error-50 text-error-700"}`}>{staff.isActive ? "Active" : "Inactive"}</span></p></div>
           <div className="col-span-2"><span className="text-gray-500 dark:text-gray-400">Notes</span><p className="font-medium text-gray-800 dark:text-white/90">{staff.notes || "—"}</p></div>
         </div>
+      </div>
+
+      {/* Salary History */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Salary History</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{payrollRecords.length} payroll record(s)</p>
+          </div>
+          <Link href="/payroll">
+            <Button size="sm" variant="outline">View All Payroll</Button>
+          </Link>
+        </div>
+        {payrollRecords.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableCell isHeader className="text-theme-xs">Month</TableCell>
+                <TableCell isHeader className="text-theme-xs">Base Salary</TableCell>
+                <TableCell isHeader className="text-theme-xs">Deductions</TableCell>
+                <TableCell isHeader className="text-theme-xs">Bonus</TableCell>
+                <TableCell isHeader className="text-theme-xs">Net Pay</TableCell>
+                <TableCell isHeader className="text-theme-xs">Status</TableCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payrollRecords.map((rec) => {
+                const totalDed = (rec.deductions?.absence ?? 0) + (rec.deductions?.lateness ?? 0) + (rec.deductions?.debt ?? 0) + (rec.deductions?.punishment ?? 0) + (rec.deductions?.other ?? 0);
+                return (
+                  <TableRow key={rec._id}>
+                    <TableCell className="text-sm font-medium text-gray-800 dark:text-white/90">{rec.month}</TableCell>
+                    <TableCell className="text-sm text-gray-500">₦{rec.baseSalary.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-red-600 dark:text-red-400">₦{totalDed.toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-success-600 dark:text-success-400">{rec.bonus > 0 ? `₦${rec.bonus.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell className="text-sm font-semibold text-gray-800 dark:text-white/90">₦{rec.netPay.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                        rec.status === "paid" ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" :
+                        rec.status === "partial" ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400" :
+                        "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
+                      }`}>
+                        {rec.status === "paid" ? "Paid" : rec.status === "partial" ? "Partial" : "Pending"}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="p-6 text-center text-sm text-gray-400">
+            No payroll records yet.{" "}
+            <Link href="/payroll" className="text-blue-500 hover:underline">Create one</Link>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 text-center text-xs text-gray-400">

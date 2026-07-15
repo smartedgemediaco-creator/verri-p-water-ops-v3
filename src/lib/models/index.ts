@@ -90,3 +90,5 @@ export { Leave } from "./Leave";
 export type { ILeave } from "./Leave";
 export { Trip } from "./Trip";
 export type { ITrip } from "./Trip";
+export { PayrollRecord } from "./PayrollRecord";
+export type { IPayrollRecord } from "./PayrollRecord";

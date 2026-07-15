@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
   { icon: <BoxIcon />, name: "Raw Materials", path: "/raw-materials", color: "text-yellow-500" },
   { icon: <UserIcon />, name: "Customers", path: "/customers", color: "text-indigo-500" },
   { icon: <GroupIcon />, name: "Staff", path: "/staff", color: "text-cyan-500" },
+  { icon: <DollarLineIcon />, name: "Payroll", path: "/payroll", color: "text-emerald-500" },
   { icon: <BoxIcon />, name: "Suppliers", path: "/suppliers", color: "text-yellow-500" },
   { icon: <BoxIcon />, name: "Purchase Orders", path: "/purchase-orders", color: "text-blue-500" },
   { icon: <BoxIcon />, name: "Goods Received", path: "/goods-received-notes", color: "text-teal-500" },

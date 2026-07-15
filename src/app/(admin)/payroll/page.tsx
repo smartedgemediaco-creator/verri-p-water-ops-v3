@@ -1,0 +1,597 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import Button from "@/components/ui/button/Button";
+import Select from "@/components/form/Select";
+import InputField from "@/components/form/input/InputField";
+import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import AutoAmount from "@/components/ui/AutoAmount";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { showSuccess, showError } from "@/lib/toast";
+import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
+import { formatDate } from "@/lib/dateFormat";
+import { useAuth } from "@/context/AuthContext";
+
+interface PayrollRecord {
+  _id: string;
+  staffId: string;
+  month: string;
+  baseSalary: number;
+  deductions: { absence: number; lateness: number; debt: number; punishment: number; other: number };
+  bonus: number;
+  netPay: number;
+  status: "pending" | "paid" | "partial";
+  paidAmount: number;
+  paidDate?: string;
+  notes: string;
+  staff?: { _id: string; name: string; phone: string; salary: number } | null;
+  role?: string;
+  department?: string;
+  locationName?: string;
+}
+
+interface Summary {
+  totalStaff: number;
+  totalBaseSalary: number;
+  totalDeductions: number;
+  totalBonus: number;
+  totalNetPay: number;
+  totalPaid: number;
+  pendingCount: number;
+  paidCount: number;
+  partialCount: number;
+}
+
+const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }> = {
+  pending: { bg: "bg-warning-50 dark:bg-warning-500/10", text: "text-warning-700 dark:text-warning-400", label: "Pending" },
+  paid: { bg: "bg-success-50 dark:bg-success-500/10", text: "text-success-700 dark:text-success-400", label: "Paid" },
+  partial: { bg: "bg-blue-50 dark:bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", label: "Partial" },
+};
+
+const MONTHS = [
+  { value: "2026-01", label: "January 2026" },
+  { value: "2026-02", label: "February 2026" },
+  { value: "2026-03", label: "March 2026" },
+  { value: "2026-04", label: "April 2026" },
+  { value: "2026-05", label: "May 2026" },
+  { value: "2026-06", label: "June 2026" },
+  { value: "2026-07", label: "July 2026" },
+  { value: "2026-08", label: "August 2026" },
+  { value: "2026-09", label: "September 2026" },
+  { value: "2026-10", label: "October 2026" },
+  { value: "2026-11", label: "November 2026" },
+  { value: "2026-12", label: "December 2026" },
+];
+
+export default function PayrollPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const [records, setRecords] = useState<PayrollRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [filterStatus, setFilterStatus] = useState("");
+  const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number }[]>([]);
+
+  // Create/Edit modal
+  const [showForm, setShowForm] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null);
+  const [formStaffId, setFormStaffId] = useState("");
+  const [formMonth, setFormMonth] = useState(selectedMonth);
+  const [formBaseSalary, setFormBaseSalary] = useState("");
+  const [formAbsence, setFormAbsence] = useState("0");
+  const [formLateness, setFormLateness] = useState("0");
+  const [formDebt, setFormDebt] = useState("0");
+  const [formPunishment, setFormPunishment] = useState("0");
+  const [formOther, setFormOther] = useState("0");
+  const [formBonus, setFormBonus] = useState("0");
+  const [formStatus, setFormStatus] = useState("pending");
+  const [formPaidAmount, setFormPaidAmount] = useState("0");
+  const [formNotes, setFormNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  // Pay modal
+  const [payTarget, setPayTarget] = useState<PayrollRecord | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [paying, setPaying] = useState(false);
+
+  const fetchRecords = useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (selectedMonth) params.set("month", selectedMonth);
+    if (filterStatus) params.set("status", filterStatus);
+
+    fetch(`/api/payroll?${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setRecords(data.records ?? []);
+        setSummary(data.summary ?? null);
+      })
+      .catch(() => setRecords([]))
+      .finally(() => setLoading(false));
+  }, [selectedMonth, filterStatus]);
+
+  useEffect(() => { fetchRecords(); /* eslint-disable-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */ }, [fetchRecords]);
+
+  useEffect(() => {
+    fetch("/api/staff")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setStaffList(data.map((s: { _id: string; name: string; salary?: number }) => ({ _id: s._id, name: s.name, salary: s.salary ?? 0 })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const openCreate = () => {
+    setEditingRecord(null);
+    setFormStaffId("");
+    setFormMonth(selectedMonth);
+    setFormBaseSalary("");
+    setFormAbsence("0");
+    setFormLateness("0");
+    setFormDebt("0");
+    setFormPunishment("0");
+    setFormOther("0");
+    setFormBonus("0");
+    setFormStatus("pending");
+    setFormPaidAmount("0");
+    setFormNotes("");
+    setShowForm(true);
+  };
+
+  const openEdit = (record: PayrollRecord) => {
+    setEditingRecord(record);
+    setFormStaffId(record.staffId);
+    setFormMonth(record.month);
+    setFormBaseSalary(String(record.baseSalary));
+    setFormAbsence(String(record.deductions?.absence ?? 0));
+    setFormLateness(String(record.deductions?.lateness ?? 0));
+    setFormDebt(String(record.deductions?.debt ?? 0));
+    setFormPunishment(String(record.deductions?.punishment ?? 0));
+    setFormOther(String(record.deductions?.other ?? 0));
+    setFormBonus(String(record.bonus ?? 0));
+    setFormStatus(record.status);
+    setFormPaidAmount(String(record.paidAmount ?? 0));
+    setFormNotes(record.notes ?? "");
+    setShowForm(true);
+  };
+
+  const computeNetPay = () => {
+    const base = Number(formBaseSalary) || 0;
+    const bonus = Number(formBonus) || 0;
+    const deductions = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
+    return base + bonus - deductions;
+  };
+
+  const handleStaffSelect = (staffId: string) => {
+    setFormStaffId(staffId);
+    const found = staffList.find((s) => s._id === staffId);
+    if (found) setFormBaseSalary(String(found.salary));
+  };
+
+  const submitForm = async () => {
+    setSubmitting(true);
+    try {
+      const body = {
+        staffId: formStaffId,
+        month: formMonth,
+        baseSalary: Number(formBaseSalary),
+        deductions: {
+          absence: Number(formAbsence) || 0,
+          lateness: Number(formLateness) || 0,
+          debt: Number(formDebt) || 0,
+          punishment: Number(formPunishment) || 0,
+          other: Number(formOther) || 0,
+        },
+        bonus: Number(formBonus) || 0,
+        status: formStatus,
+        paidAmount: Number(formPaidAmount) || 0,
+        notes: formNotes,
+      };
+
+      const url = editingRecord ? `/api/payroll/${editingRecord._id}` : "/api/payroll";
+      const method = editingRecord ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" }));
+        showError(err.error || "Failed to save payroll record");
+        return;
+      }
+
+      showSuccess(editingRecord ? "Payroll updated" : "Payroll created");
+      setShowForm(false);
+      fetchRecords();
+    } catch {
+      showError("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/payroll/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) {
+      showError("Failed to delete");
+      return;
+    }
+    showSuccess("Payroll record deleted");
+    setDeleteTarget(null);
+    fetchRecords();
+  };
+
+  const doPay = async () => {
+    if (!payTarget || !payAmount) return;
+    setPaying(true);
+    try {
+      const newPaidAmount = payTarget.paidAmount + Number(payAmount);
+      const newStatus = newPaidAmount >= payTarget.netPay ? "paid" : "partial";
+      const res = await fetch(`/api/payroll/${payTarget._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paidAmount: newPaidAmount, status: newStatus, paidDate: new Date().toISOString() }),
+      });
+      if (!res.ok) {
+        showError("Failed to record payment");
+        return;
+      }
+      showSuccess("Payment recorded");
+      setPayTarget(null);
+      setPayAmount("");
+      fetchRecords();
+    } catch {
+      showError("Network error");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const totalDeductions = records.reduce((sum, r) => sum + (r.deductions?.absence ?? 0) + (r.deductions?.lateness ?? 0) + (r.deductions?.debt ?? 0) + (r.deductions?.punishment ?? 0) + (r.deductions?.other ?? 0), 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <PageBreadcrumb pageTitle="Payroll" />
+        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
+          New Payroll Record
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 md:gap-6 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
+            <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Net Pay</p>
+          <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
+            <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Paid</p>
+          <AutoAmount value={`₦${(summary?.totalPaid ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <p className="text-xs text-gray-400 mt-0.5">{summary?.paidCount ?? 0} paid</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
+            <BoxIconLine className="text-red-600 size-5 dark:text-red-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Deductions</p>
+          <AutoAmount value={`₦${totalDeductions.toLocaleString()}`} className="text-red-600 dark:text-red-400" />
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
+            <ListIcon className="text-amber-600 size-5 dark:text-amber-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+          <p className="text-xl font-bold text-gray-800 dark:text-white/90">{summary?.pendingCount ?? 0}</p>
+          <p className="text-xs text-gray-400 mt-0.5">₦{((summary?.totalNetPay ?? 0) - (summary?.totalPaid ?? 0)).toLocaleString()} outstanding</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <Select
+            options={MONTHS}
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            placeholder="Select Month"
+          />
+          <Select
+            options={[
+              { value: "", label: "All Statuses" },
+              { value: "pending", label: "Pending" },
+              { value: "paid", label: "Paid" },
+              { value: "partial", label: "Partial" },
+            ]}
+            value={filterStatus}
+            onChange={setFilterStatus}
+            placeholder="Filter by status"
+          />
+          <div className="flex items-end">
+            <Button variant="outline" size="sm" onClick={() => { setFilterStatus(""); setSelectedMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`); }}>
+              Reset
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
+            Payroll Records — {MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth}
+          </h3>
+          <p className="text-xs text-gray-400 mt-1">
+            {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay
+          </p>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Staff</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Base Salary</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Deductions</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bonus</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Net Pay</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
+              </TableRow>
+            ) : records.length === 0 ? (
+              <TableRow>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No payroll records for this month. Click &quot;New Payroll Record&quot; to create one.</TableCell>
+              </TableRow>
+            ) : (
+              records.map((record) => {
+                const badge = STATUS_BADGES[record.status] ?? STATUS_BADGES.pending;
+                const totalDed = (record.deductions?.absence ?? 0) + (record.deductions?.lateness ?? 0) + (record.deductions?.debt ?? 0) + (record.deductions?.punishment ?? 0) + (record.deductions?.other ?? 0);
+                return (
+                  <TableRow key={record._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <TableCell className="py-3">
+                      <div>
+                        <Link href={`/staff/${record.staffId}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                          {record.staff?.name ?? "Unknown"}
+                        </Link>
+                        {record.department && <p className="text-xs text-gray-400 capitalize">{record.department}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{record.role || "—"}</TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{record.baseSalary.toLocaleString()}</TableCell>
+                    <TableCell className="py-3">
+                      <div className="text-theme-sm text-red-600 dark:text-red-400">
+                        ₦{totalDed.toLocaleString()}
+                        {totalDed > 0 && (
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            {record.deductions?.absence ? `Absence: ₦${record.deductions.absence.toLocaleString()} ` : ""}
+                            {record.deductions?.lateness ? `Late: ₦${record.deductions.lateness.toLocaleString()} ` : ""}
+                            {record.deductions?.debt ? `Debt: ₦${record.deductions.debt.toLocaleString()} ` : ""}
+                            {record.deductions?.punishment ? `Punish: ₦${record.deductions.punishment.toLocaleString()} ` : ""}
+                            {record.deductions?.other ? `Other: ₦${record.deductions.other.toLocaleString()}` : ""}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell className="py-3 text-theme-sm font-semibold text-gray-800 dark:text-white/90">₦{record.netPay.toLocaleString()}</TableCell>
+                    <TableCell className="py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
+                        {badge.label}
+                      </span>
+                      {record.status !== "paid" && record.paidAmount > 0 && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">₦{record.paidAmount.toLocaleString()} paid</p>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex gap-1.5 items-center flex-wrap">
+                        {record.status !== "paid" && (
+                          <button
+                            onClick={() => { setPayTarget(record); setPayAmount(String(record.netPay - record.paidAmount)); }}
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 transition-colors"
+                          >
+                            Pay
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openEdit(record)}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => setDeleteTarget(record._id)}
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Create/Edit Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{editingRecord ? "Edit Payroll" : "New Payroll Record"}</h3>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
+                <Select
+                  options={staffList.map((s) => ({ value: s._id, label: s.name }))}
+                  placeholder="Select staff"
+                  value={formStaffId}
+                  onChange={handleStaffSelect}
+                  className={editingRecord ? "opacity-50" : ""}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month</label>
+                <Select options={MONTHS} value={formMonth} onChange={setFormMonth} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Salary (₦)</label>
+                <InputField type="number" id="baseSalary" value={formBaseSalary} onChange={(e) => setFormBaseSalary(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deductions</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Absence (₦)</label>
+                    <InputField type="number" id="absence" value={formAbsence} onChange={(e) => setFormAbsence(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Lateness (₦)</label>
+                    <InputField type="number" id="lateness" value={formLateness} onChange={(e) => setFormLateness(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Debt (₦)</label>
+                    <InputField type="number" id="debt" value={formDebt} onChange={(e) => setFormDebt(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Punishment (₦)</label>
+                    <InputField type="number" id="punishment" value={formPunishment} onChange={(e) => setFormPunishment(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Other (₦)</label>
+                    <InputField type="number" id="other" value={formOther} onChange={(e) => setFormOther(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bonus (₦)</label>
+                <InputField type="number" id="bonus" value={formBonus} onChange={(e) => setFormBonus(e.target.value)} />
+              </div>
+
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Net Pay: </span>
+                <span className="text-lg font-bold text-gray-800 dark:text-white">₦{computeNetPay().toLocaleString()}</span>
+              </div>
+
+              {editingRecord && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                    <Select
+                      options={[
+                        { value: "pending", label: "Pending" },
+                        { value: "partial", label: "Partial" },
+                        { value: "paid", label: "Paid" },
+                      ]}
+                      value={formStatus}
+                      onChange={setFormStatus}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paid Amount (₦)</label>
+                    <InputField type="number" id="paidAmount" value={formPaidAmount} onChange={(e) => setFormPaidAmount(e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <textarea
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  placeholder="Optional notes"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+              <Button variant="primary" onClick={submitForm} disabled={submitting || !formStaffId}>
+                {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
+              </Button>
+              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pay Modal */}
+      {payTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setPayTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Record Payment</h3>
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Staff:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{payTarget.staff?.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Net Pay:</span>
+                <span className="font-medium text-gray-800 dark:text-white">₦{payTarget.netPay.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Already Paid:</span>
+                <span className="font-medium text-success-600">₦{payTarget.paidAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Balance:</span>
+                <span className="font-bold text-red-600">₦{(payTarget.netPay - payTarget.paidAmount).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Amount (₦)</label>
+              <InputField type="number" id="payAmount" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={doPay} disabled={paying || !payAmount || Number(payAmount) <= 0}>
+                {paying ? "Processing..." : "Record Payment"}
+              </Button>
+              <Button variant="outline" onClick={() => setPayTarget(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete Payroll Record"
+        message="This will permanently delete this payroll record. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+      />
+    </div>
+  );
+}
