@@ -13,7 +13,6 @@ import AutoAmount from "@/components/ui/AutoAmount";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
-import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 import { formatDate } from "@/lib/dateFormat";
 import { useAuth } from "@/context/AuthContext";
@@ -538,7 +537,6 @@ export default function SalesPage() {
                           paymentMethod: sale.paymentMethod,
                         }}
                       />
-                      <DisputeButton entity="sale" entityId={sale._id} entityLabel={`${sale.productId?.name ?? "sale"} — ₦${sale.totalAmount?.toLocaleString()}`} />
                       <button
                         onClick={() => setShareSaleId(sale._id)}
                         className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors"

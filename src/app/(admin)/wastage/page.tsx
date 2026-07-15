@@ -11,10 +11,10 @@ import DatePicker from "@/components/form/date-picker";
 import Badge from "@/components/ui/badge/Badge";
 import { formatDate } from "@/lib/dateFormat";
 import { TrashBinIcon, BoxIconLine, PlusIcon } from "@/icons";
-import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 import InputField from "@/components/form/input/InputField";
 import { showSuccess, showError } from "@/lib/toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface WastageRecord {
   _id: string;
@@ -79,6 +79,7 @@ export default function WastagePage() {
   const [spoilageCustomerName, setSpoilageCustomerName] = useState("");
   const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
   const [spoilageSubmitting, setSpoilageSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/products")
@@ -176,6 +177,15 @@ export default function WastagePage() {
       fetchRecords();
     } catch (e: unknown) { showError(e instanceof Error ? e.message : "Network error"); }
     finally { setSpoilageSubmitting(false); }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/wastage/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) { showError("Failed to delete"); return; }
+    showSuccess("Leakage deleted");
+    setDeleteTarget(null);
+    fetchRecords();
   };
 
   const spoilageLocationOpts = spoilageLocations.map((l) => ({ value: l._id, label: l.name ?? l.plateNumber ?? "Unknown" }));
@@ -355,7 +365,7 @@ export default function WastagePage() {
                           date: r.date?.split("T")[0] ?? "",
                         }}
                       />
-                      <DisputeButton entity="wastage" entityId={r._id} entityLabel={`${r.productId?.name ?? "wastage"} x${(r.quantity ?? 0).toLocaleString()}`} />
+                      <button onClick={() => setDeleteTarget(r._id)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">Delete</button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -519,6 +529,16 @@ export default function WastagePage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete Leakage Record"
+        message="This will permanently delete this leakage record. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

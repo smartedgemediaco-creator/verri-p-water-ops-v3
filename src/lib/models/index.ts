@@ -28,8 +28,6 @@ export { PaymentTransaction } from "./PaymentTransaction";
 export type { IPaymentTransaction } from "./PaymentTransaction";
 export { Wastage } from "./Wastage";
 export type { IWastage } from "./Wastage";
-export { Dispute } from "./Dispute";
-export type { IDispute } from "./Dispute";
 export { Customer } from "./Customer";
 export type { ICustomer } from "./Customer";
 export { Staff } from "./Staff";

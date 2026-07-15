@@ -39,62 +39,59 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   await connectDB();
   const body = await req.json();
-  const spoilageQty = Math.max(0, Number(body.spoilage) || 0);
   const oldLoad = await TruckLoad.findById(id);
   if (!oldLoad) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const oldStatus = oldLoad.status;
-  const newStatus = body.status;
-  if (!newStatus || oldStatus === newStatus) {
-    return NextResponse.json({ error: "No status change" }, { status: 400 });
-  }
-  const validTransitions: Record<string, string[]> = {
-    "in-transit": ["delivered", "cancelled"],
-  };
-  const allowed = validTransitions[oldStatus];
-  if (!allowed || !allowed.includes(newStatus)) {
-    return NextResponse.json({ error: `Cannot transition from ${oldStatus} to ${newStatus}` }, { status: 400 });
-  }
-  const load = await TruckLoad.findByIdAndUpdate(id, { status: newStatus }, { new: true });
-  if (!load) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const { fromType, fromId, toType, toId, truckId, productId, quantity } = load;
-  try {
-    if (newStatus === "delivered" && oldStatus === "in-transit") {
-      const deliveredQty = quantity - spoilageQty;
-      if (deliveredQty > 0) {
-        await adjustStock("truck", truckId.toString(), toType, toId.toString(), productId.toString(), deliveredQty);
-      }
-      if (spoilageQty > 0) {
-        await Wastage.create({
-          productId,
-          quantity: spoilageQty,
-          source: "transfer",
-          locationType: toType === "truck" ? "truck" : toType,
-          locationId: toType === "truck" ? truckId : toId,
-          description: body.spoilageReason || `Damaged during delivery`,
-          date: new Date(),
-        });
-      }
-    } else if (newStatus === "cancelled" && oldStatus === "in-transit") {
-      await adjustStock("truck", truckId.toString(), fromType, fromId.toString(), productId.toString(), quantity);
+
+  if (body.status && body.status !== oldLoad.status) {
+    const oldStatus = oldLoad.status;
+    const newStatus = body.status;
+    const validTransitions: Record<string, string[]> = { "in-transit": ["delivered", "cancelled"] };
+    const allowed = validTransitions[oldStatus];
+    if (!allowed || !allowed.includes(newStatus)) {
+      return NextResponse.json({ error: `Cannot transition from ${oldStatus} to ${newStatus}` }, { status: 400 });
     }
-  } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Stock adjustment failed" },
-      { status: 400 }
-    );
+    const spoilageQty = Math.max(0, Number(body.spoilage) || 0);
+    const load = await TruckLoad.findByIdAndUpdate(id, { status: newStatus }, { new: true });
+    if (!load) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const { fromType, fromId, toType, toId, truckId, productId, quantity } = load;
+    try {
+      if (newStatus === "delivered" && oldStatus === "in-transit") {
+        const deliveredQty = quantity - spoilageQty;
+        if (deliveredQty > 0) {
+          await adjustStock("truck", truckId.toString(), toType, toId.toString(), productId.toString(), deliveredQty);
+        }
+        if (spoilageQty > 0) {
+          await Wastage.create({
+            productId, quantity: spoilageQty, source: "transfer",
+            locationType: toType === "truck" ? "truck" : toType,
+            locationId: toType === "truck" ? truckId : toId,
+            description: body.spoilageReason || "Damaged during delivery",
+            date: new Date(),
+          });
+        }
+      } else if (newStatus === "cancelled" && oldStatus === "in-transit") {
+        await adjustStock("truck", truckId.toString(), fromType, fromId.toString(), productId.toString(), quantity);
+      }
+    } catch (err: unknown) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Stock adjustment failed" }, { status: 400 });
+    }
+    await logActivity({ action: "updated", entity: "truck-load", entityId: id, description: `Truck load: ${oldStatus} → ${newStatus}`, userId: user.userId, domainType: load.fromType, domainId: load.fromId, productId: load.productId?.toString(), metadata: { oldStatus, newStatus } });
+    return NextResponse.json(load);
   }
-  await logActivity({
-    action: "updated",
-    entity: "truck-load",
-    entityId: id,
-    description: `Truck load: ${oldStatus} → ${newStatus}`,
-    userId: user.userId,
-    domainType: load.fromType,
-    domainId: load.fromId,
-    productId: load.productId?.toString(),
-    metadata: { oldStatus, newStatus },
-  });
-  return NextResponse.json(load);
+
+  if (user.role !== "admin") return NextResponse.json({ error: "Only admins can edit load details" }, { status: 403 });
+  const updates: Record<string, unknown> = {};
+  if (body.quantity != null) updates.quantity = Number(body.quantity);
+  if (body.loadAmount != null) updates.loadAmount = Number(body.loadAmount);
+  if (body.date) updates.date = body.date;
+  if (body.notes != null) updates.notes = body.notes;
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+
+  const updated = await TruckLoad.findByIdAndUpdate(id, updates, { new: true });
+  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await logActivity({ action: "updated", entity: "truck-load", entityId: id, description: `Admin edited truck load fields`, userId: user.userId, metadata: { changes: updates } });
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -14,7 +14,6 @@ import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dateFormat";
-import DisputeButton from "@/components/disputes/DisputeButton";
 
 interface TruckLoad {
   _id: string;
@@ -31,6 +30,7 @@ interface TruckLoad {
   truckId: { _id: string; plateNumber: string } | null;
   status: string;
   date: string;
+  notes?: string;
 }
 
 export default function TruckLoadsPage() {
@@ -43,6 +43,14 @@ export default function TruckLoadsPage() {
   const [spoilageQty, setSpoilageQty] = useState("0");
   const [spoilageReason, setSpoilageReason] = useState("");
   const [pendingAction, setPendingAction] = useState<{ id: string; action: string } | null>(null);
+
+  const [editTarget, setEditTarget] = useState<TruckLoad | null>(null);
+  const [editQty, setEditQty] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -165,6 +173,39 @@ export default function TruckLoadsPage() {
     } finally {
       setPendingAction(null);
     }
+  };
+
+  const openEdit = (t: TruckLoad) => {
+    setEditTarget(t);
+    setEditQty(String(t.quantity ?? ""));
+    setEditAmount(String(t.loadAmount ?? ""));
+    setEditDate(t.date ? t.date.slice(0, 10) : "");
+    setEditNotes(t.notes ?? "");
+  };
+
+  const doEdit = async () => {
+    if (!editTarget) return;
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/truck-loads/${editTarget._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: Number(editQty), loadAmount: Number(editAmount) || 0, date: editDate, notes: editNotes }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to update"); return; }
+      showSuccess("Load updated");
+      setEditTarget(null);
+      fetchLoads();
+    } catch { showError("Network error"); } finally { setEditSubmitting(false); }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/truck-loads/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) { showError("Failed to delete"); return; }
+    showSuccess("Load deleted");
+    setDeleteTarget(null);
+    fetchLoads();
   };
 
   const canAct = (t: TruckLoad, action: string) => {
@@ -371,7 +412,7 @@ export default function TruckLoadsPage() {
                     <TableCell className="py-3">{statusBadge(t.status)}</TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(t.date)}</TableCell>
                     <TableCell className="py-3">
-                      <div className="flex gap-1.5 items-center">
+                      <div className="flex gap-1.5 items-center flex-wrap">
                         {t.status === "in-transit" && canAct(t, "delivered") && (
                           <Button size="sm" disabled={actionLoading === t._id} onClick={() => openSpoilage(t)}>
                             {actionLoading === t._id ? "..." : "Confirm"}
@@ -382,7 +423,12 @@ export default function TruckLoadsPage() {
                             {actionLoading === t._id ? "..." : "Cancel"}
                           </Button>
                         )}
-                        <DisputeButton entity="truck-load" entityId={t._id} entityLabel={`${t.productId?.name ?? "load"} x${(t.quantity ?? 0).toLocaleString()}`} />
+                        {user?.role === "admin" && (t.status === "dispatched" || t.status === "in-transit") && (
+                          <>
+                            <button onClick={() => openEdit(t)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">Edit</button>
+                            <button onClick={() => setDeleteTarget(t._id)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">Delete</button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -582,6 +628,44 @@ export default function TruckLoadsPage() {
         }
         confirmLabel={pendingAction?.action === "cancelled" ? "Cancel Transfer" : "Confirm Delivery"}
         variant="warning"
+      />
+
+      {editTarget && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setEditTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Edit Load</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
+              <Input type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Load Amount (₦)</label>
+              <Input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setEditTarget(null)}>Cancel</Button>
+              <Button size="sm" disabled={editSubmitting} onClick={doEdit}>{editSubmitting ? "Saving..." : "Save"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete Load"
+        message="This will permanently delete this truck load record. Stock adjustments will NOT be reversed."
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   );

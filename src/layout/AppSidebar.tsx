@@ -76,7 +76,6 @@ const navItems: NavItem[] = [
     icon: <DollarLineIcon />,
     name: "POS Transactions", path: "/payment-transactions", color: "text-amber-500",
   },
-  { icon: <AlertIcon />, name: "Disputes", path: "/disputes", color: "text-red-500" },
   { icon: <AlertIcon />, name: "Notifications", path: "/notifications", color: "text-yellow-500" },
   { icon: <GridIcon />, name: "Getting Started", path: "/onboarding", color: "text-amber-500" },
   {
@@ -92,7 +91,7 @@ const navItems: NavItem[] = [
 const roleFilter = (role: string | undefined, item: NavItem): boolean => {
   if (item.name === "Driver Portal") return role === "driver";
   if (role === "admin") return true;
-  if (item.name === "Users" || item.name === "Disputes" || item.name === "POS Terminals" || item.name === "POS Transactions") return false;
+  if (item.name === "Users" || item.name === "POS Terminals" || item.name === "POS Transactions") return false;
   return true;
 };
 

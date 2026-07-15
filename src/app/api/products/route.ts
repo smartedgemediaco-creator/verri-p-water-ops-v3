@@ -21,9 +21,6 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
   const body = await req.json();
-  if (!body.unitPrice && !body.chilledPrice) {
-    return NextResponse.json({ error: "At least one price (Ordinary or Cold) is required" }, { status: 400 });
-  }
   if (body.chilledPrice !== undefined && body.chilledPrice !== null && body.chilledPrice !== "") {
     body.chilledPrice = Number(body.chilledPrice);
   } else {

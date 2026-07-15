@@ -12,7 +12,7 @@ import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dateFormat";
-import DisputeButton from "@/components/disputes/DisputeButton";
+import { showSuccess, showError } from "@/lib/toast";
 
 interface Transfer {
   _id: string;
@@ -243,7 +243,6 @@ export default function TransfersPage() {
                           {actionLoading === t._id ? "..." : "Cancel"}
                         </Button>
                       )}
-                      <DisputeButton entity="transfer" entityId={t._id} entityLabel={`${t.productId?.name ?? "transfer"} x${(t.quantity ?? 0).toLocaleString()}`} />
                     </div>
                   </TableCell>
                 </TableRow>

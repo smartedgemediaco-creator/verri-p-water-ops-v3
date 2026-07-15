@@ -10,7 +10,6 @@ import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import { PlusIcon, ListIcon, DollarLineIcon, ChevronDownIcon, ArrowRightIcon, CloseIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
-import DisputeButton from "@/components/disputes/DisputeButton";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 
 interface Cost {
@@ -336,7 +335,6 @@ export default function CostsPage() {
                                 date: cost.date?.split("T")[0] ?? "",
                               }}
                             />
-                            <DisputeButton entity="cost" entityId={cost._id} entityLabel={`${cost.category} — ₦${cost.amount?.toLocaleString()}`} />
                           </div>
                         </TableCell>
                       </TableRow>
