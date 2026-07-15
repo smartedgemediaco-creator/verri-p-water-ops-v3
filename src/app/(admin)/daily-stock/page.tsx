@@ -210,7 +210,7 @@ export default function DailyStockPage() {
                       </td>
                       {(["bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage"] as const).map((f) => (
                         <td key={f} className="px-1.5 py-1.5">
-                          <input type="number" value={(d as Record<string, number>)[f] ?? 0}
+                          <input type="number" value={(d as unknown as Record<string, number>)[f] ?? 0}
                             onChange={(e) => handleChange(d._id, f, e.target.value)}
                             className={cls(d._id, f)} />
                         </td>
