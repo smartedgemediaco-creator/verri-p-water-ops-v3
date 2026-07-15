@@ -423,10 +423,12 @@ export default function TruckLoadsPage() {
                             {actionLoading === t._id ? "..." : "Cancel"}
                           </Button>
                         )}
-                        {user?.role === "admin" && (t.status === "dispatched" || t.status === "in-transit") && (
+                        {user?.role === "admin" && (
                           <>
                             <button onClick={() => openEdit(t)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">Edit</button>
-                            <button onClick={() => setDeleteTarget(t._id)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">Delete</button>
+                            {t.status !== "delivered" && (
+                              <button onClick={() => setDeleteTarget(t._id)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">Delete</button>
+                            )}
                           </>
                         )}
                       </div>
