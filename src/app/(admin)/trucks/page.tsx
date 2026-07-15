@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/dateFormat";
 
 interface Truck {
   _id: string;
+  name?: string;
   plateNumber: string;
   chassisNumber?: string;
   engineNumber?: string;
