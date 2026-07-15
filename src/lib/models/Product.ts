@@ -17,7 +17,7 @@ const ProductSchema = new Schema<IProduct>(
     unit: { type: String, required: true, default: "bag" },
     category: { type: String, enum: ["sachet", "bottle"], required: true },
     description: { type: String, default: "" },
-    unitPrice: { type: Number, required: true, min: [1, "Unit price must be greater than 0"] },
+    unitPrice: { type: Number, min: 0, default: 0 },
     chilledPrice: { type: Number, min: 0 },
   },
   { timestamps: true }

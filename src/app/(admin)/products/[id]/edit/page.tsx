@@ -82,7 +82,7 @@ export default function EditProductPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ordinary Price (₦) <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ordinary Price (₦) <span className="text-gray-400 font-normal">(Optional)</span></label>
           <InputField type="number" id="unitPrice" name="unitPrice" value={form.unitPrice} onChange={handleChange} />
         </div>
         <div>
@@ -114,8 +114,8 @@ export default function EditProductPage() {
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Name:</strong> {form.name}</li>
               <li><strong>Category:</strong> {form.category}</li>
-              <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
-              {form.chilledPrice && <li><strong>Cold Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
+              {Number(form.unitPrice) > 0 && <li><strong>Ordinary Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>}
+              {Number(form.chilledPrice) > 0 && <li><strong>Cold Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
             </ul>
             <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
           </>
