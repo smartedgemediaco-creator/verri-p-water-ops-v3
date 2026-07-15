@@ -14,6 +14,7 @@ import { showSuccess, showError } from "@/lib/toast";
 import { formatDate } from "@/lib/dateFormat";
 import { BoxIconLine, ListIcon, AlertIcon, TrashBinIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon } from "@/icons";
 import { WaterDropIcon, TruckIcon, FactoryIcon } from "@/components/icons/EntityIcons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface StockItem {
   _id: string;
@@ -96,6 +97,7 @@ export default function StockPage() {
   const [activity, setActivity] = useState<Record<string, ActivityData>>({});
   const [activityLoading, setActivityLoading] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("stock-report");
 
   // add stock modal state
   const [showAddStock, setShowAddStock] = useState(false);
@@ -422,6 +424,9 @@ export default function StockPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Stock" />
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Link href="/production/new">
             <Button size="sm">
               <PlusIcon className="size-4" />
@@ -440,6 +445,7 @@ export default function StockPage() {
         </div>
       </div>
 
+      <div ref={ref}>
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm mb-6">
         <div className="flex flex-wrap items-end gap-4">
@@ -946,6 +952,7 @@ export default function StockPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

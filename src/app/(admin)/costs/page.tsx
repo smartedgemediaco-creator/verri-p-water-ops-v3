@@ -11,6 +11,7 @@ import Select from "@/components/form/Select";
 import { PlusIcon, ListIcon, DollarLineIcon, ChevronDownIcon, ArrowRightIcon, CloseIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Cost {
   _id: string;
@@ -73,6 +74,7 @@ export default function CostsPage() {
   const [locTypeFilter, setLocTypeFilter] = useState("");
   const [locIdFilter, setLocIdFilter] = useState("");
   const [searchText, setSearchText] = useState("");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("costs-list");
 
   useEffect(() => {
     let cancelled = false;
@@ -137,15 +139,20 @@ export default function CostsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <PageBreadcrumb pageTitle="Costs" />
-        <Link href="/costs/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Record Cost
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
-        </Link>
+          <Link href="/costs/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              Record Cost
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <Link href="/costs" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />

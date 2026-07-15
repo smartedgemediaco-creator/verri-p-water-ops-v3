@@ -12,6 +12,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { showSuccess, showError } from "@/lib/toast";
 import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
 import { useAuth } from "@/context/AuthContext";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface PayrollRecord {
   _id: string;
@@ -134,6 +135,7 @@ export default function PayrollPage() {
   const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number }[]>([]);
 
   const [showForm, setShowForm] = useState(false);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("salary-report");
   const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null);
   const [formStaffId, setFormStaffId] = useState("");
   const [formMonth, setFormMonth] = useState(selectedMonth);
@@ -304,12 +306,17 @@ export default function PayrollPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Salary" />
-        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
-          New Salary Record
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
+            New Salary Record
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <DollarLineIcon className="text-blue-600 size-5 dark:text-blue-400" />

@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
 import { PlusIcon, TrashBinIcon, PencilIcon, BoxIconLine } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface PosDevice {
   _id: string;
@@ -49,6 +50,7 @@ export default function PosDevicesPage() {
   const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
   const [locationId, setLocationId] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-devices-list");
 
   const fetchDevices = () => {
     fetch("/api/pos-devices")
@@ -147,12 +149,17 @@ export default function PosDevicesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="POS Devices" />
-        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setShowForm(!showForm); if (!showForm) { setEditTarget(null); resetForm(); } }}>
-          {showForm ? "Cancel" : "Register Device"}
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setShowForm(!showForm); if (!showForm) { setEditTarget(null); resetForm(); } }}>
+            {showForm ? "Cancel" : "Register Device"}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />

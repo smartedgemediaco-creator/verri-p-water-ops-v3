@@ -11,6 +11,7 @@ import { PlusIcon, UserIcon, GroupIcon, PencilIcon, PaperPlaneIcon, TrashBinIcon
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface User {
   _id: string;
@@ -57,6 +58,7 @@ export default function UsersPage() {
   const [editDepotId, setEditDepotId] = useState("");
   const [editTruckId, setEditTruckId] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("users-list");
 
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);
@@ -164,14 +166,19 @@ export default function UsersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Users" />
-        <Link href="/users/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Add User
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
-        </Link>
+          <Link href="/users/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              Add User
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/users" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />

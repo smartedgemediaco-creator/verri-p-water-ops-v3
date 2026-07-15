@@ -11,6 +11,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 import { ListIcon, DollarLineIcon, TrashBinIcon, PlusIcon } from "@/icons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface PurchaseOrderItem {
   rawMaterialId: string;
@@ -55,6 +56,7 @@ export default function PurchaseOrdersPage() {
   const [suppliers, setSuppliers] = useState<{ _id: string; name: string }[]>([]);
   const [rawMaterials, setRawMaterials] = useState<{ _id: string; name: string; unit: string }[]>([]);
   const [poForm, setPoForm] = useState({ supplierId: "", expectedDate: "", notes: "", items: [{ rawMaterialId: "", quantity: 1, unitPrice: 0 }] });
+  const { ref, loading: pdfLoading, download } = usePdfDownload("purchase-orders-list");
 
   const fetchSuppliers = () => {
     fetch("/api/suppliers").then((r) => r.json()).then((data) => setSuppliers(Array.isArray(data) ? data : [])).catch(() => {});
@@ -197,10 +199,13 @@ export default function PurchaseOrdersPage() {
           <Button variant="outline" size="sm" onClick={fetchOrders}>
             Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <Link href="/purchase-orders" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />

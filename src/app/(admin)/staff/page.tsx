@@ -12,6 +12,7 @@ import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ChevronDownIcon, ChevronUpIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 
 interface StaffMember {
@@ -89,6 +90,7 @@ export default function StaffPage() {
   const [isActive, setIsActive] = useState(true);
   const [emergencyContact, setEmergencyContact] = useState("");
   const [notes, setNotes] = useState("");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("staff-list");
 
   const fetchStaff = () => {
     setLoading(true);
@@ -244,13 +246,16 @@ export default function StaffPage() {
           <Button variant="outline" size="sm" onClick={fetchStaff}>
             Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openAdd}>
             Add Staff
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />

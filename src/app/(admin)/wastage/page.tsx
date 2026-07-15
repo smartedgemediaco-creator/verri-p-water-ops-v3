@@ -15,6 +15,7 @@ import AdminEditButton from "@/components/disputes/AdminEditButton";
 import InputField from "@/components/form/input/InputField";
 import { showSuccess, showError } from "@/lib/toast";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface WastageRecord {
   _id: string;
@@ -80,6 +81,7 @@ export default function WastagePage() {
   const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
   const [spoilageSubmitting, setSpoilageSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("wastage-list");
 
   useEffect(() => {
     fetch("/api/products")
@@ -202,13 +204,18 @@ export default function WastagePage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Leakages" />
-        <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowSpoilageForm(true)}>
-          Record Leakage
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowSpoilageForm(true)}>
+            Record Leakage
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm mb-6">
+      <div ref={ref} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm mb-6">
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-44">
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Location Type</label>

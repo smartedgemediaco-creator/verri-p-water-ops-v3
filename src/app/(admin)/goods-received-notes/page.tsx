@@ -10,6 +10,7 @@ import Badge from "@/components/ui/badge/Badge";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 import { ListIcon, GroupIcon, PlusIcon } from "@/icons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface RawMaterialRef {
   _id: string;
@@ -52,6 +53,7 @@ export default function GoodsReceivedNotesPage() {
   const [poList, setPoList] = useState<{ _id: string; orderNumber: string }[]>([]);
   const [rmList, setRmList] = useState<{ _id: string; name: string; unit: string }[]>([]);
   const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+  const { ref, loading: pdfLoading, download } = usePdfDownload("goods-received-list");
 
   const fetchPoList = () => {
     fetch("/api/purchase-orders").then((r) => r.json()).then((data) => setPoList(Array.isArray(data) ? data : [])).catch(() => {});
@@ -142,10 +144,13 @@ export default function GoodsReceivedNotesPage() {
           <Button variant="outline" size="sm" onClick={fetchGrns}>
             Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/goods-received-notes" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />

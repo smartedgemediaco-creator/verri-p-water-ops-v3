@@ -8,6 +8,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { FactoryIcon } from "@/components/icons/EntityIcons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Factory {
   _id: string;
@@ -21,6 +22,7 @@ export default function FactoriesPage() {
   const [factories, setFactories] = useState<Factory[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("factories-list");
 
   useEffect(() => {
     fetch("/api/factories")
@@ -44,14 +46,19 @@ export default function FactoriesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Factories" />
-        <Link href="/factories/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Add Factory
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
-        </Link>
+          <Link href="/factories/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              Add Factory
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/factories" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <FactoryIcon className="text-blue-600 size-5 dark:text-blue-400" />

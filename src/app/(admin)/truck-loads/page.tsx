@@ -14,6 +14,7 @@ import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dateFormat";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface TruckLoad {
   _id: string;
@@ -51,6 +52,7 @@ export default function TruckLoadsPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("truck-loads-list");
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -305,13 +307,16 @@ export default function TruckLoadsPage() {
         <PageBreadcrumb pageTitle="Delivery Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => setShowForm(true)}>
             Load Truck/Tricycle
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <TransferIcon className="text-purple-600 size-5 dark:text-purple-400" />

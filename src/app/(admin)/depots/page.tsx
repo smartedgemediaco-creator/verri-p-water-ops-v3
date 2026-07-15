@@ -8,6 +8,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { DepotIcon } from "@/components/icons/EntityIcons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Depot {
   _id: string;
@@ -21,6 +22,7 @@ export default function DepotsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [assignedUsers, setAssignedUsers] = useState<Record<string, string>>({});
+  const { ref, loading: pdfLoading, download } = usePdfDownload("depots-list");
 
   useEffect(() => {
     Promise.all([
@@ -54,14 +56,19 @@ export default function DepotsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Depots" />
-        <Link href="/depots/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Add Depot
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
-        </Link>
+          <Link href="/depots/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              Add Depot
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/depots" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DepotIcon className="text-emerald-600 size-5 dark:text-emerald-400" />

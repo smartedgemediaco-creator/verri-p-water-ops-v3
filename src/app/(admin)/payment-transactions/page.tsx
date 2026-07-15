@@ -11,6 +11,7 @@ import DatePicker from "@/components/form/date-picker";
 import Link from "next/link";
 import { BoxIconLine, DollarLineIcon, PlusIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface PaymentTransaction {
   _id: string;
@@ -58,6 +59,7 @@ export default function PaymentTransactionsPage() {
   const [page, setPage] = useState(1);
   const [dateKey, setDateKey] = useState(0);
   const [showManual, setShowManual] = useState(false);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-transactions-list");
   const [manualSerial, setManualSerial] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [manualProvider, setManualProvider] = useState("moniepoint");
@@ -231,12 +233,17 @@ export default function PaymentTransactionsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="POS Transactions" />
-        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => setShowManual(true)}>
-          Manual Entry
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => setShowManual(true)}>
+            Manual Entry
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />

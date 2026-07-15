@@ -8,6 +8,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { PlusIcon, TrashBinIcon, PencilIcon, BoxIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { BottleIcon } from "@/components/icons/EntityIcons";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Product {
   _id: string;
@@ -22,6 +23,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("products-list");
 
   useEffect(() => {
     fetch("/api/products")
@@ -46,6 +48,9 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Products" />
         <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Link href="/products/import">
             <Button variant="outline" size="sm">
               Import
@@ -59,7 +64,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6 mb-6">
         <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg dark:bg-teal-500/10 mb-3">
             <BottleIcon className="text-teal-600 size-5 dark:text-teal-400" />

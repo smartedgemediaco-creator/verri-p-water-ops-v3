@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import { showSuccess, showError } from "@/lib/toast";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface StaffRow {
   staffId: string;
@@ -56,6 +57,7 @@ export default function AttendancePage() {
   const [summaryWorkingDays, setSummaryWorkingDays] = useState(0);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("attendance-report");
 
   const fetchAttendance = useCallback(() => {
     setLoading(true);
@@ -116,6 +118,9 @@ export default function AttendancePage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Attendance" />
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowSummary(!showSummary)}>
             {showSummary ? "Hide Summary" : "Monthly Summary"}
           </Button>
@@ -126,7 +131,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4 mb-6">
+      <div ref={ref} className="flex flex-wrap items-end gap-4 mb-6">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date</label>
           <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}

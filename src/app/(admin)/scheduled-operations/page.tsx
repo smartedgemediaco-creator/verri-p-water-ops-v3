@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 import { AlertIcon, PlusIcon, CloseIcon, CheckCircleIcon, TimeIcon, PencilIcon, TrashBinIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface ScheduledOperation {
   _id: string;
@@ -113,6 +114,7 @@ export default function ScheduledOperationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ScheduledOperation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("scheduled-ops-list");
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -258,12 +260,17 @@ export default function ScheduledOperationsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Scheduled Operations" />
-        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
-          New Scheduled Operation
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
+            New Scheduled Operation
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
         <Link href="/scheduled-operations" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <AlertIcon className="text-blue-600 size-5 dark:text-blue-400" />

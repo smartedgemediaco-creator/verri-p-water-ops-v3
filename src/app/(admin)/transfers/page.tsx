@@ -12,6 +12,7 @@ import { PlusIcon, ListIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dateFormat";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Transfer {
   _id: string;
@@ -37,6 +38,7 @@ export default function TransfersPage() {
   const [spoilageQty, setSpoilageQty] = useState("0");
   const [spoilageReason, setSpoilageReason] = useState("");
   const [pendingAction, setPendingAction] = useState<{ id: string; action: string } | null>(null);
+  const { ref, loading: pdfLoading, download } = usePdfDownload("transfers-list");
 
   const fetchTransfers = () => {
     fetch("/api/transfers")
@@ -148,6 +150,9 @@ export default function TransfersPage() {
         <PageBreadcrumb pageTitle="Delivery Loads" />
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 dark:text-gray-500">{user?.name ?? user?.email ?? ""}</span>
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
+          </Button>
           <Link href="/wastage">
             <Button variant="outline" size="sm">
               Record Spoilage
@@ -161,7 +166,7 @@ export default function TransfersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <TransferIcon className="text-purple-600 size-5 dark:text-purple-400" />

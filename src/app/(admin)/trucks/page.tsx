@@ -9,6 +9,7 @@ import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, ChevronDownIcon, Chevron
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { TruckIcon } from "@/components/icons/EntityIcons";
 import { formatDate } from "@/lib/dateFormat";
+import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Truck {
   _id: string;
@@ -28,6 +29,7 @@ export default function TrucksPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("trucks-list");
 
   useEffect(() => {
     fetch("/api/trucks")
@@ -71,14 +73,19 @@ export default function TrucksPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle="Delivery Trucks/Tricycles" />
-        <Link href="/trucks/new">
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Add Truck/Tricycle
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
+            {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
-        </Link>
+          <Link href="/trucks/new">
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
+              Add Truck/Tricycle
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
+      <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-4 md:gap-6 mb-6">
         <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <TruckIcon className="text-orange-600 size-5 dark:text-orange-400" />
