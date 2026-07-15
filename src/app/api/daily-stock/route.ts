@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await connectDB();
-  const records = await DailyStock.find({}).sort({ date: 1 }).lean();
+  const records = await DailyStock.find({}).sort({ date: -1 }).lean();
   return NextResponse.json(records);
 }
 
