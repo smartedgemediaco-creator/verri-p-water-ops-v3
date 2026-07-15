@@ -9,7 +9,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewTruckPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ plateNumber: "", chassisNumber: "", engineNumber: "", capacity: "" });
+  const [form, setForm] = useState({ name: "", plateNumber: "", chassisNumber: "", engineNumber: "", capacity: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -53,6 +53,10 @@ export default function NewTruckPage() {
       <h1 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Add Truck/Tricycle</h1>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg space-y-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name <span className="text-gray-400 font-normal">(optional)</span></label>
+          <InputField id="name" name="name" placeholder="e.g. Truck 1, Blue Van" value={form.name} onChange={handleChange} />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plate Number <span className="text-red-500">*</span></label>
           <InputField id="plateNumber" name="plateNumber" placeholder="Plate number" value={form.plateNumber} onChange={handleChange} />
         </div>
@@ -86,6 +90,7 @@ export default function NewTruckPage() {
           <>
             You are about to create a new delivery vehicle:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
+              {form.name && <li><strong>Name:</strong> {form.name}</li>}
               <li><strong>Plate:</strong> {form.plateNumber}</li>
               <li><strong>Chassis:</strong> {form.chassisNumber || "—"}</li>
               <li><strong>Engine:</strong> {form.engineNumber || "—"}</li>

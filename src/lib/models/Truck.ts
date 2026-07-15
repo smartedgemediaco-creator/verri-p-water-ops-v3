@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITruck extends Document {
+  name: string;
   plateNumber: string;
   chassisNumber?: string;
   engineNumber?: string;
@@ -12,6 +13,7 @@ export interface ITruck extends Document {
 
 const TruckSchema = new Schema<ITruck>(
   {
+    name: { type: String, default: "" },
     plateNumber: { type: String, required: true, unique: true },
     chassisNumber: { type: String, default: "" },
     engineNumber: { type: String, default: "" },

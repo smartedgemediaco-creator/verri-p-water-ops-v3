@@ -203,7 +203,8 @@ function TruckRow({
         <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
           <span className="flex items-center gap-2">
             <TruckIcon className="size-4 text-orange-500 shrink-0" />
-            <Link href={`/trucks/${truck._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{truck.plateNumber}</Link>
+            <Link href={`/trucks/${truck._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{truck.name || truck.plateNumber}</Link>
+            {truck.name && <span className="text-xs text-gray-400 font-mono">{truck.plateNumber}</span>}
           </span>
         </TableCell>
         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 font-mono">
