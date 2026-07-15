@@ -202,6 +202,46 @@ export function periodicReportEmail({ name, reportHtml }: { name: string; report
   `);
 }
 
+export function dailyStockRecordedEmail({ recordedBy, date, data }: { recordedBy: string; date: string; data: Record<string, number | string> }): string {
+  const fmt = (v: number | string) => typeof v === "number" ? v.toLocaleString() : v;
+  const rows = [
+    ["Date", data.date],
+    ["Start Stock", data.startStock],
+    ["Produced", data.bagsProduced],
+    ["Factory Sale", data.factorySale],
+    ["Big Truck", data.bigTruck],
+    ["Returned Big Truck", data.returnedBigTruck],
+    ["Small Truck 1", data.smallTruck1],
+    ["Returned ST1", data.returnedSmallTruck1],
+    ["Small Truck 2", data.smallTruck2],
+    ["Returned ST2", data.returnedSmallTruck2],
+    ["Depot", data.depot],
+    ["Tricycle", data.tricycle],
+    ["Shortage", data.shortage],
+    ["Wastage", data.wastage],
+    ["───", "───"],
+    ["Total Sold", data.totalSold],
+    ["Total Returned", data.totalReturned],
+    ["End Stock", data.endStock],
+  ];
+
+  const rowsHtml = rows.map(([label, value]) =>
+    `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${fmt(value)}</span></div>`
+  ).join("\n");
+
+  return baseHtml("📋", "#0EA5E9", `
+    <h2>Daily stock recorded</h2>
+    <p><strong>${recordedBy}</strong> recorded the daily stock tracker for <strong>${date}</strong>.</p>
+    <div class="stat-grid">
+      ${rowsHtml}
+    </div>
+    <p style="font-size:13px;color:#9CA3AF;">This is the original record. It cannot be altered after being emailed.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/daily-stock" class="btn">View Daily Stock</a>
+    </div>
+  `);
+}
+
 function APP_URL(): string {
   return process.env.APP_URL || "https://verrip.com.ng";
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { DailyStock } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { dailyStockRecordedEmail } from "@/lib/emailTemplates";
 
 function calcTotals(day: Record<string, number>) {
   const totalSold = (day.factorySale ?? 0) + (day.bigTruck ?? 0) + (day.smallTruck1 ?? 0) + (day.smallTruck2 ?? 0) + (day.depot ?? 0) + (day.tricycle ?? 0);
@@ -31,5 +33,16 @@ export async function POST(req: NextRequest) {
 
   const totals = calcTotals(body);
   const record = await DailyStock.create({ ...body, ...totals });
+
+  // Send notification email (fire-and-forget)
+  const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
+  if (notifyEmail) {
+    sendEmail({
+      to: notifyEmail,
+      subject: `Daily Stock Recorded — ${body.date}`,
+      html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, ...totals } }),
+    }).catch(() => {});
+  }
+
   return NextResponse.json(record, { status: 201 });
 }
