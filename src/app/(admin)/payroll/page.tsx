@@ -10,7 +10,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import AutoAmount from "@/components/ui/AutoAmount";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { showSuccess, showError } from "@/lib/toast";
-import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon, FileIcon } from "@/icons";
+import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
 import { useAuth } from "@/context/AuthContext";
 
 interface PayrollRecord {
@@ -274,22 +274,14 @@ export default function PayrollPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 md:gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Net Pay</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Payables</p>
           <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
-          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
-            <DollarLineIcon className="text-blue-600 size-5 dark:text-blue-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Payables</p>
-          <AutoAmount value={`₦${((summary?.totalNetPay ?? 0) - (summary?.totalDeductions ?? 0) + (summary?.totalBonus ?? 0)).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">Net − Deductions + Bonuses</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
