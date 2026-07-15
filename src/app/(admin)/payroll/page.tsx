@@ -307,6 +307,13 @@ export default function PayrollPage() {
           <AutoAmount value={`₦${totalDeductions.toLocaleString()}`} className="text-red-600 dark:text-red-400" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
+            <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Bonuses</p>
+          <AutoAmount value={`₦${(summary?.totalBonus ?? 0).toLocaleString()}`} className="text-green-600 dark:text-green-400" />
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
             <ListIcon className="text-amber-600 size-5 dark:text-amber-400" />
           </div>
