@@ -279,7 +279,7 @@ export default function NewSalePage() {
         quantity: Number(quantity),
         unitPrice: Number(unitPrice),
         totalAmount: Number(quantity) * Number(unitPrice),
-        customerName: customerName || "Walk-in Customer",
+        customerName: customerName || "Daily Sales",
         paymentMethod,
         date: date ? formatDate(date) : formatDate(new Date().toISOString()),
         locationName: loc?.label ?? locationType,
@@ -416,7 +416,7 @@ export default function NewSalePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name <span className="text-gray-400 font-normal">(Optional)</span></label>
-            <InputField id="customerName" placeholder="Leave blank for walk-in" value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value)} />
+            <InputField id="customerName" placeholder="Leave blank for daily sales" value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value)} />
             {customerName.trim() && existingCustomer === false && !customerSearching && (
               <div className="mt-1.5 flex items-center gap-2">
                 <span className="text-xs text-orange-600 dark:text-orange-400">New customer</span>
