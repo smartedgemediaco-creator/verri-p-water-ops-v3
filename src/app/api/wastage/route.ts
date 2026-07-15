@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Wastage, Factory, Depot, Truck, Product, Stock } from "@/lib/models";
+import { Wastage, Factory, Depot, Truck, Product, Stock, Sale } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyWastage } from "@/lib/notifications";
@@ -44,7 +44,14 @@ export async function POST(req: NextRequest) {
   }
 
   const deductFromStock = body.deductFromStock === true || body.deductFromStock === "true";
-  const wastage = await Wastage.create({ ...body, deductFromStock });
+  const recordAsSale = body.recordAsSale === true || body.recordAsSale === "true";
+  const wastage = await Wastage.create({
+    ...body,
+    deductFromStock,
+    recordAsSale,
+    saleUnitPrice: Number(body.saleUnitPrice) || 0,
+    customerName: body.customerName || "",
+  });
 
   if (deductFromStock) {
     await Stock.findOneAndUpdate(
@@ -52,6 +59,26 @@ export async function POST(req: NextRequest) {
       { $inc: { quantity: -Math.abs(Number(body.quantity)) } },
       { upsert: true }
     );
+  }
+
+  let saleRecord = null;
+  if (recordAsSale) {
+    const unitPrice = Number(body.saleUnitPrice) || 0;
+    const totalAmount = unitPrice * Number(body.quantity);
+    saleRecord = await Sale.create({
+      locationType: body.locationType,
+      locationId: body.locationId,
+      productId: body.productId,
+      quantity: Number(body.quantity),
+      unitPrice,
+      totalAmount,
+      customerName: body.customerName || "Leakage sale",
+      paymentMethod: "cash",
+      isPaid: true,
+      condition: "ordinary",
+      notes: `Leakage sale — recorded via leakage entry`,
+      date: body.date || new Date(),
+    });
   }
 
   await logActivity({
@@ -79,7 +106,7 @@ export async function POST(req: NextRequest) {
     body.source
   ).catch(() => {});
 
-  return NextResponse.json(wastage, { status: 201 });
+  return NextResponse.json({ wastage, sale: saleRecord }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

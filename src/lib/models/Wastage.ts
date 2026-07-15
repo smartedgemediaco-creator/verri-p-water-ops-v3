@@ -7,6 +7,9 @@ export interface IWastage extends Document {
   quantity: number;
   source: "production" | "transfer" | "sale" | "storage" | "other";
   deductFromStock: boolean;
+  recordAsSale: boolean;
+  saleUnitPrice: number;
+  customerName: string;
   description: string;
   date: Date;
   createdAt: Date;
@@ -21,6 +24,9 @@ const WastageSchema = new Schema<IWastage>(
     quantity: { type: Number, required: true },
     source: { type: String, enum: ["production", "transfer", "sale", "storage", "other"], required: true },
     deductFromStock: { type: Boolean, default: false },
+    recordAsSale: { type: Boolean, default: false },
+    saleUnitPrice: { type: Number, default: 0 },
+    customerName: { type: String, default: "" },
     description: { type: String, default: "" },
     date: { type: Date, default: Date.now },
   },

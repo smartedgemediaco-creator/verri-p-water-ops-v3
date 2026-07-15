@@ -167,7 +167,7 @@ export default function PayrollPage() {
       .finally(() => setLoading(false));
   }, [selectedMonth, filterStatus]);
 
-  useEffect(() => {     fetchRecords(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [fetchRecords]);
+  useEffect(() => {     fetchRecords(); /* eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */ }, [fetchRecords]);
 
   useEffect(() => {
     fetch("/api/staff")
