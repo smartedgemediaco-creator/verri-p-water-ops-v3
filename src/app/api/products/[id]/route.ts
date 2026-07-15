@@ -33,6 +33,11 @@ export async function PUT(
   if (body.unitPrice !== undefined && (Number(body.unitPrice) < 1)) {
     return NextResponse.json({ error: "Unit price must be greater than 0" }, { status: 400 });
   }
+  if (body.chilledPrice !== undefined && body.chilledPrice !== null && body.chilledPrice !== "") {
+    body.chilledPrice = Number(body.chilledPrice);
+  } else {
+    body.chilledPrice = null;
+  }
   const product = await Product.findByIdAndUpdate(id, body, { new: true });
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

@@ -130,12 +130,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.role !== "admin" && body.productId) {
-      const product = await Product.findById(body.productId).select("unitPrice").lean();
-      if (product && product.unitPrice > 0 && Number(body.unitPrice) !== product.unitPrice) {
-        return NextResponse.json(
-          { error: `Unit price must match product catalog price (₦${product.unitPrice}). Contact admin to change.` },
-          { status: 403 }
-        );
+      const product = await Product.findById(body.productId).select("unitPrice chilledPrice").lean();
+      if (product) {
+        const expectedPrice = body.condition === "chilled" && product.chilledPrice ? product.chilledPrice : product.unitPrice;
+        if (expectedPrice > 0 && Number(body.unitPrice) !== expectedPrice) {
+          return NextResponse.json(
+            { error: `Unit price must match product catalog price (₦${expectedPrice}). Contact admin to change.` },
+            { status: 403 }
+          );
+        }
       }
     }
 

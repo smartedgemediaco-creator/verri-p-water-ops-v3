@@ -15,6 +15,7 @@ interface Product {
   unit: string;
   category: string;
   unitPrice?: number;
+  chilledPrice?: number;
 }
 
 export default function ProductsPage() {
@@ -90,17 +91,18 @@ export default function ProductsPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Category</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit Price</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Chilled Price</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>Loading...</TableCell>
               </TableRow>
             ) : products.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={5}>No products found. Click &quot;Add Product&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>No products found. Click &quot;Add Product&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               products.map((product) => (
@@ -111,6 +113,7 @@ export default function ProductsPage() {
                     <span className="capitalize">{product.category}</span>
                   </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(product.unitPrice ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{product.chilledPrice ? `₦${product.chilledPrice.toLocaleString()}` : "—"}</TableCell>
                   <TableCell className="py-3">
                     <div className="flex gap-2">
                       <Link href={`/products/${product._id}/edit`}>

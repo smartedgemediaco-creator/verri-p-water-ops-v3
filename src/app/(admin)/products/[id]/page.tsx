@@ -21,7 +21,7 @@ interface Insights {
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [product, setProduct] = useState<{ _id: string; name: string; unit: string; category: string; description: string; unitPrice: number; createdAt: string } | null>(null);
+  const [product, setProduct] = useState<{ _id: string; name: string; unit: string; category: string; description: string; unitPrice: number; chilledPrice?: number; createdAt: string } | null>(null);
   const [inventory, setInventory] = useState<InvItem[]>([]);
   const [sales, setSales] = useState<SaleData[]>([]);
   const [factories, setFactories] = useState<{ _id: string; name: string }[]>([]);
@@ -106,6 +106,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex gap-4 mt-2 text-xs text-gray-400">
               <span>Unit: <strong>{product.unit}</strong></span>
               <span>Unit Price: <strong>₦{product.unitPrice?.toLocaleString()}</strong></span>
+              {product.chilledPrice && <span>Chilled Price: <strong>₦{product.chilledPrice.toLocaleString()}</strong></span>}
               <span>Created: <strong>{formatDate(product.createdAt)}</strong></span>
             </div>
           </div>
@@ -141,6 +142,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <p className="text-xs text-gray-500 dark:text-gray-400">Unit Price</p>
           <p className="text-xs font-bold text-gray-800 dark:text-white">₦{product.unitPrice?.toLocaleString()}</p>
         </div>
+        {product.chilledPrice && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+            <div className="flex items-center justify-center w-9 h-9 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-2">
+              <DollarLineIcon className="text-cyan-600 size-4" />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Chilled Price</p>
+            <p className="text-xs font-bold text-gray-800 dark:text-white">₦{product.chilledPrice.toLocaleString()}</p>
+          </div>
+        )}
       </div>
 
       {insights && (() => {

@@ -6,6 +6,7 @@ export interface IProduct extends Document {
   category: "sachet" | "bottle";
   description: string;
   unitPrice: number;
+  chilledPrice?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +18,7 @@ const ProductSchema = new Schema<IProduct>(
     category: { type: String, enum: ["sachet", "bottle"], required: true },
     description: { type: String, default: "" },
     unitPrice: { type: Number, required: true, min: [1, "Unit price must be greater than 0"] },
+    chilledPrice: { type: Number, min: 0 },
   },
   { timestamps: true }
 );

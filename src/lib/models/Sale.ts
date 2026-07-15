@@ -19,6 +19,7 @@ export interface ISale extends Document {
   isPaid: boolean;
   paidAt?: Date;
   paidAmount?: number;
+  condition?: "ordinary" | "chilled";
   status: "active" | "cancelled";
   cancelledAt?: Date;
   cancelledBy?: Types.ObjectId;
@@ -49,6 +50,7 @@ const SaleSchema = new Schema<ISale>(
     isPaid: { type: Boolean, default: true },
     paidAt: { type: Date },
     paidAmount: { type: Number },
+    condition: { type: String, enum: ["ordinary", "chilled"], default: "ordinary" },
     status: { type: String, enum: ["active", "cancelled"], default: "active" },
     cancelledAt: { type: Date },
     cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },

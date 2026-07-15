@@ -33,6 +33,7 @@ interface Sale {
   posDeviceId?: { _id: string; name: string; terminalSerial: string } | null;
   isPaid: boolean;
   paidAmount?: number;
+  condition?: "ordinary" | "chilled";
 }
 
 interface PaginationInfo {
@@ -473,7 +474,16 @@ export default function SalesPage() {
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
                     <Link href={`/${sale.locationType === "factory" ? "factories" : sale.locationType === "depot" ? "depots" : "trucks"}/${sale.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{sale.location?.name ?? sale.locationType}</Link>
                   </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">{sale.productId?._id ? <Link href={`/products/${sale.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{sale.productId.name}</Link> : "N/A"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">
+                    <div className="flex items-center gap-1.5">
+                      {sale.productId?._id ? <Link href={`/products/${sale.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{sale.productId.name}</Link> : "N/A"}
+                      {sale.condition === "chilled" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">
+                          Chilled
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(sale.quantity ?? 0).toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">₦{sale.totalAmount?.toLocaleString()}</TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{sale.customerName}</TableCell>

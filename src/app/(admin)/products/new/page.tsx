@@ -10,7 +10,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "" });
+  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "", chilledPrice: "" });
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -73,6 +73,11 @@ export default function NewProductPage() {
           <InputField type="number" id="unitPrice" name="unitPrice" placeholder="e.g. 120" value={form.unitPrice} onChange={handleChange} />
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chilled Price (₦) <span className="text-gray-400 font-normal">(Optional)</span></label>
+          <InputField type="number" id="chilledPrice" name="chilledPrice" placeholder="e.g. 150" value={form.chilledPrice} onChange={handleChange} />
+          {form.chilledPrice && <p className="text-xs text-gray-400 mt-1">Price when sold chilled/cold</p>}
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <InputField id="description" name="description" placeholder="Description (optional)" value={form.description} onChange={handleChange} />
         </div>
@@ -97,6 +102,7 @@ export default function NewProductPage() {
               <li><strong>Name:</strong> {form.name}</li>
               <li><strong>Category:</strong> {form.category}</li>
               <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
+              {form.chilledPrice && <li><strong>Chilled Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
             </ul>
             <p className="mt-2">This product will be available for stock and sales. Are you sure?</p>
           </>

@@ -13,7 +13,7 @@ export default function EditProductPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "" });
+  const [form, setForm] = useState({ name: "", unit: "", category: "", description: "", unitPrice: "", chilledPrice: "" });
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -21,7 +21,7 @@ export default function EditProductPage() {
   useEffect(() => {
     fetch(`/api/products/${id}`)
       .then(r => r.json())
-      .then(data => setForm({ name: data.name, unit: data.unit, category: data.category, description: data.description || "", unitPrice: String(data.unitPrice ?? "") }))
+      .then(data => setForm({ name: data.name, unit: data.unit, category: data.category, description: data.description || "", unitPrice: String(data.unitPrice ?? ""), chilledPrice: String(data.chilledPrice ?? "") }))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -86,6 +86,11 @@ export default function EditProductPage() {
           <InputField type="number" id="unitPrice" name="unitPrice" value={form.unitPrice} onChange={handleChange} />
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chilled Price (₦) <span className="text-gray-400 font-normal">(Optional)</span></label>
+          <InputField type="number" id="chilledPrice" name="chilledPrice" value={form.chilledPrice} onChange={handleChange} />
+          {form.chilledPrice && <p className="text-xs text-gray-400 mt-1">Price when sold chilled/cold</p>}
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
           <InputField id="description" name="description" value={form.description} onChange={handleChange} />
         </div>
@@ -110,6 +115,7 @@ export default function EditProductPage() {
               <li><strong>Name:</strong> {form.name}</li>
               <li><strong>Category:</strong> {form.category}</li>
               <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
+              {form.chilledPrice && <li><strong>Chilled Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
             </ul>
             <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
           </>

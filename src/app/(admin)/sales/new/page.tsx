@@ -26,7 +26,7 @@ export default function NewSalePage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
-  const [productsList, setProductsList] = useState<{ value: string; label: string; unitPrice: number }[]>([]);
+  const [productsList, setProductsList] = useState<{ value: string; label: string; unitPrice: number; chilledPrice?: number }[]>([]);
   const [posDevices, setPosDevices] = useState<{ value: string; label: string }[]>([]);
 
   const [locationType, setLocationType] = useState("");
@@ -41,6 +41,7 @@ export default function NewSalePage() {
   const [posDeviceId, setPosDeviceId] = useState("");
   const [availableStock, setAvailableStock] = useState<number | null>(null);
   const [stockLoading, setStockLoading] = useState(false);
+  const [isChilled, setIsChilled] = useState(false);
 
   const [existingCustomer, setExistingCustomer] = useState<boolean | null>(null);
   const [customerSearching, setCustomerSearching] = useState(false);
@@ -112,8 +113,8 @@ export default function NewSalePage() {
   useEffect(() => {
     fetch("/api/products")
       .then((r) => r.json())
-      .then((data: { _id: string; name: string; unitPrice?: number }[]) =>
-        setProductsList(data.map((p) => ({ value: p._id, label: p.name, unitPrice: p.unitPrice ?? 0 })))
+      .then((data: { _id: string; name: string; unitPrice?: number; chilledPrice?: number }[]) =>
+        setProductsList(data.map((p) => ({ value: p._id, label: p.name, unitPrice: p.unitPrice ?? 0, chilledPrice: p.chilledPrice })))
       );
   }, []);
 
@@ -251,6 +252,7 @@ export default function NewSalePage() {
         date: date || undefined,
         notes,
         paymentMethod,
+        condition: isChilled ? "chilled" : "ordinary",
       };
       if (paymentMethod === "pos" && posDeviceId) body.posDeviceId = posDeviceId;
       if (paymentMethod === "credit") {
@@ -352,7 +354,7 @@ export default function NewSalePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
-            <Select options={productsList} placeholder="Select product" value={productId} onChange={setProductId} />
+            <Select options={productsList} placeholder="Select product" value={productId} onChange={(val) => { setProductId(val); setIsChilled(false); }} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
@@ -375,11 +377,42 @@ export default function NewSalePage() {
           </div>
         </div>
 
+        {productId && productsList.find((p) => p.value === productId)?.chilledPrice && (
+          <div className="flex items-center gap-3 p-3 bg-cyan-50 dark:bg-cyan-500/10 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isChilled;
+                setIsChilled(next);
+                const found = productsList.find((p) => p.value === productId);
+                if (found) {
+                  setUnitPrice(String(next && found.chilledPrice ? found.chilledPrice : found.unitPrice));
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isChilled ? "bg-cyan-600" : "bg-gray-300 dark:bg-gray-600"
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                isChilled ? "translate-x-6" : "translate-x-1"
+              }`} />
+            </button>
+            <div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cold</span>
+              {isChilled && (
+                <span className="ml-2 text-xs text-cyan-600 dark:text-cyan-400 font-medium">
+                  Chilled price: ₦{productsList.find((p) => p.value === productId)?.chilledPrice?.toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦)</label>
             <InputField type="number" id="unitPrice" placeholder="Unit price" value={unitPrice} disabled />
-            {unitPrice && <p className="text-xs text-gray-400 mt-1">Price from product catalog — set on product record</p>}
+            {unitPrice && <p className="text-xs text-gray-400 mt-1">{isChilled ? "Chilled price" : "Price from product catalog"} — set on product record</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name <span className="text-gray-400 font-normal">(Optional)</span></label>
