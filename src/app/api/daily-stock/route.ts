@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     sendEmail({
       to: notifyEmail,
       subject: `Daily Stock Recorded — ${body.date}`,
-      html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, ...totals }, customColumns }),
+      html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, ...totals }, customColumns, title: "New Day Created" }),
     }).catch(() => {});
   }
 

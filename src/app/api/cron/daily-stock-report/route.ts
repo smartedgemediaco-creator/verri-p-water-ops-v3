@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   const result = await sendEmail({
     to: notifyEmail,
     subject: `Daily Stock Report — ${todayStr}`,
-    html: dailyStockRecordedEmail({ recordedBy: "System (midnight report)", date: todayStr, data, customColumns }),
+    html: dailyStockRecordedEmail({ recordedBy: "System (midnight report)", date: todayStr, data, customColumns, title: "Daily Stock Report — Midnight" }),
   });
 
   if (!result.success) {

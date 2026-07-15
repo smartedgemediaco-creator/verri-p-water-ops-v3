@@ -47,14 +47,16 @@ export default function DailyStockPage() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [columns, setColumns] = useState<ColumnDef[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [addDayDate, setAddDayDate] = useState("");
   const [showAddDay, setShowAddDay] = useState(false);
   const [adding, setAdding] = useState(false);
   const [page, setPage] = useState(1);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSaveRef = useRef<{ id: string; field: string; value: number } | null>(null);
+
+  // Batch save state
+  const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, number>>>({});
+  const [savingBatch, setSavingBatch] = useState(false);
+  const dirtyCount = Object.keys(pendingChanges).length;
 
   // Add column modal
   const [showAddCol, setShowAddCol] = useState(false);
@@ -107,24 +109,10 @@ export default function DailyStockPage() {
   const calcTotalReturned = (d: DayRecord) => allReturnKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
   const calcEndStock = (d: DayRecord) => (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) + calcTotalReturned(d) - calcTotalSold(d) - (Number(d.shortage) || 0) - (Number(d.wastage) || 0);
 
-  // Auto-save
-  const doAutoSave = async (id: string, field: string, value: number) => {
-    setSaving(`${id}-${field}`);
-    try {
-      const res = await fetch(`/api/daily-stock/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
-      });
-      if (!res.ok) { showError("Failed to save"); return; }
-      const updated = await res.json();
-      setRecords((prev) => prev.map((r) => r._id === id ? { ...r, ...updated } : r));
-    } catch { showError("Save failed"); }
-    finally { setSaving(null); }
-  };
-
+  // Track local changes without saving
   const handleChange = (id: string, field: string, rawValue: string) => {
     const num = Number(rawValue) || 0;
+    // Update display optimistically
     setRecords((prev) => prev.map((r) => {
       if (r._id !== id) return r;
       const updated = { ...r, [field]: num };
@@ -133,15 +121,41 @@ export default function DailyStockPage() {
       updated.endStock = (Number(updated.startStock) || 0) + (Number(updated.bagsProduced) || 0) + updated.totalReturned - updated.totalSold - (Number(updated.shortage) || 0) - (Number(updated.wastage) || 0);
       return updated;
     }));
+    // Track the pending change
+    setPendingChanges((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), [field]: num },
+    }));
+  };
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    pendingSaveRef.current = { id, field, value: num };
-    debounceRef.current = setTimeout(() => {
-      if (pendingSaveRef.current) {
-        doAutoSave(pendingSaveRef.current.id, pendingSaveRef.current.field, pendingSaveRef.current.value);
-        pendingSaveRef.current = null;
-      }
-    }, 600);
+  // Save all pending changes
+  const saveAll = async () => {
+    setSavingBatch(true);
+    const ids = Object.keys(pendingChanges);
+    let failed = 0;
+    for (const id of ids) {
+      const fields = pendingChanges[id];
+      try {
+        const res = await fetch(`/api/daily-stock/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fields),
+        });
+        if (!res.ok) { failed++; continue; }
+        const updated = await res.json();
+        setRecords((prev) => prev.map((r) => r._id === id ? { ...r, ...updated } : r));
+      } catch { failed++; }
+    }
+    setPendingChanges({});
+    setSavingBatch(false);
+    if (failed > 0) showError(`${failed} record(s) failed to save`);
+    else showSuccess("All changes saved");
+  };
+
+  const discardChanges = () => {
+    setPendingChanges({});
+    fetchRecords();
+    showSuccess("Changes discarded");
   };
 
   const addNewDay = async () => {
@@ -192,9 +206,13 @@ export default function DailyStockPage() {
   };
 
   const cls = (id: string, field: string) =>
-    `w-full px-1.5 py-1 text-xs text-right border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${saving === `${id}-${field}` ? "ring-2 ring-emerald-400 border-emerald-400" : ""}`;
+    `w-full px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${
+      pendingChanges[id]?.[field] != null
+        ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800"
+        : "border-gray-200 dark:border-gray-600"
+    }`;
 
-  // Header list: built-in + custom columns + calculated + actions
+  // Header list
   const headerCells = [
     "Date", "Start Stock", "Produced", "Factory Sale",
     "Big Truck", "Ret. Big Truck", "Small Truck 1", "Ret. ST1",
@@ -320,42 +338,57 @@ export default function DailyStockPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, records.length)} of {records.length}
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-                className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Prev
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`px-2.5 py-1 text-xs rounded border ${p === safePage
-                    ? "border-brand-500 bg-brand-500 text-white"
-                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-                className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+        {/* Pagination + Update bar */}
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          {dirtyCount > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/5 border-b border-amber-200 dark:border-amber-500/20">
+              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                {dirtyCount} unsaved change{dirtyCount > 1 ? "s" : ""}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={discardChanges}>Discard</Button>
+                <Button size="sm" onClick={saveAll} disabled={savingBatch}>
+                  {savingBatch ? "Saving..." : "Update"}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, records.length)} of {records.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`px-2.5 py-1 text-xs rounded border ${p === safePage
+                      ? "border-brand-500 bg-brand-500 text-white"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add New Day modal */}

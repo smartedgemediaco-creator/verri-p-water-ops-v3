@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { DailyStock, DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { dailyStockDeletedEmail } from "@/lib/emailTemplates";
 
 const BUILTIN_SALE_FIELDS = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
 const BUILTIN_RETURN_FIELDS = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
@@ -54,7 +56,25 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!user || user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   await connectDB();
-  const record = await DailyStock.findByIdAndDelete(id);
+  const record = await DailyStock.findById(id);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Snapshot the record before deleting
+  const snapshot = record.toObject();
+  await record.deleteOne();
+
+  // Send delete notification email (fire-and-forget)
+  const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
+  if (notifyEmail) {
+    DailyStockColumn.find({}).lean().then((columns) => {
+      const customColumns = columns.map((c) => ({ key: c.key, label: c.label }));
+      sendEmail({
+        to: notifyEmail,
+        subject: `⚠ Daily Stock DELETED — ${snapshot.date}`,
+        html: dailyStockDeletedEmail({ deletedBy: user.email, date: snapshot.date, data: snapshot as unknown as Record<string, number | string>, customColumns }),
+      }).catch(() => {});
+    }).catch(() => {});
+  }
+
   return NextResponse.json({ message: "Deleted" });
 }

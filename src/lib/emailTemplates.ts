@@ -202,24 +202,27 @@ export function periodicReportEmail({ name, reportHtml }: { name: string; report
   `);
 }
 
-export function dailyStockRecordedEmail({ recordedBy, date, data, customColumns }: { recordedBy: string; date: string; data: Record<string, number | string>; customColumns?: { key: string; label: string }[] }): string {
-  const fmt = (v: number | string) => typeof v === "number" ? v.toLocaleString() : v;
+export function dailyStockRecordedEmail({ recordedBy, date, data, customColumns, title }: { recordedBy: string; date: string; data: Record<string, number | string>; customColumns?: { key: string; label: string }[]; title?: string }): string {
+  const fmt = (v: number | string | undefined | null) => {
+    if (v == null || v === "") return "0";
+    return typeof v === "number" ? v.toLocaleString() : v;
+  };
   const knownKeys = new Set(["date", "startStock", "bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage", "totalSold", "totalReturned", "endStock", "_id", "createdAt", "updatedAt"]);
   const rows: [string, number | string][] = [
-    ["Date", data.date],
-    ["Start Stock", data.startStock],
-    ["Produced", data.bagsProduced],
-    ["Factory Sale", data.factorySale],
-    ["Big Truck", data.bigTruck],
-    ["Returned Big Truck", data.returnedBigTruck],
-    ["Small Truck 1", data.smallTruck1],
-    ["Returned ST1", data.returnedSmallTruck1],
-    ["Small Truck 2", data.smallTruck2],
-    ["Returned ST2", data.returnedSmallTruck2],
-    ["Depot", data.depot],
-    ["Tricycle", data.tricycle],
-    ["Shortage", data.shortage],
-    ["Wastage", data.wastage],
+    ["Date", data.date ?? date],
+    ["Start Stock", data.startStock ?? 0],
+    ["Produced", data.bagsProduced ?? 0],
+    ["Factory Sale", data.factorySale ?? 0],
+    ["Big Truck", data.bigTruck ?? 0],
+    ["Returned Big Truck", data.returnedBigTruck ?? 0],
+    ["Small Truck 1", data.smallTruck1 ?? 0],
+    ["Returned ST1", data.returnedSmallTruck1 ?? 0],
+    ["Small Truck 2", data.smallTruck2 ?? 0],
+    ["Returned ST2", data.returnedSmallTruck2 ?? 0],
+    ["Depot", data.depot ?? 0],
+    ["Tricycle", data.tricycle ?? 0],
+    ["Shortage", data.shortage ?? 0],
+    ["Wastage", data.wastage ?? 0],
   ];
 
   // Add custom columns
@@ -237,21 +240,82 @@ export function dailyStockRecordedEmail({ recordedBy, date, data, customColumns 
   }
 
   rows.push(["───", "───"]);
-  rows.push(["Total Sold", data.totalSold]);
-  rows.push(["Total Returned", data.totalReturned]);
-  rows.push(["End Stock", data.endStock]);
+  rows.push(["Total Sold", data.totalSold ?? 0]);
+  rows.push(["Total Returned", data.totalReturned ?? 0]);
+  rows.push(["End Stock", data.endStock ?? 0]);
 
   const rowsHtml = rows.map(([label, value]) =>
     `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${fmt(value)}</span></div>`
   ).join("\n");
 
+  const displayTitle = title || "Daily stock recorded";
+
   return baseHtml("📋", "#0EA5E9", `
-    <h2>Daily stock recorded</h2>
+    <h2>${displayTitle}</h2>
     <p><strong>${recordedBy}</strong> recorded the daily stock tracker for <strong>${date}</strong>.</p>
     <div class="stat-grid">
       ${rowsHtml}
     </div>
     <p style="font-size:13px;color:#9CA3AF;">This is the original record. It cannot be altered after being emailed.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/daily-stock" class="btn">View Daily Stock</a>
+    </div>
+  `);
+}
+
+export function dailyStockDeletedEmail({ deletedBy, date, data, customColumns }: { deletedBy: string; date: string; data: Record<string, number | string>; customColumns?: { key: string; label: string }[] }): string {
+  const fmt = (v: number | string | undefined | null) => {
+    if (v == null || v === "") return "0";
+    return typeof v === "number" ? v.toLocaleString() : v;
+  };
+  const knownKeys = new Set(["date", "startStock", "bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage", "totalSold", "totalReturned", "endStock", "_id", "createdAt", "updatedAt"]);
+  const rows: [string, number | string][] = [
+    ["Date", data.date ?? date],
+    ["Start Stock", data.startStock ?? 0],
+    ["Produced", data.bagsProduced ?? 0],
+    ["Factory Sale", data.factorySale ?? 0],
+    ["Big Truck", data.bigTruck ?? 0],
+    ["Returned Big Truck", data.returnedBigTruck ?? 0],
+    ["Small Truck 1", data.smallTruck1 ?? 0],
+    ["Returned ST1", data.returnedSmallTruck1 ?? 0],
+    ["Small Truck 2", data.smallTruck2 ?? 0],
+    ["Returned ST2", data.returnedSmallTruck2 ?? 0],
+    ["Depot", data.depot ?? 0],
+    ["Tricycle", data.tricycle ?? 0],
+    ["Shortage", data.shortage ?? 0],
+    ["Wastage", data.wastage ?? 0],
+  ];
+
+  if (customColumns && customColumns.length > 0) {
+    for (const col of customColumns) {
+      rows.push([col.label, data[col.key] ?? 0]);
+    }
+  } else {
+    for (const [k, v] of Object.entries(data)) {
+      if (!knownKeys.has(k) && typeof v === "number") {
+        rows.push([k, v]);
+      }
+    }
+  }
+
+  rows.push(["───", "───"]);
+  rows.push(["Total Sold", data.totalSold ?? 0]);
+  rows.push(["Total Returned", data.totalReturned ?? 0]);
+  rows.push(["End Stock", data.endStock ?? 0]);
+
+  const rowsHtml = rows.map(([label, value]) =>
+    `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${fmt(value)}</span></div>`
+  ).join("\n");
+
+  return baseHtml("🗑️", "#EF4444", `
+    <h2>Daily stock record DELETED</h2>
+    <div class="alert-box">
+      <p><strong>${deletedBy}</strong> deleted the daily stock record for <strong>${date}</strong>.</p>
+    </div>
+    <div class="stat-grid">
+      ${rowsHtml}
+    </div>
+    <p style="font-size:13px;color:#9CA3AF;">The deleted record is shown above for your audit trail.</p>
     <div class="btn-wrap">
       <a href="${APP_URL()}/daily-stock" class="btn">View Daily Stock</a>
     </div>

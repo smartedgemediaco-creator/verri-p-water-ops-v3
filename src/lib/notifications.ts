@@ -12,8 +12,21 @@ async function getAdminEmails(): Promise<string[]> {
   return users.map(u => u.email).filter(Boolean);
 }
 
+function getNotifyEmail(): string | null {
+  return process.env.DAILY_STOCK_NOTIFY_EMAIL || null;
+}
+
+async function getAllRecipientEmails(): Promise<string[]> {
+  const adminEmails = await getAdminEmails();
+  const notifyEmail = getNotifyEmail();
+  if (notifyEmail && !adminEmails.includes(notifyEmail)) {
+    adminEmails.push(notifyEmail);
+  }
+  return adminEmails;
+}
+
 export async function notifyLowStock(material: string, current: number, min: number) {
-  const emails = await getAdminEmails();
+  const emails = await getAllRecipientEmails();
   if (!emails.length) return;
   await Promise.allSettled(
     emails.map(email =>
@@ -27,7 +40,7 @@ export async function notifyLowStock(material: string, current: number, min: num
 }
 
 export async function notifyTransferStatus(product: string, qty: number, from: string, to: string, status: string) {
-  const emails = await getAdminEmails();
+  const emails = await getAllRecipientEmails();
   if (!emails.length) return;
   await Promise.allSettled(
     emails.map(email =>
@@ -42,7 +55,7 @@ export async function notifyTransferStatus(product: string, qty: number, from: s
 
 export async function notifyProductionBatch(product: string, qty: number, factory: string) {
   if (qty < 1000) return; // only alert for large batches
-  const emails = await getAdminEmails();
+  const emails = await getAllRecipientEmails();
   if (!emails.length) return;
   await Promise.allSettled(
     emails.map(email =>
@@ -56,7 +69,7 @@ export async function notifyProductionBatch(product: string, qty: number, factor
 }
 
 export async function notifyWastage(product: string, qty: number, location: string, source: string) {
-  const emails = await getAdminEmails();
+  const emails = await getAllRecipientEmails();
   if (!emails.length) return;
   await Promise.allSettled(
     emails.map(email =>
