@@ -280,15 +280,15 @@ export default function PayrollPage() {
             <DollarLineIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Payables</p>
-          <AutoAmount value={`₦${((summary?.totalNetPay ?? 0) - (summary?.totalDeductions ?? 0) + (summary?.totalBonus ?? 0)).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">Net + Deductions + Bonuses</p>
+          <AutoAmount value={`₦${((summary?.totalBaseSalary ?? 0) + (summary?.totalBonus ?? 0) - (summary?.totalPaid ?? 0) - (summary?.totalDeductions ?? 0)).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
+          <p className="text-xs text-gray-400 mt-0.5">After deductions & payments</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Net Pay</p>
-          <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(summary?.totalBaseSalary ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
