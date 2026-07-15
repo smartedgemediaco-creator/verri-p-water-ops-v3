@@ -202,9 +202,10 @@ export function periodicReportEmail({ name, reportHtml }: { name: string; report
   `);
 }
 
-export function dailyStockRecordedEmail({ recordedBy, date, data }: { recordedBy: string; date: string; data: Record<string, number | string> }): string {
+export function dailyStockRecordedEmail({ recordedBy, date, data, customColumns }: { recordedBy: string; date: string; data: Record<string, number | string>; customColumns?: { key: string; label: string }[] }): string {
   const fmt = (v: number | string) => typeof v === "number" ? v.toLocaleString() : v;
-  const rows = [
+  const knownKeys = new Set(["date", "startStock", "bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage", "totalSold", "totalReturned", "endStock", "_id", "createdAt", "updatedAt"]);
+  const rows: [string, number | string][] = [
     ["Date", data.date],
     ["Start Stock", data.startStock],
     ["Produced", data.bagsProduced],
@@ -219,11 +220,26 @@ export function dailyStockRecordedEmail({ recordedBy, date, data }: { recordedBy
     ["Tricycle", data.tricycle],
     ["Shortage", data.shortage],
     ["Wastage", data.wastage],
-    ["───", "───"],
-    ["Total Sold", data.totalSold],
-    ["Total Returned", data.totalReturned],
-    ["End Stock", data.endStock],
   ];
+
+  // Add custom columns
+  if (customColumns && customColumns.length > 0) {
+    for (const col of customColumns) {
+      rows.push([col.label, data[col.key] ?? 0]);
+    }
+  } else {
+    // Fallback: render any unknown numeric fields
+    for (const [k, v] of Object.entries(data)) {
+      if (!knownKeys.has(k) && typeof v === "number") {
+        rows.push([k, v]);
+      }
+    }
+  }
+
+  rows.push(["───", "───"]);
+  rows.push(["Total Sold", data.totalSold]);
+  rows.push(["Total Returned", data.totalReturned]);
+  rows.push(["End Stock", data.endStock]);
 
   const rowsHtml = rows.map(([label, value]) =>
     `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${fmt(value)}</span></div>`

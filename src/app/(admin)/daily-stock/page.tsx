@@ -38,17 +38,8 @@ interface ColumnDef {
   order: number;
 }
 
-const BUILTIN_EDITABLE = ["bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage"] as const;
 const BUILTIN_SALE = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
 const BUILTIN_RETURN = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
-
-const BUILTIN_HEADERS: Record<string, string> = {
-  date: "Date", startStock: "Start Stock", bagsProduced: "Produced",
-  factorySale: "Factory Sale", bigTruck: "Big Truck", returnedBigTruck: "Ret. Big Truck",
-  smallTruck1: "Small Truck 1", returnedSmallTruck1: "Ret. ST1",
-  smallTruck2: "Small Truck 2", returnedSmallTruck2: "Ret. ST2",
-  depot: "Depot", tricycle: "Tricycle", shortage: "Shortage", wastage: "Wastage",
-};
 
 const PAGE_SIZE = 10;
 
@@ -99,10 +90,6 @@ export default function DailyStockPage() {
 
   const allSaleKeys = [...BUILTIN_SALE, ...saleKeys];
   const allReturnKeys = [...BUILTIN_RETURN, ...returnKeys];
-
-  // Ordered editable fields: built-in first, then custom columns
-  const customEditable = columns.map((c) => c.key);
-  const allEditable = [...BUILTIN_EDITABLE, ...customEditable];
 
   // Summary stats
   const totalDays = records.length;

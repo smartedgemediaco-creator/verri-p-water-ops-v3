@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { DailyStock } from "@/lib/models";
+import { DailyStock, DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { dailyStockRecordedEmail } from "@/lib/emailTemplates";
 
-function calcTotals(day: Record<string, number>) {
-  const totalSold = (day.factorySale ?? 0) + (day.bigTruck ?? 0) + (day.smallTruck1 ?? 0) + (day.smallTruck2 ?? 0) + (day.depot ?? 0) + (day.tricycle ?? 0);
-  const totalReturned = (day.returnedBigTruck ?? 0) + (day.returnedSmallTruck1 ?? 0) + (day.returnedSmallTruck2 ?? 0);
-  const endStock = (day.startStock ?? 0) + (day.bagsProduced ?? 0) + totalReturned - totalSold - (day.shortage ?? 0) - (day.wastage ?? 0);
+const BUILTIN_SALE = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
+const BUILTIN_RETURN = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
+
+async function calcTotals(day: Record<string, unknown>) {
+  const columns = await DailyStockColumn.find({}).lean();
+  const saleKeys = [...BUILTIN_SALE, ...columns.filter((c) => c.type === "sale").map((c) => c.key)];
+  const returnKeys = [...BUILTIN_RETURN, ...columns.filter((c) => c.type === "return").map((c) => c.key)];
+  const totalSold = saleKeys.reduce((sum, k) => sum + (Number(day[k]) || 0), 0);
+  const totalReturned = returnKeys.reduce((sum, k) => sum + (Number(day[k]) || 0), 0);
+  const endStock = (Number(day.startStock) || 0) + (Number(day.bagsProduced) || 0) + totalReturned - totalSold - (Number(day.shortage) || 0) - (Number(day.wastage) || 0);
   return { totalSold, totalReturned, endStock };
 }
 
@@ -37,10 +43,11 @@ export async function POST(req: NextRequest) {
   // Send notification email (fire-and-forget)
   const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
   if (notifyEmail) {
+    const customColumns = await DailyStockColumn.find({}).lean().then((cols) => cols.map((c) => ({ key: c.key, label: c.label })));
     sendEmail({
       to: notifyEmail,
       subject: `Daily Stock Recorded — ${body.date}`,
-      html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, ...totals } }),
+      html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, ...totals }, customColumns }),
     }).catch(() => {});
   }
 
