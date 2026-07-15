@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { DailyStock } from "@/lib/models";
+import { DailyStock, DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 
-function calcTotals(day: Record<string, number>) {
-  const totalSold = (day.factorySale ?? 0) + (day.bigTruck ?? 0) + (day.smallTruck1 ?? 0) + (day.smallTruck2 ?? 0) + (day.depot ?? 0) + (day.tricycle ?? 0);
-  const totalReturned = (day.returnedBigTruck ?? 0) + (day.returnedSmallTruck1 ?? 0) + (day.returnedSmallTruck2 ?? 0);
-  const endStock = (day.startStock ?? 0) + (day.bagsProduced ?? 0) + totalReturned - totalSold - (day.shortage ?? 0) - (day.wastage ?? 0);
+const BUILTIN_SALE_FIELDS = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
+const BUILTIN_RETURN_FIELDS = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
+
+async function calcTotals(record: Record<string, unknown>) {
+  const columns = await DailyStockColumn.find({}).lean();
+  const saleKeys = columns.filter((c) => c.type === "sale").map((c) => c.key);
+  const returnKeys = columns.filter((c) => c.type === "return").map((c) => c.key);
+
+  const totalSold = [...BUILTIN_SALE_FIELDS, ...saleKeys].reduce((sum, k) => sum + (Number(record[k]) || 0), 0);
+  const totalReturned = [...BUILTIN_RETURN_FIELDS, ...returnKeys].reduce((sum, k) => sum + (Number(record[k]) || 0), 0);
+  const endStock = (Number(record.startStock) || 0) + (Number(record.bagsProduced) || 0) + totalReturned - totalSold - (Number(record.shortage) || 0) - (Number(record.wastage) || 0);
   return { totalSold, totalReturned, endStock };
 }
 
@@ -27,7 +34,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  const totals = calcTotals(record.toObject());
+  // Also accept custom column values
+  const customKeys = Object.keys(body).filter((k) => !editable.includes(k) && k !== "date");
+  for (const key of customKeys) {
+    (record as unknown as Record<string, number>)[key] = Number(body[key]) || 0;
+  }
+
+  const totals = await calcTotals(record.toObject());
   record.totalSold = totals.totalSold;
   record.totalReturned = totals.totalReturned;
   record.endStock = totals.endStock;

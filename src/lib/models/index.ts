@@ -92,3 +92,5 @@ export { PayrollRecord } from "./PayrollRecord";
 export type { IPayrollRecord } from "./PayrollRecord";
 export { DailyStock } from "./DailyStock";
 export type { IDailyStock } from "./DailyStock";
+export { DailyStockColumn } from "./DailyStockColumn";
+export type { IDailyStockColumn } from "./DailyStockColumn";
