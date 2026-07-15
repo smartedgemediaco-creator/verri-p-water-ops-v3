@@ -6,6 +6,7 @@ export interface IWastage extends Document {
   productId: mongoose.Types.ObjectId;
   quantity: number;
   source: "production" | "transfer" | "sale" | "storage" | "other";
+  deductFromStock: boolean;
   description: string;
   date: Date;
   createdAt: Date;
@@ -19,6 +20,7 @@ const WastageSchema = new Schema<IWastage>(
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     quantity: { type: Number, required: true },
     source: { type: String, enum: ["production", "transfer", "sale", "storage", "other"], required: true },
+    deductFromStock: { type: Boolean, default: false },
     description: { type: String, default: "" },
     date: { type: Date, default: Date.now },
   },

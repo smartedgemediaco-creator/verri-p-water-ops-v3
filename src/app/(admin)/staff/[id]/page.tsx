@@ -386,10 +386,10 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Salary History</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{payrollRecords.length} payroll record(s)</p>
+            <p className="text-xs text-gray-400 mt-0.5">{payrollRecords.length} salary record(s)</p>
           </div>
           <Link href="/payroll">
-            <Button size="sm" variant="outline">View All Payroll</Button>
+            <Button size="sm" variant="outline">View All Salary</Button>
           </Link>
         </div>
         {payrollRecords.length > 0 ? (
@@ -430,7 +430,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
           </Table>
         ) : (
           <div className="p-6 text-center text-sm text-gray-400">
-            No payroll records yet.{" "}
+            No salary records yet.{" "}
             <Link href="/payroll" className="text-blue-500 hover:underline">Create one</Link>
           </div>
         )}

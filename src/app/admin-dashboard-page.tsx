@@ -205,7 +205,7 @@ export default function AdminDashboardPage() {
     ...(isDepotManager || isFactoryManager || isOwner
       ? [{ label: "Record Cost", href: "/costs/new", icon: <PencilIcon className="w-4 h-4" />, color: "bg-red-500 hover:bg-red-600" }]
       : []),
-    { label: "Record Spoilage", href: "/wastage", icon: <AlertIcon className="w-4 h-4" />, color: "bg-amber-500 hover:bg-amber-600" },
+    { label: "Record Leakage", href: "/wastage", icon: <AlertIcon className="w-4 h-4" />, color: "bg-amber-500 hover:bg-amber-600" },
     { label: "View Customers", href: "/customers", icon: <UserIcon className="w-4 h-4" />, color: "bg-indigo-500 hover:bg-indigo-600" },
   ];
 

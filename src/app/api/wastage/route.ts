@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Wastage, Factory, Depot, Truck, Product } from "@/lib/models";
+import { Wastage, Factory, Depot, Truck, Product, Stock } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyWastage } from "@/lib/notifications";
@@ -43,7 +43,16 @@ export async function POST(req: NextRequest) {
     body.locationId = user.truckId;
   }
 
-  const wastage = await Wastage.create(body);
+  const deductFromStock = body.deductFromStock === true || body.deductFromStock === "true";
+  const wastage = await Wastage.create({ ...body, deductFromStock });
+
+  if (deductFromStock) {
+    await Stock.findOneAndUpdate(
+      { locationType: body.locationType, locationId: body.locationId, productId: body.productId },
+      { $inc: { quantity: -Math.abs(Number(body.quantity)) } },
+      { upsert: true }
+    );
+  }
 
   await logActivity({
     action: "created",

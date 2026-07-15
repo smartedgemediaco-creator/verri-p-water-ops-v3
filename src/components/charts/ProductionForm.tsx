@@ -91,12 +91,12 @@ export default function ProductionForm() {
             source: "production",
             locationType: "factory",
             locationId: effectiveFactoryId,
-            description: `Spoilage during production batch of ${quantity} units`,
+            description: `Leakage during production batch of ${quantity} units`,
           }),
         });
       }
 
-      setSuccess(`Recorded production of ${quantity} units${Number(spoilage) > 0 ? ` (${spoilage} spoiled)` : ""}`);
+      setSuccess(`Recorded production of ${quantity} units${Number(spoilage) > 0 ? ` (${spoilage} leaked)` : ""}`);
       setProductId("");
       setQuantity("");
       setSpoilage("");
@@ -173,7 +173,7 @@ export default function ProductionForm() {
             You are about to record production that will <strong>permanently add stock</strong>:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Quantity:</strong> {quantity} units</li>
-              <li><strong>Spoilage:</strong> {spoilage || "0"} units</li>
+              <li><strong>Leakage:</strong> {spoilage || "0"} units</li>
             </ul>
             <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action affects stock levels. Password required to confirm.</p>
           </>

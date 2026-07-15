@@ -11,7 +11,6 @@ import AutoAmount from "@/components/ui/AutoAmount";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { showSuccess, showError } from "@/lib/toast";
 import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
-import { formatDate } from "@/lib/dateFormat";
 import { useAuth } from "@/context/AuthContext";
 
 interface PayrollRecord {
@@ -65,6 +64,61 @@ const MONTHS = [
   { value: "2026-12", label: "December 2026" },
 ];
 
+function AdjustField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [adjust, setAdjust] = useState("");
+  const current = Number(value) || 0;
+
+  const doAdd = () => {
+    const amt = Number(adjust);
+    if (!amt || amt <= 0) return;
+    onChange(String(current + amt));
+    setAdjust("");
+  };
+  const doRemove = () => {
+    const amt = Number(adjust);
+    if (!amt || amt <= 0) return;
+    onChange(String(Math.max(0, current - amt)));
+    setAdjust("");
+  };
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700/50">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
+        <span className={`text-sm font-bold ${current > 0 ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}>
+          ₦{current.toLocaleString()}
+        </span>
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          type="number"
+          placeholder="Amount"
+          value={adjust}
+          onChange={(e) => setAdjust(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } }}
+          className="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+        />
+        <button
+          type="button"
+          onClick={doAdd}
+          disabled={!adjust || Number(adjust) <= 0}
+          className="px-2.5 py-1.5 text-xs font-medium text-white bg-emerald-500 rounded-md hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+        >
+          + Add
+        </button>
+        <button
+          type="button"
+          onClick={doRemove}
+          disabled={!adjust || Number(adjust) <= 0}
+          className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+        >
+          − Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PayrollPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -79,7 +133,6 @@ export default function PayrollPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number }[]>([]);
 
-  // Create/Edit modal
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null);
   const [formStaffId, setFormStaffId] = useState("");
@@ -96,10 +149,8 @@ export default function PayrollPage() {
   const [formNotes, setFormNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Delete
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // Pay modal
   const [payTarget, setPayTarget] = useState<PayrollRecord | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
@@ -109,18 +160,14 @@ export default function PayrollPage() {
     const params = new URLSearchParams();
     if (selectedMonth) params.set("month", selectedMonth);
     if (filterStatus) params.set("status", filterStatus);
-
     fetch(`/api/payroll?${params}`)
       .then((r) => r.json())
-      .then((data) => {
-        setRecords(data.records ?? []);
-        setSummary(data.summary ?? null);
-      })
+      .then((data) => { setRecords(data.records ?? []); setSummary(data.summary ?? null); })
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   }, [selectedMonth, filterStatus]);
 
-  useEffect(() => { fetchRecords(); /* eslint-disable-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */ }, [fetchRecords]);
+  useEffect(() => {     fetchRecords(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [fetchRecords]);
 
   useEffect(() => {
     fetch("/api/staff")
@@ -136,15 +183,8 @@ export default function PayrollPage() {
     setFormStaffId("");
     setFormMonth(selectedMonth);
     setFormBaseSalary("");
-    setFormAbsence("0");
-    setFormLateness("0");
-    setFormDebt("0");
-    setFormPunishment("0");
-    setFormOther("0");
-    setFormBonus("0");
-    setFormStatus("pending");
-    setFormPaidAmount("0");
-    setFormNotes("");
+    setFormAbsence("0"); setFormLateness("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
+    setFormBonus("0"); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
     setShowForm(true);
   };
 
@@ -172,6 +212,8 @@ export default function PayrollPage() {
     return base + bonus - deductions;
   };
 
+  const totalDeductionsForm = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
+
   const handleStaffSelect = (staffId: string) => {
     setFormStaffId(staffId);
     const found = staffList.find((s) => s._id === staffId);
@@ -182,57 +224,28 @@ export default function PayrollPage() {
     setSubmitting(true);
     try {
       const body = {
-        staffId: formStaffId,
-        month: formMonth,
-        baseSalary: Number(formBaseSalary),
+        staffId: formStaffId, month: formMonth, baseSalary: Number(formBaseSalary),
         deductions: {
-          absence: Number(formAbsence) || 0,
-          lateness: Number(formLateness) || 0,
-          debt: Number(formDebt) || 0,
-          punishment: Number(formPunishment) || 0,
-          other: Number(formOther) || 0,
+          absence: Number(formAbsence) || 0, lateness: Number(formLateness) || 0,
+          debt: Number(formDebt) || 0, punishment: Number(formPunishment) || 0, other: Number(formOther) || 0,
         },
-        bonus: Number(formBonus) || 0,
-        status: formStatus,
-        paidAmount: Number(formPaidAmount) || 0,
-        notes: formNotes,
+        bonus: Number(formBonus) || 0, status: formStatus, paidAmount: Number(formPaidAmount) || 0, notes: formNotes,
       };
-
       const url = editingRecord ? `/api/payroll/${editingRecord._id}` : "/api/payroll";
-      const method = editingRecord ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed" }));
-        showError(err.error || "Failed to save payroll record");
-        return;
-      }
-
-      showSuccess(editingRecord ? "Payroll updated" : "Payroll created");
+      const res = await fetch(url, { method: editingRecord ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to save"); return; }
+      showSuccess(editingRecord ? "Salary record updated" : "Salary record created");
       setShowForm(false);
       fetchRecords();
-    } catch {
-      showError("Network error");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
   const doDelete = async () => {
     if (!deleteTarget) return;
     const res = await fetch(`/api/payroll/${deleteTarget}`, { method: "DELETE" });
-    if (!res.ok) {
-      showError("Failed to delete");
-      return;
-    }
-    showSuccess("Payroll record deleted");
-    setDeleteTarget(null);
-    fetchRecords();
+    if (!res.ok) { showError("Failed to delete"); return; }
+    showSuccess("Salary record deleted");
+    setDeleteTarget(null); fetchRecords();
   };
 
   const doPay = async () => {
@@ -242,23 +255,12 @@ export default function PayrollPage() {
       const newPaidAmount = payTarget.paidAmount + Number(payAmount);
       const newStatus = newPaidAmount >= payTarget.netPay ? "paid" : "partial";
       const res = await fetch(`/api/payroll/${payTarget._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paidAmount: newPaidAmount, status: newStatus, paidDate: new Date().toISOString() }),
       });
-      if (!res.ok) {
-        showError("Failed to record payment");
-        return;
-      }
-      showSuccess("Payment recorded");
-      setPayTarget(null);
-      setPayAmount("");
-      fetchRecords();
-    } catch {
-      showError("Network error");
-    } finally {
-      setPaying(false);
-    }
+      if (!res.ok) { showError("Failed to record payment"); return; }
+      showSuccess("Payment recorded"); setPayTarget(null); setPayAmount(""); fetchRecords();
+    } catch { showError("Network error"); } finally { setPaying(false); }
   };
 
   const totalDeductions = records.reduce((sum, r) => sum + (r.deductions?.absence ?? 0) + (r.deductions?.lateness ?? 0) + (r.deductions?.debt ?? 0) + (r.deductions?.punishment ?? 0) + (r.deductions?.other ?? 0), 0);
@@ -266,13 +268,12 @@ export default function PayrollPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Payroll" />
+        <PageBreadcrumb pageTitle="Salary" />
         <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
-          New Payroll Record
+          New Salary Record
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
@@ -307,39 +308,23 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Select options={MONTHS} value={selectedMonth} onChange={setSelectedMonth} placeholder="Select Month" />
           <Select
-            options={MONTHS}
-            value={selectedMonth}
-            onChange={setSelectedMonth}
-            placeholder="Select Month"
-          />
-          <Select
-            options={[
-              { value: "", label: "All Statuses" },
-              { value: "pending", label: "Pending" },
-              { value: "paid", label: "Paid" },
-              { value: "partial", label: "Partial" },
-            ]}
-            value={filterStatus}
-            onChange={setFilterStatus}
-            placeholder="Filter by status"
+            options={[{ value: "", label: "All Statuses" }, { value: "pending", label: "Pending" }, { value: "paid", label: "Paid" }, { value: "partial", label: "Partial" }]}
+            value={filterStatus} onChange={setFilterStatus} placeholder="Filter by status"
           />
           <div className="flex items-end">
-            <Button variant="outline" size="sm" onClick={() => { setFilterStatus(""); setSelectedMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`); }}>
-              Reset
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => { setFilterStatus(""); setSelectedMonth(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`); }}>Reset</Button>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-            Payroll Records — {MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth}
+            Salary Records — {MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth}
           </h3>
           <p className="text-xs text-gray-400 mt-1">
             {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay
@@ -365,7 +350,7 @@ export default function PayrollPage() {
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No payroll records for this month. Click &quot;New Payroll Record&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               records.map((record) => {
@@ -410,24 +395,18 @@ export default function PayrollPage() {
                     <TableCell className="py-3">
                       <div className="flex gap-1.5 items-center flex-wrap">
                         {record.status !== "paid" && (
-                          <button
-                            onClick={() => { setPayTarget(record); setPayAmount(String(record.netPay - record.paidAmount)); }}
-                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 transition-colors"
-                          >
+                          <button onClick={() => { setPayTarget(record); setPayAmount(String(record.netPay - record.paidAmount)); }}
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 transition-colors">
                             Pay
                           </button>
                         )}
-                        <button
-                          onClick={() => openEdit(record)}
-                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors"
-                        >
+                        <button onClick={() => openEdit(record)}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
                           Edit
                         </button>
                         {isAdmin && (
-                          <button
-                            onClick={() => setDeleteTarget(record._id)}
-                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
-                          >
+                          <button onClick={() => setDeleteTarget(record._id)}
+                            className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
                             Delete
                           </button>
                         )}
@@ -446,18 +425,12 @@ export default function PayrollPage() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{editingRecord ? "Edit Payroll" : "New Payroll Record"}</h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{editingRecord ? "Edit Salary Record" : "New Salary Record"}</h3>
             </div>
             <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
-                <Select
-                  options={staffList.map((s) => ({ value: s._id, label: s.name }))}
-                  placeholder="Select staff"
-                  value={formStaffId}
-                  onChange={handleStaffSelect}
-                  className={editingRecord ? "opacity-50" : ""}
-                />
+                <Select options={staffList.map((s) => ({ value: s._id, label: s.name }))} placeholder="Select staff" value={formStaffId} onChange={handleStaffSelect} className={editingRecord ? "opacity-50" : ""} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month</label>
@@ -470,53 +443,37 @@ export default function PayrollPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deductions</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Absence (₦)</label>
-                    <InputField type="number" id="absence" value={formAbsence} onChange={(e) => setFormAbsence(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Lateness (₦)</label>
-                    <InputField type="number" id="lateness" value={formLateness} onChange={(e) => setFormLateness(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Debt (₦)</label>
-                    <InputField type="number" id="debt" value={formDebt} onChange={(e) => setFormDebt(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Punishment (₦)</label>
-                    <InputField type="number" id="punishment" value={formPunishment} onChange={(e) => setFormPunishment(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Other (₦)</label>
-                    <InputField type="number" id="other" value={formOther} onChange={(e) => setFormOther(e.target.value)} />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <AdjustField label="Absence" value={formAbsence} onChange={setFormAbsence} />
+                  <AdjustField label="Lateness" value={formLateness} onChange={setFormLateness} />
+                  <AdjustField label="Debt" value={formDebt} onChange={setFormDebt} />
+                  <AdjustField label="Punishment" value={formPunishment} onChange={setFormPunishment} />
+                  <AdjustField label="Other" value={formOther} onChange={setFormOther} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bonus (₦)</label>
-                <InputField type="number" id="bonus" value={formBonus} onChange={(e) => setFormBonus(e.target.value)} />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bonus</label>
+                <AdjustField label="Bonus" value={formBonus} onChange={setFormBonus} />
               </div>
 
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Net Pay: </span>
-                <span className="text-lg font-bold text-gray-800 dark:text-white">₦{computeNetPay().toLocaleString()}</span>
+              <div className="p-3 rounded-lg bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-brand-700 dark:text-brand-300">Net Pay</span>
+                  <span className="text-xl font-bold text-brand-700 dark:text-brand-300">₦{computeNetPay().toLocaleString()}</span>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-brand-500 dark:text-brand-400">
+                  <span>Salary: ₦{(Number(formBaseSalary) || 0).toLocaleString()}</span>
+                  <span>+ Bonus: ₦{(Number(formBonus) || 0).toLocaleString()}</span>
+                  <span>− Deductions: ₦{totalDeductionsForm.toLocaleString()}</span>
+                </div>
               </div>
 
               {editingRecord && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                    <Select
-                      options={[
-                        { value: "pending", label: "Pending" },
-                        { value: "partial", label: "Partial" },
-                        { value: "paid", label: "Paid" },
-                      ]}
-                      value={formStatus}
-                      onChange={setFormStatus}
-                    />
+                    <Select options={[{ value: "pending", label: "Pending" }, { value: "partial", label: "Partial" }, { value: "paid", label: "Paid" }]} value={formStatus} onChange={setFormStatus} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paid Amount (₦)</label>
@@ -527,13 +484,8 @@ export default function PayrollPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-                <textarea
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Optional notes"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  rows={2}
-                />
+                <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Optional notes"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" rows={2} />
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
@@ -587,8 +539,8 @@ export default function PayrollPage() {
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
-        title="Delete Payroll Record"
-        message="This will permanently delete this payroll record. This action cannot be undone."
+        title="Delete Salary Record"
+        message="This will permanently delete this salary record. This action cannot be undone."
         confirmLabel="Delete"
         variant="danger"
       />

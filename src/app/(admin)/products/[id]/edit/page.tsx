@@ -82,13 +82,13 @@ export default function EditProductPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦) <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ordinary Price (₦) <span className="text-red-500">*</span></label>
           <InputField type="number" id="unitPrice" name="unitPrice" value={form.unitPrice} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chilled Price (₦) <span className="text-gray-400 font-normal">(Optional)</span></label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cold Price (₦) <span className="text-gray-400 font-normal">(Optional)</span></label>
           <InputField type="number" id="chilledPrice" name="chilledPrice" value={form.chilledPrice} onChange={handleChange} />
-          {form.chilledPrice && <p className="text-xs text-gray-400 mt-1">Price when sold chilled/cold</p>}
+          {form.chilledPrice && <p className="text-xs text-gray-400 mt-1">Price when sold cold/chilled</p>}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
@@ -115,7 +115,7 @@ export default function EditProductPage() {
               <li><strong>Name:</strong> {form.name}</li>
               <li><strong>Category:</strong> {form.category}</li>
               <li><strong>Unit Price:</strong> ₦{Number(form.unitPrice).toLocaleString()}</li>
-              {form.chilledPrice && <li><strong>Chilled Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
+              {form.chilledPrice && <li><strong>Cold Price:</strong> ₦{Number(form.chilledPrice).toLocaleString()}</li>}
             </ul>
             <p className="mt-2">Changes will be applied immediately. Are you sure?</p>
           </>

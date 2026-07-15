@@ -72,6 +72,7 @@ export default function WastagePage() {
   const [spoilageSource, setSpoilageSource] = useState("");
   const [spoilageDesc, setSpoilageDesc] = useState("");
   const [spoilageDate, setSpoilageDate] = useState("");
+  const [spoilageDeductStock, setSpoilageDeductStock] = useState(false);
   const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
   const [spoilageSubmitting, setSpoilageSubmitting] = useState(false);
 
@@ -149,15 +150,16 @@ export default function WastagePage() {
         description: spoilageDesc || "",
       };
       if (spoilageDate) body.date = spoilageDate;
+      body.deductFromStock = spoilageDeductStock;
       const res = await fetch("/api/wastage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
-      showSuccess("Spoilage recorded");
+      showSuccess("Leakage recorded");
       setShowSpoilageForm(false);
-      setSpoilageProduct(""); setSpoilageQty(""); setSpoilageLocType(""); setSpoilageLocId(""); setSpoilageSource(""); setSpoilageDesc(""); setSpoilageDate("");
+      setSpoilageProduct(""); setSpoilageQty(""); setSpoilageLocType(""); setSpoilageLocId(""); setSpoilageSource(""); setSpoilageDesc(""); setSpoilageDate(""); setSpoilageDeductStock(false);
       fetchRecords();
     } catch (e: unknown) { showError(e instanceof Error ? e.message : "Network error"); }
     finally { setSpoilageSubmitting(false); }
@@ -176,9 +178,9 @@ export default function WastagePage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Wastage / Spoilage" />
+        <PageBreadcrumb pageTitle="Leakages" />
         <Button size="sm" startIcon={<PlusIcon />} onClick={() => setShowSpoilageForm(true)}>
-          Record Spoilage
+          Record Leakage
         </Button>
       </div>
 
@@ -354,7 +356,7 @@ export default function WastagePage() {
       {showSpoilageForm && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowSpoilageForm(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Record Spoilage</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Record Leakage</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
               <Select
@@ -401,6 +403,21 @@ export default function WastagePage() {
               />
             </div>
             <div>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <span className="relative inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={spoilageDeductStock}
+                    onChange={(e) => setSpoilageDeductStock(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
+                </span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Deduct from stock?</span>
+              </label>
+              <p className="text-xs text-gray-400 mt-1 ml-12">Turn ON to reduce stock at this location. OFF = record only (leakage sold, not destroyed).</p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
               <InputField placeholder="Optional description" value={spoilageDesc} onChange={(e) => setSpoilageDesc(e.target.value)} />
             </div>
@@ -411,7 +428,7 @@ export default function WastagePage() {
             <div className="flex gap-2 justify-end pt-1">
               <Button variant="outline" size="sm" onClick={() => setShowSpoilageForm(false)}>Cancel</Button>
               <Button size="sm" disabled={spoilageSubmitting} onClick={handleRecordSpoilage}>
-                {spoilageSubmitting ? "Saving..." : "Record Spoilage"}
+                {spoilageSubmitting ? "Saving..." : "Record Leakage"}
               </Button>
             </div>
           </div>
