@@ -71,7 +71,6 @@ export default function AdminDashboardPage() {
     inTransitCount: 0,
     totalWastage: 0,
   });
-  const [pendingDisputes, setPendingDisputes] = useState(0);
   const [customerCount, setCustomerCount] = useState(0);
   const [staffCount, setStaffCount] = useState(0);
   const [supplierCount, setSupplierCount] = useState(0);
@@ -91,7 +90,6 @@ export default function AdminDashboardPage() {
         fetch("/api/analysis").then(ok),
         fetch("/api/stock/stats").then(ok),
         fetch("/api/products").then(ok),
-        fetch("/api/disputes?status=pending").then(ok),
         fetch("/api/customers").then(ok),
         fetch("/api/staff").then(ok),
         fetch("/api/suppliers").then(ok),
@@ -99,7 +97,7 @@ export default function AdminDashboardPage() {
         fetch("/api/activity?limit=5").then(ok),
         fetch("/api/scheduled-operations").then(ok),
       ])
-          .then(([analysis, inv, products, disputes, customers, staff, suppliers, rawMaterials, activity, scheduledData]) => {
+          .then(([analysis, inv, products, customers, staff, suppliers, rawMaterials, activity, scheduledData]) => {
           const a = analysis as { factories?: { sales?: number; costs?: number; activeTransfers?: number }[]; depots?: { sales?: number; costs?: number }[]; trucks?: { sales?: number; costs?: number; activeTransfers?: number }[] };
           const factories = Array.isArray(a?.factories) ? a.factories : [];
           const depots = Array.isArray(a?.depots) ? a.depots : [];
@@ -133,7 +131,6 @@ export default function AdminDashboardPage() {
             scheduledItems,
           });
           if (inv && typeof inv === "object" && "totalProduced" in inv) setInvStats(inv as typeof invStats);
-          setPendingDisputes(Array.isArray(disputes) ? disputes.length : 0);
           setCustomerCount(Array.isArray(customers) ? customers.length : 0);
           setStaffCount(Array.isArray(staff) ? staff.length : 0);
           setSupplierCount(Array.isArray(suppliers) ? suppliers.length : 0);
@@ -185,9 +182,6 @@ export default function AdminDashboardPage() {
       : []),
     ...(isOwner || isFactoryManager
       ? [{ label: "Raw Materials", value: lowStockCount > 0 ? `${lowStockCount} low` : supplierCount, icon: <BoxIcon />, href: "/raw-materials", circleBg: lowStockCount > 0 ? "bg-red-100 dark:bg-red-500/10" : "bg-gray-100 dark:bg-gray-500/10", iconColor: lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-400" }]
-      : []),
-    ...(isOwner
-      ? [{ label: "Disputes", value: pendingDisputes, icon: <AlertIcon />, href: "/disputes", circleBg: "bg-red-100 dark:bg-red-500/10", iconColor: "text-red-600 dark:text-red-400" }]
       : []),
     { label: "Active Transfers", value: stats.activeTransfers, icon: <TransferIcon className="w-5 h-5" />, href: "/transfers", circleBg: "bg-purple-100 dark:bg-purple-500/10", iconColor: "text-purple-600 dark:text-purple-400" },
   ];
