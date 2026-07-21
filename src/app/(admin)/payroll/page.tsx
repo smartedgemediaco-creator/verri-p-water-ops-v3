@@ -142,6 +142,7 @@ export default function PayrollPage() {
   const [formBaseSalary, setFormBaseSalary] = useState("");
   const [formAbsence, setFormAbsence] = useState("0");
   const [formLateness, setFormLateness] = useState("0");
+  const [formHalfDay, setFormHalfDay] = useState("0");
   const [formDebt, setFormDebt] = useState("0");
   const [formPunishment, setFormPunishment] = useState("0");
   const [formOther, setFormOther] = useState("0");
@@ -186,7 +187,7 @@ export default function PayrollPage() {
     setFormStaffId("");
     setFormMonth(selectedMonth);
     setFormBaseSalary("");
-    setFormAbsence("0"); setFormLateness("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
+    setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
     setFormBonus("0"); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
     setShowForm(true);
   };
@@ -198,6 +199,7 @@ export default function PayrollPage() {
     setFormBaseSalary(String(record.baseSalary));
     setFormAbsence(String(record.deductions?.absence ?? 0));
     setFormLateness(String(record.deductions?.lateness ?? 0));
+    setFormHalfDay(String(record.deductions?.halfDay ?? 0));
     setFormDebt(String(record.deductions?.debt ?? 0));
     setFormPunishment(String(record.deductions?.punishment ?? 0));
     setFormOther(String(record.deductions?.other ?? 0));
@@ -211,11 +213,11 @@ export default function PayrollPage() {
   const computeNetPay = () => {
     const base = Number(formBaseSalary) || 0;
     const bonus = Number(formBonus) || 0;
-    const deductions = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
+    const deductions = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
     return base + bonus - deductions;
   };
 
-  const totalDeductionsForm = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
+  const totalDeductionsForm = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
 
   const handleStaffSelect = (staffId: string) => {
     setFormStaffId(staffId);
@@ -238,6 +240,8 @@ export default function PayrollPage() {
       let totalAbsent = 0;
       let totalLateDays = 0;
       let totalLateAmount = 0;
+      let totalAbsenceAmount = 0;
+      let totalHalfDayAmount = 0;
       let workingDays = 0;
       for (const loc of locations) {
         const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
@@ -248,17 +252,21 @@ export default function PayrollPage() {
           totalAbsent += staffSummary.absent || 0;
           totalLateDays += staffSummary.late || 0;
           totalLateAmount += staffSummary.totalLateAmount || 0;
+          totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
+          totalHalfDayAmount += staffSummary.totalHalfDayAmount || 0;
           workingDays = data.workingDays || workingDays;
         }
       }
       if (workingDays === 0) { showError("No attendance data found for this month"); return; }
       const base = Number(formBaseSalary) || 0;
       const dailyRate = base / workingDays;
-      const absenceDeduction = Math.round(totalAbsent * dailyRate);
+      const absenceDeduction = totalAbsenceAmount > 0 ? totalAbsenceAmount : Math.round(totalAbsent * dailyRate);
       const latenessDeduction = totalLateAmount > 0 ? totalLateAmount : Math.round(totalLateDays * dailyRate * 0.5);
+      const halfDayDeduction = totalHalfDayAmount > 0 ? totalHalfDayAmount : Math.round(totalAbsent * dailyRate * 0.5);
       setFormAbsence(String(absenceDeduction));
       setFormLateness(String(latenessDeduction));
-      showSuccess(`Auto-filled: ${totalAbsent} absent days (₦${absenceDeduction.toLocaleString()}), ${totalLateDays} late days (₦${latenessDeduction.toLocaleString()})`);
+      setFormHalfDay(String(halfDayDeduction));
+      showSuccess(`Auto-filled: ${totalAbsent} absent (₦${absenceDeduction.toLocaleString()}), ${totalLateDays} late (₦${latenessDeduction.toLocaleString()}), half-day (₦${halfDayDeduction.toLocaleString()})`);
     } catch { showError("Failed to fetch attendance"); } finally { setAutoFilling(false); }
   };
 
@@ -269,7 +277,7 @@ export default function PayrollPage() {
         staffId: formStaffId, month: formMonth, baseSalary: Number(formBaseSalary),
         deductions: {
           absence: Number(formAbsence) || 0, lateness: Number(formLateness) || 0,
-          debt: Number(formDebt) || 0, punishment: Number(formPunishment) || 0, other: Number(formOther) || 0,
+          halfDay: Number(formHalfDay) || 0, debt: Number(formDebt) || 0, punishment: Number(formPunishment) || 0, other: Number(formOther) || 0,
         },
         bonus: Number(formBonus) || 0, status: formStatus, paidAmount: Number(formPaidAmount) || 0, notes: formNotes,
       };
@@ -305,7 +313,7 @@ export default function PayrollPage() {
     } catch { showError("Network error"); } finally { setPaying(false); }
   };
 
-  const totalDeductions = records.reduce((sum, r) => sum + (r.deductions?.absence ?? 0) + (r.deductions?.lateness ?? 0) + (r.deductions?.debt ?? 0) + (r.deductions?.punishment ?? 0) + (r.deductions?.other ?? 0), 0);
+  const totalDeductions = records.reduce((sum, r) => sum + (r.deductions?.absence ?? 0) + (r.deductions?.lateness ?? 0) + (r.deductions?.halfDay ?? 0) + (r.deductions?.debt ?? 0) + (r.deductions?.punishment ?? 0) + (r.deductions?.other ?? 0), 0);
 
   return (
     <div>
@@ -437,6 +445,7 @@ export default function PayrollPage() {
                           <div className="text-[10px] text-gray-400 mt-0.5">
                             {record.deductions?.absence ? `Absence: ₦${record.deductions.absence.toLocaleString()} ` : ""}
                             {record.deductions?.lateness ? `Late: ₦${record.deductions.lateness.toLocaleString()} ` : ""}
+                            {record.deductions?.halfDay ? `Half-Day: ₦${record.deductions.halfDay.toLocaleString()} ` : ""}
                             {record.deductions?.debt ? `Debt: ₦${record.deductions.debt.toLocaleString()} ` : ""}
                             {record.deductions?.punishment ? `Punish: ₦${record.deductions.punishment.toLocaleString()} ` : ""}
                             {record.deductions?.other ? `Other: ₦${record.deductions.other.toLocaleString()}` : ""}
@@ -514,6 +523,7 @@ export default function PayrollPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <AdjustField label="Absence" value={formAbsence} onChange={setFormAbsence} />
                   <AdjustField label="Lateness" value={formLateness} onChange={setFormLateness} />
+                  <AdjustField label="Half-Day" value={formHalfDay} onChange={setFormHalfDay} />
                   <AdjustField label="Debt" value={formDebt} onChange={setFormDebt} />
                   <AdjustField label="Punishment" value={formPunishment} onChange={setFormPunishment} />
                   <AdjustField label="Other" value={formOther} onChange={setFormOther} />

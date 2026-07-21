@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         totalBaseSalary: { $sum: "$baseSalary" },
         totalDeductions: {
           $sum: {
-            $add: ["$deductions.absence", "$deductions.lateness", "$deductions.debt", "$deductions.punishment", "$deductions.other"],
+            $add: ["$deductions.absence", "$deductions.lateness", "$deductions.halfDay", "$deductions.debt", "$deductions.punishment", "$deductions.other"],
           },
         },
         totalBonus: { $sum: "$bonus" },
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     // Compute net pay
     const d = body.deductions || {};
-    const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
+    const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.halfDay || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
     body.netPay = (body.baseSalary || 0) + (body.bonus || 0) - totalDeductions;
 
     body.createdBy = user.userId;

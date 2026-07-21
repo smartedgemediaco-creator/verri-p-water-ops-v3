@@ -41,7 +41,7 @@ export async function PATCH(
       const d = body.deductions ?? existing.deductions;
       const base = body.baseSalary ?? existing.baseSalary;
       const bonus = body.bonus ?? existing.bonus;
-      const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
+      const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.halfDay || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
       body.netPay = base + bonus - totalDeductions;
     }
 

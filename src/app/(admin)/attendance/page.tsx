@@ -22,6 +22,8 @@ interface StaffRow {
   attendanceId: string | null;
   status: "present" | "absent" | "late" | "half-day" | "leave";
   lateAmount: number;
+  absenceAmount: number;
+  halfDayAmount: number;
   notes: string;
 }
 
@@ -109,10 +111,18 @@ export default function AttendancePage() {
     setStaff((prev) => prev.map((s) => s.staffId === staffId ? { ...s, lateAmount } : s));
   };
 
+  const handleAbsenceAmountChange = (staffId: string, absenceAmount: number) => {
+    setStaff((prev) => prev.map((s) => s.staffId === staffId ? { ...s, absenceAmount } : s));
+  };
+
+  const handleHalfDayAmountChange = (staffId: string, halfDayAmount: number) => {
+    setStaff((prev) => prev.map((s) => s.staffId === staffId ? { ...s, halfDayAmount } : s));
+  };
+
   const saveAttendance = async () => {
     setSaving(true);
     try {
-      const records = staff.map((s) => ({ staffId: s.staffId, status: s.status, notes: s.notes, lateAmount: s.lateAmount }));
+      const records = staff.map((s) => ({ staffId: s.staffId, status: s.status, notes: s.notes, lateAmount: s.lateAmount, absenceAmount: s.absenceAmount, halfDayAmount: s.halfDayAmount }));
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,7 +247,7 @@ export default function AttendancePage() {
                   )}
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Role</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Status</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Late ₦</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Fine ₦</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Notes</th>
                 </tr>
               </thead>
@@ -270,11 +280,16 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        {s.status === "late" ? (
+                        {(s.status === "late" || s.status === "absent" || s.status === "half-day") ? (
                           <input
                             type="number"
-                            value={s.lateAmount || ""}
-                            onChange={(e) => handleLateAmountChange(s.staffId, Number(e.target.value) || 0)}
+                            value={s.status === "late" ? (s.lateAmount || "") : s.status === "absent" ? (s.absenceAmount || "") : (s.halfDayAmount || "")}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              if (s.status === "late") handleLateAmountChange(s.staffId, val);
+                              else if (s.status === "absent") handleAbsenceAmountChange(s.staffId, val);
+                              else handleHalfDayAmountChange(s.staffId, val);
+                            }}
                             placeholder="₦ Amount"
                             className="w-24 px-2 py-1 text-xs border border-amber-300 dark:border-amber-500/40 rounded bg-amber-50 dark:bg-amber-500/10 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-amber-500 outline-none"
                           />

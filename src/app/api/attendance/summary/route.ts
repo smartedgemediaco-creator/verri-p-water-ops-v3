@@ -71,11 +71,13 @@ export async function GET(req: NextRequest) {
     const staffRecords = attendanceRecords.filter((r) => r.staffId.toString() === s._id.toString());
     const counts = { present: 0, absent: 0, late: 0, halfDay: 0, leave: 0 };
     let totalLateAmount = 0;
+    let totalAbsenceAmount = 0;
+    let totalHalfDayAmount = 0;
     for (const rec of staffRecords) {
       if (rec.status === "present") counts.present++;
-      else if (rec.status === "absent") counts.absent++;
+      else if (rec.status === "absent") { counts.absent++; totalAbsenceAmount += rec.absenceAmount || 0; }
       else if (rec.status === "late") { counts.late++; totalLateAmount += rec.lateAmount || 0; }
-      else if (rec.status === "half-day") counts.halfDay++;
+      else if (rec.status === "half-day") { counts.halfDay++; totalHalfDayAmount += rec.halfDayAmount || 0; }
       else if (rec.status === "leave") counts.leave++;
     }
     const totalRecorded = counts.present + counts.absent + counts.late + counts.halfDay + counts.leave;
@@ -90,6 +92,8 @@ export async function GET(req: NextRequest) {
       locationLabel,
       ...counts,
       totalLateAmount,
+      totalAbsenceAmount,
+      totalHalfDayAmount,
       totalRecorded,
       workingDays,
       attendanceRate: totalRecorded > 0 ? Math.round((counts.present + counts.late + counts.halfDay) / totalRecorded * 100) : 0,

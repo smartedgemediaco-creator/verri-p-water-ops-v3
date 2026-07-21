@@ -7,6 +7,7 @@ export interface IPayrollRecord extends Document {
   deductions: {
     absence: number;
     lateness: number;
+    halfDay: number;
     debt: number;
     punishment: number;
     other: number;
@@ -30,6 +31,7 @@ const PayrollRecordSchema = new Schema<IPayrollRecord>(
     deductions: {
       absence: { type: Number, default: 0, min: 0 },
       lateness: { type: Number, default: 0, min: 0 },
+      halfDay: { type: Number, default: 0, min: 0 },
       debt: { type: Number, default: 0, min: 0 },
       punishment: { type: Number, default: 0, min: 0 },
       other: { type: Number, default: 0, min: 0 },
