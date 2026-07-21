@@ -70,10 +70,11 @@ export async function GET(req: NextRequest) {
   const summary = staff.map((s) => {
     const staffRecords = attendanceRecords.filter((r) => r.staffId.toString() === s._id.toString());
     const counts = { present: 0, absent: 0, late: 0, halfDay: 0, leave: 0 };
+    let totalLateAmount = 0;
     for (const rec of staffRecords) {
       if (rec.status === "present") counts.present++;
       else if (rec.status === "absent") counts.absent++;
-      else if (rec.status === "late") counts.late++;
+      else if (rec.status === "late") { counts.late++; totalLateAmount += rec.lateAmount || 0; }
       else if (rec.status === "half-day") counts.halfDay++;
       else if (rec.status === "leave") counts.leave++;
     }
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
       salary: s.salary,
       locationLabel,
       ...counts,
+      totalLateAmount,
       totalRecorded,
       workingDays,
       attendanceRate: totalRecorded > 0 ? Math.round((counts.present + counts.late + counts.halfDay) / totalRecorded * 100) : 0,

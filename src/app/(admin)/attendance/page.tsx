@@ -21,6 +21,7 @@ interface StaffRow {
   locationLabel?: string;
   attendanceId: string | null;
   status: "present" | "absent" | "late" | "half-day" | "leave";
+  lateAmount: number;
   notes: string;
 }
 
@@ -104,10 +105,14 @@ export default function AttendancePage() {
     setStaff((prev) => prev.map((s) => s.staffId === staffId ? { ...s, notes } : s));
   };
 
+  const handleLateAmountChange = (staffId: string, lateAmount: number) => {
+    setStaff((prev) => prev.map((s) => s.staffId === staffId ? { ...s, lateAmount } : s));
+  };
+
   const saveAttendance = async () => {
     setSaving(true);
     try {
-      const records = staff.map((s) => ({ staffId: s.staffId, status: s.status, notes: s.notes }));
+      const records = staff.map((s) => ({ staffId: s.staffId, status: s.status, notes: s.notes, lateAmount: s.lateAmount }));
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,12 +237,13 @@ export default function AttendancePage() {
                   )}
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Role</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Late ₦</th>
                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={showLocationColumn ? 6 : 5} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan={showLocationColumn ? 7 : 6} className="text-center py-10 text-gray-500">Loading...</td></tr>
                 ) : staff.length === 0 ? (
                   <tr><td colSpan={showLocationColumn ? 6 : 5} className="text-center py-10 text-gray-500">No staff found at this location.</td></tr>
                 ) : (
@@ -262,6 +268,19 @@ export default function AttendancePage() {
                             </button>
                           ))}
                         </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        {s.status === "late" ? (
+                          <input
+                            type="number"
+                            value={s.lateAmount || ""}
+                            onChange={(e) => handleLateAmountChange(s.staffId, Number(e.target.value) || 0)}
+                            placeholder="₦ Amount"
+                            className="w-24 px-2 py-1 text-xs border border-amber-300 dark:border-amber-500/40 rounded bg-amber-50 dark:bg-amber-500/10 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-amber-500 outline-none"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <input type="text" value={s.notes} onChange={(e) => handleNotesChange(s.staffId, e.target.value)}

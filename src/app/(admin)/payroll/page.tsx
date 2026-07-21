@@ -236,7 +236,8 @@ export default function PayrollPage() {
       if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
 
       let totalAbsent = 0;
-      let totalLate = 0;
+      let totalLateDays = 0;
+      let totalLateAmount = 0;
       let workingDays = 0;
       for (const loc of locations) {
         const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
@@ -245,7 +246,8 @@ export default function PayrollPage() {
         const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
         if (staffSummary) {
           totalAbsent += staffSummary.absent || 0;
-          totalLate += staffSummary.late || 0;
+          totalLateDays += staffSummary.late || 0;
+          totalLateAmount += staffSummary.totalLateAmount || 0;
           workingDays = data.workingDays || workingDays;
         }
       }
@@ -253,10 +255,10 @@ export default function PayrollPage() {
       const base = Number(formBaseSalary) || 0;
       const dailyRate = base / workingDays;
       const absenceDeduction = Math.round(totalAbsent * dailyRate);
-      const latenessDeduction = Math.round(totalLate * dailyRate * 0.5);
+      const latenessDeduction = totalLateAmount > 0 ? totalLateAmount : Math.round(totalLateDays * dailyRate * 0.5);
       setFormAbsence(String(absenceDeduction));
       setFormLateness(String(latenessDeduction));
-      showSuccess(`Auto-filled: ${totalAbsent} absent days (₦${absenceDeduction.toLocaleString()}), ${totalLate} late days (₦${latenessDeduction.toLocaleString()})`);
+      showSuccess(`Auto-filled: ${totalAbsent} absent days (₦${absenceDeduction.toLocaleString()}), ${totalLateDays} late days (₦${latenessDeduction.toLocaleString()})`);
     } catch { showError("Failed to fetch attendance"); } finally { setAutoFilling(false); }
   };
 

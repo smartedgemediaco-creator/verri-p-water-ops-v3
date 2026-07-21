@@ -6,6 +6,7 @@ export interface IAttendance extends Document {
   clockIn: Date;
   clockOut?: Date;
   status: "present" | "absent" | "late" | "half-day" | "leave";
+  lateAmount: number;
   notes: string;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +23,7 @@ const AttendanceSchema = new Schema<IAttendance>(
       enum: ["present", "absent", "late", "half-day", "leave"],
       default: "present",
     },
+    lateAmount: { type: Number, default: 0 },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

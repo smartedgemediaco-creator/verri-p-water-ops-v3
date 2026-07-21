@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
       locationLabel,
       attendanceId: att?._id ?? null,
       status: att?.status ?? "absent",
+      lateAmount: att?.lateAmount ?? 0,
       notes: att?.notes ?? "",
       clockIn: att?.clockIn ?? null,
       clockOut: att?.clockOut ?? null,
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   const dateStart = new Date(date + "T00:00:00.000Z");
 
-  const ops = records.map((r: { staffId: string; status: string; notes?: string }) => ({
+  const ops = records.map((r: { staffId: string; status: string; notes?: string; lateAmount?: number }) => ({
     updateOne: {
       filter: { staffId: r.staffId, date: dateStart },
       update: {
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
           staffId: r.staffId,
           date: dateStart,
           status: r.status,
+          lateAmount: r.status === "late" ? (r.lateAmount || 0) : 0,
           notes: r.notes || "",
           clockIn: r.status !== "absent" ? dateStart : undefined,
         },
