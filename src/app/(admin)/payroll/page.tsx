@@ -227,11 +227,14 @@ export default function PayrollPage() {
     if (!formStaffId || !formMonth) { showError("Select staff and month first"); return; }
     setAutoFilling(true);
     try {
-      // Fetch attendance summary from all locations
-      const locations = [
-        { type: "factory", id: "6a295e6ccdd91fcbe1b7f4b8" },
-        { type: "depot", id: "6a295e6ccdd91fcbe1b7f4b9" },
-      ];
+      const [factories, depots] = await Promise.all([
+        fetch("/api/factories").then((r) => r.json()),
+        fetch("/api/depots").then((r) => r.json()),
+      ]);
+      const locations: { type: string; id: string }[] = [];
+      if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
+      if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
+
       let totalAbsent = 0;
       let totalLate = 0;
       let workingDays = 0;

@@ -52,14 +52,6 @@ const BUILTIN_RETURN = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmal
 
 const PAGE_SIZE = 10;
 
-const FACTORY_LOCATIONS = [
-  { id: "6a295e6ccdd91fcbe1b7f4b8", name: "Akobo Factory" },
-];
-
-const DEPOT_LOCATIONS = [
-  { id: "6a295e6ccdd91fcbe1b7f4b9", name: "Ibadan Depot" },
-];
-
 const DEPOT_FIELDS = [
   { key: "staffName", label: "Staff Name", type: "text" as const },
   { key: "startStock", label: "Start Stock", type: "number" as const },
@@ -80,9 +72,27 @@ const DEBT_STATUS_OPTIONS = ["pending", "partial", "paid"];
 export default function DailyStockPage() {
   const searchParams = useSearchParams();
   const locationType = (searchParams.get("type") as "factory" | "depot") || "factory";
-  const locations = locationType === "factory" ? FACTORY_LOCATIONS : DEPOT_LOCATIONS;
-  const [selectedLocationId, setSelectedLocationId] = useState(locations[0]?.id || "");
   const isFactory = locationType === "factory";
+
+  const [allLocations, setAllLocations] = useState<{ id: string; name: string }[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+
+  useEffect(() => {
+    const endpoint = locationType === "factory" ? "/api/factories" : "/api/depots";
+    setSelectedLocationId("");
+    fetch(endpoint)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped = data.map((item: { _id: string; name: string }) => ({ id: item._id, name: item.name }));
+          setAllLocations(mapped);
+          if (mapped.length > 0) setSelectedLocationId(mapped[0].id);
+        }
+      })
+      .catch(() => {});
+  }, [locationType]);
+
+  const locations = allLocations;
 
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [columns, setColumns] = useState<ColumnDef[]>([]);
@@ -136,8 +146,8 @@ export default function DailyStockPage() {
   useEffect(() => { setPage(1); setPendingChanges({}); setHiddenCols([]); }, [selectedLocationId, locationType]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
-  const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date && !records.some(r => r.date > date));
+  const latestRecord = records.length > 0 ? records[0] : null;
+  const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date);
 
   const saleKeys = columns.filter((c) => c.type === "sale").map((c) => c.key);
   const returnKeys = columns.filter((c) => c.type === "return").map((c) => c.key);
@@ -405,7 +415,7 @@ export default function DailyStockPage() {
                 <tfoot>
                   <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-800 dark:text-white/90">
                     <td className="px-1.5 py-2">Totals</td>
-                    <td className="px-1.5 py-2 text-right">{records.reduce((s, r) => s + (Number(r.startStock) || 0), 0).toLocaleString()}</td>
+                    <td className="px-1.5 py-2 text-right text-gray-400">{records.length > 0 ? (records[records.length - 1].startStock ?? 0).toLocaleString() : "0"}</td>
                     <td className="px-1.5 py-2 text-right">{records.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0).toLocaleString()}</td>
                     {factoryEditableFields.slice(2).map((f) => (
                       <td key={f} className="px-1.5 py-2 text-right">
@@ -712,9 +722,15 @@ export default function DailyStockPage() {
                   <td className="px-1.5 py-2">Totals</td>
                   {DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                     f.type === "text" ? <td key={f.key}></td> :
+                    f.key === "startStock" ? (
+                      <td key={f.key} className="px-1.5 py-2 text-right text-gray-400">
+                        {records.length > 0 ? (records[records.length - 1].startStock ?? 0).toLocaleString() : "0"}
+                      </td>
+                    ) : (
                     <td key={f.key} className="px-1.5 py-2 text-right">
                       {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
+                    )
                   ))}
                   {visibleCustomCols.map((col) => (
                     <td key={col.key} className="px-1.5 py-2 text-right">
