@@ -225,7 +225,7 @@ export default function DailyStockPage() {
     if (!addDayDate) { showError("Select a date"); return; }
     setAdding(true);
     try {
-      const startStock = latestRecord?.endStock ?? 0;
+      const startStock = latestRecord ? (isFactory ? calcEndStock(latestRecord) : calcDepotEndStock(latestRecord)) : 0;
       const res = await fetch("/api/daily-stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -410,29 +410,6 @@ export default function DailyStockPage() {
                   })
                 )}
               </tbody>
-              {!loading && records.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-800 dark:text-white/90">
-                    <td className="px-1.5 py-2">Totals</td>
-                    <td className="px-1.5 py-2 text-right text-gray-400">{records.length > 0 ? (records[records.length - 1].startStock ?? 0).toLocaleString() : "0"}</td>
-                    <td className="px-1.5 py-2 text-right">{records.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0).toLocaleString()}</td>
-                    {factoryEditableFields.slice(2).map((f) => (
-                      <td key={f} className="px-1.5 py-2 text-right">
-                        {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f]) || 0), 0).toLocaleString()}
-                      </td>
-                    ))}
-                    {visibleColumns.map((col) => (
-                      <td key={col.key} className="px-1.5 py-2 text-right">
-                        {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[col.key]) || 0), 0).toLocaleString()}
-                      </td>
-                    ))}
-                    <td className="px-1.5 py-2 text-right">{totalSold.toLocaleString()}</td>
-                    <td className="px-1.5 py-2 text-right">{totalReturned.toLocaleString()}</td>
-                    <td className="px-1.5 py-2 text-right">{currentEndStock.toLocaleString()}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
 
@@ -477,7 +454,7 @@ export default function DailyStockPage() {
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
               </div>
               {latestRecord && (
-                <p className="text-xs text-gray-400">Start stock will be set to previous day&apos;s end stock: <strong>{latestRecord.endStock.toLocaleString()}</strong></p>
+                <p className="text-xs text-gray-400">Start stock will be set to latest day&apos;s end stock: <strong>{(isFactory ? calcEndStock(latestRecord) : calcDepotEndStock(latestRecord)).toLocaleString()}</strong></p>
               )}
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setShowAddDay(false)}>Cancel</Button>
@@ -715,41 +692,6 @@ export default function DailyStockPage() {
                 })
               )}
             </tbody>
-            {!loading && records.length > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold text-gray-800 dark:text-white/90">
-                  <td className="px-1.5 py-2">Totals</td>
-                  {DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
-                    f.type === "text" ? <td key={f.key}></td> :
-                    f.key === "startStock" ? (
-                      <td key={f.key} className="px-1.5 py-2 text-right text-gray-400">
-                        {records.length > 0 ? (records[records.length - 1].startStock ?? 0).toLocaleString() : "0"}
-                      </td>
-                    ) : (
-                    <td key={f.key} className="px-1.5 py-2 text-right">
-                      {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
-                    </td>
-                    )
-                  ))}
-                  {visibleCustomCols.map((col) => (
-                    <td key={col.key} className="px-1.5 py-2 text-right">
-                      {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[col.key]) || 0), 0).toLocaleString()}
-                    </td>
-                  ))}
-                  <td className="px-1.5 py-2 text-right">
-                    {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)["leakages"]) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="px-1.5 py-2 text-right">{currentEndStock.toLocaleString()}</td>
-                  {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key) && f.type !== "select").map((f) => (
-                    <td key={f.key} className="px-1.5 py-2 text-right">
-                      {records.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
-                    </td>
-                  ))}
-                  {DEPOT_POST_ENDSTOCK.some((f) => f.type === "select" && !hiddenCols.includes(f.key)) && <td></td>}
-                  <td></td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
 
