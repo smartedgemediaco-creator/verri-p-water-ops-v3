@@ -65,7 +65,7 @@ export async function PATCH(
     action: "updated",
     entity: "scheduled-operation",
     entityId: id,
-    description: `Updated scheduled operation "${item.title}"`,
+    description: `Updated maintenance record "${item.title}"`,
     userId: user.userId,
     metadata: { changes: body },
   });
@@ -89,7 +89,7 @@ export async function DELETE(
     action: "deleted",
     entity: "scheduled-operation",
     entityId: id,
-    description: `Deleted scheduled operation "${item.title}"`,
+    description: `Deleted maintenance record "${item.title}"`,
     userId: user.userId,
   });
 

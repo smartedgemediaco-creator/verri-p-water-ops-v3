@@ -3,6 +3,7 @@ import connectDB from "@/lib/db";
 import { ScheduledOperation } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { notifyDesignees } from "@/lib/notify";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -44,16 +45,35 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
   const body = await req.json();
+  const entityTypeLabel: Record<string, string> = {
+    truck: "Truck", factory: "Factory", depot: "Depot",
+    staff: "Staff", customer: "Customer", product: "Product",
+    "raw-material": "Raw Material", general: "General",
+  };
+
   const item = await ScheduledOperation.create({ ...body, createdBy: user.userId });
 
   await logActivity({
     action: "created",
     entity: "scheduled-operation",
     entityId: item._id.toString(),
-    description: `Created scheduled operation "${body.title}"`,
+    description: `Created maintenance record "${body.title}"`,
     userId: user.userId,
     metadata: { title: body.title, entityType: body.entityType, priority: body.priority },
   });
+
+  // Notify designees about the new maintenance record
+  const dueDateStr = new Date(body.dueDate).toLocaleDateString("en-NG", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+  notifyDesignees({
+    title: body.title,
+    type: "upcoming",
+    dueDate: dueDateStr,
+    priority: body.priority || "medium",
+    entity: entityTypeLabel[body.entityType] || body.entityType,
+    description: body.description || "",
+  }).catch(() => {});
 
   return NextResponse.json(item, { status: 201 });
 }

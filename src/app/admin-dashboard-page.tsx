@@ -84,21 +84,27 @@ export default function AdminDashboardPage() {
   const triggerRefresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
+    const safeFetch = async (url: string) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`${r.status}`);
+        return await r.json();
+      } catch { return null; }
+    };
     const fetchStats = () => {
-      const ok = (r: Response) => { if (!r.ok) throw new Error(`${r.url} ${r.status}`); return r.json(); };
+      // Main batch — each fetch is independent so one failure doesn't kill the rest
       Promise.all([
-        fetch("/api/analysis").then(ok),
-        fetch("/api/stock/stats").then(ok),
-        fetch("/api/products").then(ok),
-        fetch("/api/customers").then(ok),
-        fetch("/api/staff").then(ok),
-        fetch("/api/suppliers").then(ok),
-        fetch("/api/raw-materials").then(ok),
-        fetch("/api/activity?limit=5").then(ok),
-        fetch("/api/scheduled-operations").then(ok),
-      ])
-          .then(([analysis, inv, products, customers, staff, suppliers, rawMaterials, activity, scheduledData]) => {
-          const a = analysis as { factories?: { sales?: number; costs?: number; activeTransfers?: number }[]; depots?: { sales?: number; costs?: number }[]; trucks?: { sales?: number; costs?: number; activeTransfers?: number }[] };
+        safeFetch("/api/analysis"),
+        safeFetch("/api/stock/stats"),
+        safeFetch("/api/products"),
+        safeFetch("/api/customers"),
+        safeFetch("/api/staff"),
+        safeFetch("/api/suppliers"),
+        safeFetch("/api/raw-materials"),
+        safeFetch("/api/activity?limit=5"),
+        safeFetch("/api/scheduled-operations"),
+      ]).then(([analysis, inv, products, customers, staff, suppliers, rawMaterials, activity, scheduledData]) => {
+          const a = analysis as { factories?: { sales?: number; costs?: number; activeTransfers?: number }[]; depots?: { sales?: number; costs?: number }[]; trucks?: { sales?: number; costs?: number; activeTransfers?: number }[] } | null;
           const factories = Array.isArray(a?.factories) ? a.factories : [];
           const depots = Array.isArray(a?.depots) ? a.depots : [];
           const trucks = Array.isArray(a?.trucks) ? a.trucks : [];
@@ -138,22 +144,22 @@ export default function AdminDashboardPage() {
           const lowStock = materials.filter((m) => m.currentStock < m.minimumStock);
           setLowStockCount(lowStock.length);
           setLowStockItems(lowStock);
-          const act = activity as { logs?: ActivityItem[] } | ActivityItem[];
-          const logs = Array.isArray(act) ? act : (Array.isArray(act?.logs) ? act.logs : []);
+          const act = activity as { logs?: ActivityItem[] } | ActivityItem[] | null;
+          const logs = Array.isArray(act) ? act : (act && Array.isArray(act?.logs) ? act.logs : []);
           setRecentActivity(logs.slice(0, 5));
         })
         .catch((e) => console.error("Dashboard fetch failed:", e));
-      // today's & yesterday's sales stats
+      // today's & yesterday's sales stats — also resilient
       const today = new Date(); const todayStart = today.toISOString().slice(0, 10);
       const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const yesterdayStart = yesterday.toISOString().slice(0, 10);
       Promise.all([
-        fetch(`/api/sales/stats?startDate=${todayStart}`).then(r => { if (!r.ok) throw new Error("today sales"); return r.json(); }),
-        fetch(`/api/sales/stats?startDate=${yesterdayStart}&endDate=${yesterdayStart}`).then(r => { if (!r.ok) throw new Error("yesterday sales"); return r.json(); }),
-        fetch(`/api/costs?startDate=${todayStart}`).then(r => { if (!r.ok) throw new Error("today costs"); return r.json(); }),
+        safeFetch(`/api/sales/stats?startDate=${todayStart}`),
+        safeFetch(`/api/sales/stats?startDate=${yesterdayStart}&endDate=${yesterdayStart}`),
+        safeFetch(`/api/costs?startDate=${todayStart}`),
       ]).then(([todayData, yesterdayData, todayCostsData]) => {
-        setTodaySales((todayData as { grandTotal?: number }).grandTotal ?? 0);
-        setYesterdaySales((yesterdayData as { grandTotal?: number }).grandTotal ?? 0);
-        const costsArr = Array.isArray(todayCostsData) ? todayCostsData : (todayCostsData as { costs?: unknown[] }).costs ?? [];
+        setTodaySales((todayData as { grandTotal?: number } | null)?.grandTotal ?? 0);
+        setYesterdaySales((yesterdayData as { grandTotal?: number } | null)?.grandTotal ?? 0);
+        const costsArr = Array.isArray(todayCostsData) ? todayCostsData : (todayCostsData as { costs?: unknown[] } | null)?.costs ?? [];
         setTodayCosts((costsArr as { amount?: number }[]).reduce((s: number, c: { amount?: number }) => s + (c.amount ?? 0), 0));
       }).catch((e) => console.error("Dashboard day-stats fetch failed:", e));
     };
@@ -292,7 +298,7 @@ export default function AdminDashboardPage() {
 
       <div className="card-corporate p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Scheduled Ops — Upcoming</h3>
+          <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Maintenance — Upcoming</h3>
           <Link href="/scheduled-operations" className="text-xs text-accent hover:underline">View all</Link>
         </div>
         <div id="scheduled-ops-summary" className="text-sm text-gray-500">

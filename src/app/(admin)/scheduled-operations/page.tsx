@@ -114,13 +114,13 @@ export default function ScheduledOperationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ScheduledOperation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("scheduled-ops-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("maintenance-records");
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     title: "", description: "", entityType: "general", entityId: "",
     frequency: "one-time", customDays: 30, dueDate: "", leadDays: 3,
-    autoReschedule: false, priority: "medium", tags: "", assignedTo: "",
+    autoReschedule: true, priority: "medium", tags: "", assignedTo: "",
   });
 
   const fetchItems = () => {
@@ -184,7 +184,7 @@ export default function ScheduledOperationsPage() {
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error("Failed to update");
-        showSuccess("Scheduled operation updated");
+        showSuccess("Maintenance record updated");
       } else {
         const res = await fetch("/api/scheduled-operations", {
           method: "POST",
@@ -192,7 +192,7 @@ export default function ScheduledOperationsPage() {
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error("Failed to create");
-        showSuccess("Scheduled operation created");
+        showSuccess("Maintenance record created");
       }
       setShowModal(false);
       fetchItems();
@@ -211,7 +211,7 @@ export default function ScheduledOperationsPage() {
         body: JSON.stringify({ completedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error("Failed to complete");
-      showSuccess("Marked as complete");
+      showSuccess("Maintenance record marked as complete");
       fetchItems();
     } catch (e) {
       showError(e instanceof Error ? e.message : "Something went wrong");
@@ -240,7 +240,7 @@ export default function ScheduledOperationsPage() {
     const res = await fetch(`/api/scheduled-operations/${deleteTarget}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to delete");
     setItems((prev) => prev.filter((i) => i._id !== deleteTarget));
-    showSuccess("Scheduled operation deleted");
+    showSuccess("Maintenance record deleted");
   };
 
   const now = new Date();
@@ -259,13 +259,13 @@ export default function ScheduledOperationsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Scheduled Operations" />
+        <PageBreadcrumb pageTitle="Maintenance Records" />
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={download} disabled={pdfLoading}>
             {pdfLoading ? "Generating PDF..." : "Download PDF"}
           </Button>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openCreate}>
-            New Scheduled Operation
+            New Maintenance Record
           </Button>
         </div>
       </div>
@@ -342,7 +342,7 @@ export default function ScheduledOperationsPage() {
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No scheduled operations found. Click &quot;New Scheduled Operation&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No maintenance records found. Click &quot;New Maintenance Record&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               items.map((item) => {
@@ -413,7 +413,7 @@ export default function ScheduledOperationsPage() {
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowModal(false)}>
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white">{editing ? "Edit Scheduled Operation" : "New Scheduled Operation"}</h3>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">{editing ? "Edit Maintenance Record" : "New Maintenance Record"}</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <CloseIcon className="size-5" />
               </button>
@@ -490,8 +490,8 @@ export default function ScheduledOperationsPage() {
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
-        title="Delete Scheduled Operation"
-        message="This will permanently delete this scheduled operation. This action cannot be undone."
+        title="Delete Maintenance Record"
+        message="This will permanently delete this maintenance record. This action cannot be undone."
         confirmLabel="Delete"
         variant="danger"
       />

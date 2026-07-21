@@ -60,7 +60,7 @@ const navItems: NavItem[] = [
   { icon: <DollarLineIcon />, name: "Sales", path: "/sales", color: "text-emerald-500" },
   { icon: <PencilIcon />, name: "Costs / Expenses", path: "/costs", color: "text-red-500" },
   { icon: <CloseIcon />, name: "Leakages", path: "/wastage", color: "text-amber-500" },
-  { icon: <AlertIcon />, name: "Scheduled Ops", path: "/scheduled-operations", color: "text-rose-500" },
+  { icon: <AlertIcon />, name: "Maintenance Records", path: "/scheduled-operations", color: "text-rose-500" },
   { icon: <PieChartIcon />, name: "Business Analysis", path: "/analysis", color: "text-rose-500" },
   { icon: <ReportIcon />, name: "PDF Reports", path: "/reports", color: "text-indigo-500" },
   { icon: <ReportIcon />, name: "Scheduled Reports", path: "/reports/schedule", color: "text-indigo-500" },

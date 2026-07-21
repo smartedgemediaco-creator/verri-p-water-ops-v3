@@ -237,36 +237,28 @@ export default function PayrollPage() {
       if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
       if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
 
-      let totalAbsent = 0;
-      let totalLateDays = 0;
       let totalLateAmount = 0;
       let totalAbsenceAmount = 0;
       let totalHalfDayAmount = 0;
-      let workingDays = 0;
       for (const loc of locations) {
         const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
         if (!res.ok) continue;
         const data = await res.json();
         const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
         if (staffSummary) {
-          totalAbsent += staffSummary.absent || 0;
-          totalLateDays += staffSummary.late || 0;
           totalLateAmount += staffSummary.totalLateAmount || 0;
           totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
           totalHalfDayAmount += staffSummary.totalHalfDayAmount || 0;
-          workingDays = data.workingDays || workingDays;
         }
       }
-      if (workingDays === 0) { showError("No attendance data found for this month"); return; }
-      const base = Number(formBaseSalary) || 0;
-      const dailyRate = base / workingDays;
-      const absenceDeduction = totalAbsenceAmount > 0 ? totalAbsenceAmount : Math.round(totalAbsent * dailyRate);
-      const latenessDeduction = totalLateAmount > 0 ? totalLateAmount : Math.round(totalLateDays * dailyRate * 0.5);
-      const halfDayDeduction = totalHalfDayAmount > 0 ? totalHalfDayAmount : Math.round(totalAbsent * dailyRate * 0.5);
-      setFormAbsence(String(absenceDeduction));
-      setFormLateness(String(latenessDeduction));
-      setFormHalfDay(String(halfDayDeduction));
-      showSuccess(`Auto-filled: ${totalAbsent} absent (₦${absenceDeduction.toLocaleString()}), ${totalLateDays} late (₦${latenessDeduction.toLocaleString()}), half-day (₦${halfDayDeduction.toLocaleString()})`);
+      if (totalAbsenceAmount === 0 && totalLateAmount === 0 && totalHalfDayAmount === 0) {
+        showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
+        return;
+      }
+      setFormAbsence(String(totalAbsenceAmount));
+      setFormLateness(String(totalLateAmount));
+      setFormHalfDay(String(totalHalfDayAmount));
+      showSuccess(`Auto-filled: Absence ₦${totalAbsenceAmount.toLocaleString()}, Late ₦${totalLateAmount.toLocaleString()}, Half-Day ₦${totalHalfDayAmount.toLocaleString()}`);
     } catch { showError("Failed to fetch attendance"); } finally { setAutoFilling(false); }
   };
 
