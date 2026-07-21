@@ -154,22 +154,21 @@ export default function DailyStockPage() {
   const allSaleKeys = [...BUILTIN_SALE, ...saleKeys];
   const allReturnKeys = [...BUILTIN_RETURN, ...returnKeys];
 
+  const calcTotalSold = (d: DayRecord) => allSaleKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
+  const calcTotalReturned = (d: DayRecord) => allReturnKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
+  const calcEndStock = (d: DayRecord) => (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) + calcTotalReturned(d) - calcTotalSold(d) - (Number(d.shortage) || 0) - (Number(d.wastage) || 0);
+  const calcDepotEndStock = (d: DayRecord) =>
+    (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) - (Number(d.factorySale) || 0) - (Number(d.bigTruck) || 0) - (Number(d.leakages) || 0);
+
   const totalDays = records.length;
   const totalProduced = records.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0);
   const totalSold = records.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
   const totalReturned = records.reduce((s, r) => allReturnKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
-  const currentEndStock = latestRecord?.endStock ?? 0;
+  const currentEndStock = latestRecord ? (isFactory ? calcEndStock(latestRecord) : calcDepotEndStock(latestRecord)) : 0;
 
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paginatedRecords = records.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const calcTotalSold = (d: DayRecord) => allSaleKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
-  const calcTotalReturned = (d: DayRecord) => allReturnKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
-  const calcEndStock = (d: DayRecord) => (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) + calcTotalReturned(d) - calcTotalSold(d) - (Number(d.shortage) || 0) - (Number(d.wastage) || 0);
-
-  const calcDepotEndStock = (d: DayRecord) =>
-    (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) - (Number(d.factorySale) || 0) - (Number(d.bigTruck) || 0) - (Number(d.leakages) || 0);
 
   const handleChange = (id: string, field: string, rawValue: string) => {
     const isSelect = field === "debtStatus";
