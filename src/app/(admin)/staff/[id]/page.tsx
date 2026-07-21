@@ -24,6 +24,9 @@ interface StaffMember {
   salary: number; employmentType: string;
   startDate: string; isActive: boolean;
   emergencyContact: string; notes: string; createdAt: string;
+  avatar?: string;
+  addresses?: { label: string; street: string; city: string; state: string; country: string }[];
+  emergencyContacts?: { name: string; phone: string; relationship: string; photo?: string }[];
 }
 
 interface Location { _id: string; name?: string; location?: string; }
@@ -75,11 +78,15 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
   const [depotsList, setDepotsList] = useState<{ value: string; label: string }[]>([]);
   const [trucksList, setTrucksList] = useState<{ value: string; label: string }[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollItem[]>([]);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingContactIdx, setUploadingContactIdx] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "", role: "operator", department: "production",
     salary: 0, employmentType: "full-time", isActive: true, emergencyContact: "", notes: "",
   });
+  const [formAddresses, setFormAddresses] = useState<{ label: string; street: string; city: string; state: string; country: string }[]>([]);
+  const [formContacts, setFormContacts] = useState<{ name: string; phone: string; relationship: string; photo?: string }[]>([]);
 
   const fetchAll = async () => {
     try {
@@ -120,6 +127,8 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       isActive: staff.isActive, emergencyContact: staff.emergencyContact ?? "",
       notes: staff.notes ?? "",
     });
+    setFormAddresses(staff.addresses?.length ? [...staff.addresses] : []);
+    setFormContacts(staff.emergencyContacts?.length ? [...staff.emergencyContacts] : []);
     setShowEditModal(true);
   };
 
@@ -130,7 +139,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/staff/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, addresses: formAddresses, emergencyContacts: formContacts }),
       });
       if (!res.ok) { showError("Failed to update staff"); return; }
       showSuccess("Staff updated");
@@ -153,6 +162,47 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
     if (trucksList.length === 0) {
       fetch("/api/trucks").then(r => { if (!r.ok) throw new Error(`trucks ${r.status}`); return r.json(); }).then((data: unknown) => { if (Array.isArray(data)) setTrucksList((data as { _id: string; plateNumber: string }[]).map(t => ({ value: t._id, label: t.plateNumber }))); }).catch((e) => console.error("Failed to load trucks:", e));
     }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", `staff/${id}`);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) { showError("Upload failed"); return; }
+      const { url } = await res.json();
+      await fetch(`/api/staff/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: url }),
+      });
+      showSuccess("Avatar updated");
+      fetchAll();
+    } catch { showError("Upload failed"); }
+    finally { setUploadingAvatar(false); e.target.value = ""; }
+  };
+
+  const handleContactPhotoUpload = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingContactIdx(idx);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", `staff/${id}/contacts`);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) { showError("Upload failed"); return; }
+      const { url } = await res.json();
+      const updated = [...formContacts];
+      updated[idx] = { ...updated[idx], photo: url };
+      setFormContacts(updated);
+      showSuccess("Photo uploaded");
+    } catch { showError("Upload failed"); }
+    finally { setUploadingContactIdx(null); e.target.value = ""; }
   };
 
   const handleCreateAccess = async (e: React.FormEvent) => {
@@ -210,9 +260,19 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-500/10">
-            <UserIcon className="w-7 h-7 text-purple-600 dark:text-purple-400" />
-          </div>
+          <label className="relative group cursor-pointer flex-shrink-0">
+            {staff.avatar ? (
+              <img src={staff.avatar} alt={staff.name} className="w-14 h-14 rounded-xl object-cover" />
+            ) : (
+              <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-500/10">
+                <UserIcon className="w-7 h-7 text-purple-600 dark:text-purple-400" />
+              </div>
+            )}
+            <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            <span className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <span className="text-white text-[10px] font-medium">{uploadingAvatar ? "Uploading..." : "Change Photo"}</span>
+            </span>
+          </label>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white">{staff.name}</h2>
@@ -381,6 +441,45 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {/* Addresses */}
+      {staff.addresses && staff.addresses.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Addresses</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {staff.addresses.map((addr, i) => (
+              <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                <p className="text-xs font-medium text-brand-600 dark:text-brand-400 mb-1">{addr.label || "Address"}</p>
+                <p className="text-sm text-gray-800 dark:text-white/90">{[addr.street, addr.city, addr.state, addr.country].filter(Boolean).join(", ") || "—"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Emergency Contacts */}
+      {staff.emergencyContacts && staff.emergencyContacts.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Emergency Contacts</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {staff.emergencyContacts.map((ec, i) => (
+              <div key={i} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                {ec.photo ? (
+                  <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-red-500" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{ec.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{ec.relationship || "—"} · {ec.phone || "—"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Salary History */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -537,6 +636,76 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                 <TextArea placeholder="Notes" value={form.notes} onChange={v => setForm({ ...form, notes: v })} rows={3} /></div>
+
+              {/* Addresses */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Addresses</label>
+                  <button type="button" onClick={() => setFormAddresses([...formAddresses, { label: "Home", street: "", city: "", state: "", country: "Nigeria" }])}
+                    className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Address</button>
+                </div>
+                {formAddresses.map((addr, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Label (e.g. Home, Office)" value={addr.label} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], label: e.target.value }; setFormAddresses(u); }}
+                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <button type="button" onClick={() => setFormAddresses(formAddresses.filter((_, j) => j !== i))} className="text-xs text-red-500 hover:text-red-600">Remove</button>
+                    </div>
+                    <input type="text" placeholder="Street address" value={addr.street} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], street: e.target.value }; setFormAddresses(u); }}
+                      className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" placeholder="City" value={addr.city} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], city: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <input type="text" placeholder="State" value={addr.state} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], state: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <input type="text" placeholder="Country" value={addr.country} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], country: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Emergency Contacts */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Emergency Contacts</label>
+                  <button type="button" onClick={() => setFormContacts([...formContacts, { name: "", phone: "", relationship: "" }])}
+                    className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Contact</button>
+                </div>
+                {formContacts.map((ec, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2">
+                    <div className="flex items-start gap-3">
+                      <label className="relative group cursor-pointer flex-shrink-0">
+                        {ec.photo ? (
+                          <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+                            <UserIcon className="w-5 h-5 text-red-500" />
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" onChange={(e) => handleContactPhotoUpload(i, e)} className="hidden" />
+                        <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <span className="text-white text-[8px] font-medium">{uploadingContactIdx === i ? "..." : "Photo"}</span>
+                        </span>
+                      </label>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <input type="text" placeholder="Name *" value={ec.name} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], name: e.target.value }; setFormContacts(u); }}
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                          <button type="button" onClick={() => setFormContacts(formContacts.filter((_, j) => j !== i))} className="text-xs text-red-500 hover:text-red-600">Remove</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="Phone" value={ec.phone} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], phone: e.target.value }; setFormContacts(u); }}
+                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                          <input type="text" placeholder="Relationship" value={ec.relationship} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], relationship: e.target.value }; setFormContacts(u); }}
+                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <Button type="submit" disabled={submitting || !form.name}>{submitting ? "Saving..." : "Update Staff"}</Button>
                 <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>

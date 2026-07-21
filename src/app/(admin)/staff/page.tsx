@@ -31,6 +31,9 @@ interface StaffMember {
   isActive: boolean;
   emergencyContact: string;
   notes: string;
+  avatar?: string;
+  addresses?: { label: string; street: string; city: string; state: string; country: string }[];
+  emergencyContacts?: { name: string; phone: string; relationship: string; photo?: string }[];
 }
 
 const ROLES = [
@@ -90,6 +93,10 @@ export default function StaffPage() {
   const [isActive, setIsActive] = useState(true);
   const [emergencyContact, setEmergencyContact] = useState("");
   const [notes, setNotes] = useState("");
+  const [formAddresses, setFormAddresses] = useState<{ label: string; street: string; city: string; state: string; country: string }[]>([]);
+  const [formContacts, setFormContacts] = useState<{ name: string; phone: string; relationship: string; photo?: string }[]>([]);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingContactIdx, setUploadingContactIdx] = useState<number | null>(null);
   const { ref, loading: pdfLoading, download } = usePdfDownload("staff-list");
 
   const fetchStaff = () => {
@@ -147,6 +154,8 @@ export default function StaffPage() {
     setIsActive(true);
     setEmergencyContact("");
     setNotes("");
+    setFormAddresses([]);
+    setFormContacts([]);
   };
 
   const openEdit = (s: StaffMember) => {
@@ -164,6 +173,8 @@ export default function StaffPage() {
     setIsActive(s.isActive);
     setEmergencyContact(s.emergencyContact);
     setNotes(s.notes);
+    setFormAddresses(s.addresses?.length ? [...s.addresses] : []);
+    setFormContacts(s.emergencyContacts?.length ? [...s.emergencyContacts] : []);
     setShowModal(true);
   };
 
@@ -186,6 +197,7 @@ export default function StaffPage() {
         body: JSON.stringify({
           name: name.trim(), phone, email, role, department, locationType, locationId, salary, employmentType,
           startDate: startDate ? new Date(startDate).toISOString() : undefined, isActive, emergencyContact, notes,
+          addresses: formAddresses, emergencyContacts: formContacts,
         }),
       });
       if (!res.ok) {
@@ -212,6 +224,47 @@ export default function StaffPage() {
     showSuccess("Staff deleted");
     setDeleteTarget(null);
     fetchStaff();
+  };
+
+  const handleAvatarUpload = async (staffId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", `staff/${staffId}`);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) { showError("Upload failed"); return; }
+      const { url } = await res.json();
+      await fetch(`/api/staff/${staffId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: url }),
+      });
+      showSuccess("Avatar updated");
+      fetchStaff();
+    } catch { showError("Upload failed"); }
+    finally { setUploadingAvatar(false); e.target.value = ""; }
+  };
+
+  const handleContactPhotoUpload = async (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingContactIdx(idx);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "staff/contacts");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) { showError("Upload failed"); return; }
+      const { url } = await res.json();
+      const updated = [...formContacts];
+      updated[idx] = { ...updated[idx], photo: url };
+      setFormContacts(updated);
+      showSuccess("Photo uploaded");
+    } catch { showError("Upload failed"); }
+    finally { setUploadingContactIdx(null); e.target.value = ""; }
   };
 
   const filtered = staff.filter((s) => {
@@ -368,6 +421,76 @@ export default function StaffPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                 <TextArea placeholder="Optional notes..." value={notes} onChange={setNotes} rows={3} />
               </div>
+
+              {/* Addresses */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Addresses</label>
+                  <button type="button" onClick={() => setFormAddresses([...formAddresses, { label: "Home", street: "", city: "", state: "", country: "Nigeria" }])}
+                    className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Address</button>
+                </div>
+                {formAddresses.map((addr, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Label (e.g. Home, Office)" value={addr.label} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], label: e.target.value }; setFormAddresses(u); }}
+                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <button type="button" onClick={() => setFormAddresses(formAddresses.filter((_, j) => j !== i))} className="text-xs text-red-500 hover:text-red-600">Remove</button>
+                    </div>
+                    <input type="text" placeholder="Street address" value={addr.street} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], street: e.target.value }; setFormAddresses(u); }}
+                      className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" placeholder="City" value={addr.city} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], city: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <input type="text" placeholder="State" value={addr.state} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], state: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                      <input type="text" placeholder="Country" value={addr.country} onChange={e => { const u = [...formAddresses]; u[i] = { ...u[i], country: e.target.value }; setFormAddresses(u); }}
+                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Emergency Contacts */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Emergency Contacts</label>
+                  <button type="button" onClick={() => setFormContacts([...formContacts, { name: "", phone: "", relationship: "" }])}
+                    className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Contact</button>
+                </div>
+                {formContacts.map((ec, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2">
+                    <div className="flex items-start gap-3">
+                      <label className="relative group cursor-pointer flex-shrink-0">
+                        {ec.photo ? (
+                          <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+                            <UserIcon className="w-5 h-5 text-red-500" />
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" onChange={(e) => handleContactPhotoUpload(i, e)} className="hidden" />
+                        <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <span className="text-white text-[8px] font-medium">{uploadingContactIdx === i ? "..." : "Photo"}</span>
+                        </span>
+                      </label>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <input type="text" placeholder="Name *" value={ec.name} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], name: e.target.value }; setFormContacts(u); }}
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                          <button type="button" onClick={() => setFormContacts(formContacts.filter((_, j) => j !== i))} className="text-xs text-red-500 hover:text-red-600">Remove</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="Phone" value={ec.phone} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], phone: e.target.value }; setFormContacts(u); }}
+                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                          <input type="text" placeholder="Relationship" value={ec.relationship} onChange={e => { const u = [...formContacts]; u[i] = { ...u[i], relationship: e.target.value }; setFormContacts(u); }}
+                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-white/90 outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" size="sm" onClick={() => { setShowModal(false); setEditTarget(null); resetForm(); }} disabled={submitting}>Cancel</Button>
                 <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Saving..." : editTarget ? "Update Staff" : "Add Staff"}</Button>
@@ -381,6 +504,9 @@ export default function StaffPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
+                <span className="sr-only">Avatar</span>
+              </TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Department</TableCell>
@@ -394,16 +520,31 @@ export default function StaffPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>Loading...</TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               filtered.flatMap((s) => {
                 const mainRow = (
                   <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <TableCell className="py-3 w-12">
+                      <label className="relative group cursor-pointer">
+                        {s.avatar ? (
+                          <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
+                            <UserIcon className="w-4.5 h-4.5 text-purple-600 dark:text-purple-400" />
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" onChange={(e) => handleAvatarUpload(s._id, e)} className="hidden" />
+                        <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <span className="text-white text-[7px] font-medium">{uploadingAvatar ? "..." : "📷"}</span>
+                        </span>
+                      </label>
+                    </TableCell>
                     <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
                       <button onClick={() => setExpandedId(expandedId === s._id ? null : s._id)} className="inline-flex items-center gap-1.5 text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
                         {expandedId === s._id ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
@@ -437,7 +578,7 @@ export default function StaffPage() {
 
                 return [mainRow, (
                   <TableRow key={`${s._id}-detail`} className="bg-gray-50/50 dark:bg-gray-800/20">
-                    <TableCell colSpan={8} className="py-4 px-6">
+                    <TableCell colSpan={9} className="py-4 px-6">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</span>
