@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     "raw-material": "Raw Material", general: "General",
   };
 
-  const results: { title: string; type: string; notified: { email: boolean[]; whatsapp: boolean[] } }[] = [];
+  const results: { title: string; type: string; notified: { emailResults: boolean[]; whatsappResults: boolean[] } }[] = [];
 
   for (const item of active) {
     const dueDate = new Date(item.dueDate);
