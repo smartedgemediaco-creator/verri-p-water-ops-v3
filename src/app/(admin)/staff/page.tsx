@@ -10,7 +10,7 @@ import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ArrowRightIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
 import StaffAvatar from "@/components/ui/StaffAvatar";
@@ -501,7 +501,7 @@ export default function StaffPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Staff</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Contacts</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Emergency</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Salary</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
@@ -522,8 +522,11 @@ export default function StaffPage() {
                     <TableCell className="py-3">
                     <Link href={`/staff/${s._id}`} className="flex items-center gap-3 group">
                       <StaffAvatar src={s.avatar} name={s.name} size="md" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 dark:text-white/90 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors truncate">{s.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-brand-600 dark:text-brand-400 truncate">{s.name}</p>
+                          <ArrowRightIcon className="w-3.5 h-3.5 text-brand-500 dark:text-brand-400 flex-shrink-0" />
+                        </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{s.email || s.phone || "—"}</p>
                       </div>
                     </Link>
@@ -531,20 +534,28 @@ export default function StaffPage() {
                   <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{s.locationName ? `${s.locationType === "truck" ? "🚛" : s.locationType === "factory" ? "🏭" : "🏬"} ${s.locationName}` : "—"}</TableCell>
                   <TableCell className="py-3">
-                    <div className="flex gap-1.5">
-                      {(s.addresses?.length ?? 0) > 0 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
-                          {s.addresses?.length} addr{(s.addresses?.length ?? 0) > 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {(s.emergencyContacts?.length ?? 0) > 0 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400">
-                          {s.emergencyContacts?.length} ec
-                        </span>
-                      )}
-                      {(!s.addresses || s.addresses.length === 0) && (!s.emergencyContacts || s.emergencyContacts.length === 0) && (
+                    <div className="flex items-center gap-1">
+                      {(s.emergencyContacts ?? []).slice(0, 3).map((ec, i) => (
+                        <StaffAvatar key={i} src={ec.photo} name={ec.name || "?"} size="xs" />
+                      ))}
+                      {(!s.emergencyContacts || s.emergencyContacts.length === 0) && (
                         <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                       )}
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        const name = prompt("Emergency contact name:");
+                        if (!name) return;
+                        const phone = prompt("Phone number:") || "";
+                        const relationship = prompt("Relationship:") || "";
+                        const updated = [...(s.emergencyContacts ?? []), { name, phone, relationship }];
+                        fetch(`/api/staff/${s._id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ emergencyContacts: updated }),
+                        }).then(() => { showSuccess("Contact added"); fetchStaff(); });
+                      }} className="ml-1 w-5 h-5 rounded-full bg-green-100 dark:bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/20 transition-colors flex-shrink-0" title="Add emergency contact">
+                        <PlusIcon className="w-3 h-3" />
+                      </button>
                     </div>
                   </TableCell>
                   <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>

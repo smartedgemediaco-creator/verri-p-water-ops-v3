@@ -601,7 +601,7 @@ export default function TruckLoadsPage() {
 
       {spoilageTarget && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setSpoilageTarget(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Confirm Delivery</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {(spoilageTarget.quantity ?? 0).toLocaleString()} units of{" "}
@@ -639,7 +639,7 @@ export default function TruckLoadsPage() {
 
       {editTarget && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setEditTarget(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-md mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Edit Load</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>

@@ -446,7 +446,7 @@ export default function DailyStockPage() {
         {/* Factory modals */}
         {showAddDay && (
           <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddDay(false)}>
-            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add New Day</h3>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
@@ -466,7 +466,7 @@ export default function DailyStockPage() {
 
         {showAddCol && (
           <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddCol(false)}>
-            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add Column</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">Add a new truck, tricycle, or tracking column. It will appear on all days.</p>
               <div>
@@ -728,7 +728,7 @@ export default function DailyStockPage() {
       {/* Depot modals */}
       {showAddDay && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddDay(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add New Day</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
@@ -748,7 +748,7 @@ export default function DailyStockPage() {
 
       {showAddCol && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddCol(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add Column</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">Add a new tracking column. It will appear on all days.</p>
             <div>

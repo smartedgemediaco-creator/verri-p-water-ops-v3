@@ -98,7 +98,7 @@ export default function ConfirmDialog({
   if (showSuccess) {
     return (
       <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-theme-xl w-full max-w-xs mx-4 p-8 flex flex-col items-center gap-4">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-theme-xl w-full max-w-xs mx-4 p-8 flex flex-col items-center gap-4 max-h-[90vh] overflow-y-auto">
           <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="animate-[scaleIn_0.3s_ease-out]">
             <circle
               cx="32" cy="32" r="30"
@@ -153,7 +153,7 @@ export default function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={handleClose}>
       <div
-        className={`bg-white dark:bg-gray-900 rounded-xl border ${borderColor} shadow-theme-xl w-full max-w-sm mx-4 overflow-hidden`}
+        className={`bg-white dark:bg-gray-900 rounded-xl border ${borderColor} shadow-theme-xl w-full max-w-sm mx-4 overflow-hidden max-h-[90vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`px-5 py-4 ${headerBg}`}>

@@ -329,7 +329,7 @@ export default function RawMaterialDetailPage({ params }: { params: Promise<{ id
 
       {showEditModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowEditModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-lg w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-lg w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Edit Material</h3>
             <form onSubmit={handleEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -365,7 +365,7 @@ export default function RawMaterialDetailPage({ params }: { params: Promise<{ id
 
       {showStockModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowStockModal(false); setStockAmount(0); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-sm w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-sm w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Record Stock</h3>
               <button onClick={() => { setShowStockModal(false); setStockAmount(0); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">

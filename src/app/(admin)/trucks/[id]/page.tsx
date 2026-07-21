@@ -668,7 +668,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
       {/* Service Modal */}
       {showServiceModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowServiceModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Log Service — {truck.plateNumber}</h3>
             <form onSubmit={handleService} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Service Type</label>

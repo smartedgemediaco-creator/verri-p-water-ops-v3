@@ -271,7 +271,7 @@ export default function RawMaterialsPage() {
 
       {showStockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowStockModal(false); setStockTarget(null); setStockAmount(0); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Record Stock</h3>
               <button onClick={() => { setShowStockModal(false); setStockTarget(null); setStockAmount(0); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">

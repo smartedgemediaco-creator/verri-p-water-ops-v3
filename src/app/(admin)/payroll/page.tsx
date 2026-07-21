@@ -580,7 +580,7 @@ export default function PayrollPage() {
       {/* Pay Modal */}
       {payTarget && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setPayTarget(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Record Payment</h3>
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">

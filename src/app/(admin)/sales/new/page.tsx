@@ -513,7 +513,7 @@ export default function NewSalePage() {
 
       {showAddCustomer && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowAddCustomer(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add New Customer</h3>
               <button onClick={() => setShowAddCustomer(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">

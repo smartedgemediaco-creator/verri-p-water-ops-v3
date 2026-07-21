@@ -592,7 +592,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
       {/* Production Modal */}
       {showProdModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowProdModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Record Production</h3>
             <form onSubmit={handleProduction} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
@@ -613,7 +613,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
       {/* Load Truck/Tricycle Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowLoadModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Load Truck/Tricycle from {factory.name}</h3>
             <form onSubmit={handleLoadTruck} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
@@ -649,7 +649,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
       {/* Cost Modal */}
       {showCostModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowCostModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Record Cost at {factory.name}</h3>
             <form onSubmit={handleCost} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
@@ -673,7 +673,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
       {/* Sale Modal */}
       {showSaleModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowSaleModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Record Sale at {factory.name}</h3>
             <form onSubmit={handleSale} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
@@ -703,7 +703,7 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
       {/* Staff Modal */}
       {showStaffModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowStaffModal(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Add Staff to {factory.name}</h3>
             <form onSubmit={handleAddStaff} className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>

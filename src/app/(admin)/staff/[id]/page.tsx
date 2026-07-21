@@ -565,7 +565,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
       {showAccessForm && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { if (!accessSubmitting) setShowAccessForm(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Create User Access for {staff.name}</h3>
             <form onSubmit={handleCreateAccess} className="space-y-4">
               <div>
@@ -626,7 +626,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
       {showEditModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowEditModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-lg w-full mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 max-w-lg w-full mx-4 shadow-theme-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Edit Staff</h3>
             <form onSubmit={handleEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

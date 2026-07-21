@@ -7,12 +7,15 @@ const SIZE_CLASSES = {
   lg: "w-14 h-14",
 } as const;
 
-const ICON_CLASSES = {
-  xs: "w-3 h-3",
-  sm: "w-4 h-4",
-  md: "w-5 h-5",
-  lg: "w-7 h-7",
-} as const;
+function GenericAvatar({ sizeClass }: { sizeClass: string }) {
+  return (
+    <div className={`${sizeClass} rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0`}>
+      <svg viewBox="0 0 24 24" fill="none" className="w-[60%] h-[60%] text-gray-400 dark:text-gray-500">
+        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .66.54 1.2 1.2 1.2h16.8c.66 0 1.2-.54 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z" fill="currentColor" />
+      </svg>
+    </div>
+  );
+}
 
 export default function StaffAvatar({
   src,
@@ -26,7 +29,6 @@ export default function StaffAvatar({
   className?: string;
 }) {
   const sizeClass = SIZE_CLASSES[size];
-  const iconClass = ICON_CLASSES[size];
   const hasRound = /\brounded-(full|xl|lg|md|sm)\b/.test(className);
   const shape = hasRound ? "" : "rounded-full";
 
@@ -40,24 +42,7 @@ export default function StaffAvatar({
     );
   }
 
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-
-  return (
-    <div
-      className={`${sizeClass} ${shape} bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center ring-2 ring-gray-100 dark:ring-gray-800 flex-shrink-0 ${className}`}
-    >
-      {initials ? (
-        <span className={`${size === "xs" ? "text-[9px]" : size === "sm" ? "text-[10px]" : "text-xs"} font-bold text-purple-600 dark:text-purple-400`}>
-          {initials}
-        </span>
-      ) : (
-        <UserIcon className={`${iconClass} text-purple-600 dark:text-purple-400`} />
-      )}
-    </div>
-  );
+  return <GenericAvatar sizeClass={`${sizeClass} ${shape} ${className}`} />;
 }
+
+export { GenericAvatar };

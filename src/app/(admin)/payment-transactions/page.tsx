@@ -378,7 +378,7 @@ export default function PaymentTransactionsPage() {
 
       {convertTarget && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={closeConvert}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-1">Convert to Sale</h3>
             <p className="text-xs text-gray-400 mb-4">
               ₦{convertTarget.amount.toLocaleString()} from {convertTarget.terminalSerial} — {new Date(convertTarget.transactionDate).toLocaleString()}
@@ -421,7 +421,7 @@ export default function PaymentTransactionsPage() {
 
       {showManual && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowManual(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-gray-800 dark:text-white/90 mb-4">Manual POS Transaction Entry</h3>
             <div className="space-y-3">
               <div>
