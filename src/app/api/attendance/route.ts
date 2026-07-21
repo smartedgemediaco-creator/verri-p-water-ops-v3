@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
     return {
       staffId: s._id,
       name: s.name,
+      avatar: (s as Record<string, unknown>).avatar ?? null,
       role: assignment?.role ?? "other",
       department: assignment?.department ?? "administration",
       locationLabel,

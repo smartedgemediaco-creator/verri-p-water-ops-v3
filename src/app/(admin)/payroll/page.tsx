@@ -13,6 +13,7 @@ import { showSuccess, showError } from "@/lib/toast";
 import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
 import { useAuth } from "@/context/AuthContext";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
+import StaffAvatar from "@/components/ui/StaffAvatar";
 
 interface PayrollRecord {
   _id: string;
@@ -132,7 +133,7 @@ export default function PayrollPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [filterStatus, setFilterStatus] = useState("");
-  const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number }[]>([]);
+  const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number; avatar?: string | null }[]>([]);
 
   const [showForm, setShowForm] = useState(false);
   const { ref, loading: pdfLoading, download } = usePdfDownload("salary-report");
@@ -177,7 +178,7 @@ export default function PayrollPage() {
     fetch("/api/staff")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setStaffList(data.map((s: { _id: string; name: string; salary?: number }) => ({ _id: s._id, name: s.name, salary: s.salary ?? 0 })));
+        if (Array.isArray(data)) setStaffList(data.map((s: { _id: string; name: string; salary?: number; avatar?: string }) => ({ _id: s._id, name: s.name, salary: s.salary ?? 0, avatar: s.avatar ?? null })));
       })
       .catch(() => {});
   }, []);
@@ -493,7 +494,15 @@ export default function PayrollPage() {
             <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
-                <Select options={staffList.map((s) => ({ value: s._id, label: s.name }))} placeholder="Select staff" value={formStaffId} onChange={handleStaffSelect} className={editingRecord ? "opacity-50" : ""} />
+                <div className="flex items-center gap-3">
+                  {formStaffId && (() => {
+                    const found = staffList.find((s) => s._id === formStaffId);
+                    return found ? <StaffAvatar src={found.avatar} name={found.name} size="sm" /> : null;
+                  })()}
+                  <div className="flex-1">
+                    <Select options={staffList.map((s) => ({ value: s._id, label: s.name }))} placeholder="Select staff" value={formStaffId} onChange={handleStaffSelect} className={editingRecord ? "opacity-50" : ""} />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month</label>

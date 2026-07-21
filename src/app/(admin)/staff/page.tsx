@@ -10,9 +10,10 @@ import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ChevronDownIcon, ChevronUpIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
+import StaffAvatar from "@/components/ui/StaffAvatar";
 
 
 interface StaffMember {
@@ -74,7 +75,6 @@ export default function StaffPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterLocationType, setFilterLocationType] = useState("");
   const [filterLocationId, setFilterLocationId] = useState("");
   const [filterLocations, setFilterLocations] = useState<{ value: string; label: string }[]>([]);
@@ -461,13 +461,7 @@ export default function StaffPage() {
                   <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2">
                     <div className="flex items-start gap-3">
                       <label className="relative group cursor-pointer flex-shrink-0">
-                        {ec.photo ? (
-                          <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
-                            <UserIcon className="w-5 h-5 text-red-500" />
-                          </div>
-                        )}
+                        <StaffAvatar src={ec.photo} name={ec.name || "?"} size="md" />
                         <input type="file" accept="image/*" onChange={(e) => handleContactPhotoUpload(i, e)} className="hidden" />
                         <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                           <span className="text-white text-[8px] font-medium">{uploadingContactIdx === i ? "..." : "Photo"}</span>
@@ -504,15 +498,11 @@ export default function StaffPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
-                <span className="sr-only">Avatar</span>
-              </TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Name</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Staff</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Role</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Department</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Contacts</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Salary</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Employment Type</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
@@ -520,97 +510,64 @@ export default function StaffPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>Loading...</TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No staff found. Click &quot;Add Staff&quot; to create one.</TableCell>
               </TableRow>
             ) : (
-              filtered.flatMap((s) => {
-                const mainRow = (
-                  <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                    <TableCell className="py-3 w-12">
-                      <label className="relative group cursor-pointer">
-                        {s.avatar ? (
-                          <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
-                            <UserIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                          </div>
-                        )}
-                        <input type="file" accept="image/*" onChange={(e) => handleAvatarUpload(s._id, e)} className="hidden" />
-                        <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <span className="text-white text-[7px] font-medium">{uploadingAvatar ? "..." : "📷"}</span>
+              filtered.map((s) => (
+                <TableRow key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <TableCell className="py-3">
+                    <Link href={`/staff/${s._id}`} className="flex items-center gap-3 group">
+                      <StaffAvatar src={s.avatar} name={s.name} size="md" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-white/90 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors truncate">{s.name}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{s.email || s.phone || "—"}</p>
+                      </div>
+                    </Link>
+                  </TableCell>
+                  <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{s.locationName ? `${s.locationType === "truck" ? "🚛" : s.locationType === "factory" ? "🏭" : "🏬"} ${s.locationName}` : "—"}</TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex gap-1.5">
+                      {(s.addresses?.length ?? 0) > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                          {s.addresses?.length} addr{(s.addresses?.length ?? 0) > 1 ? "s" : ""}
                         </span>
-                      </label>
-                    </TableCell>
-                    <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                      <button onClick={() => setExpandedId(expandedId === s._id ? null : s._id)} className="inline-flex items-center gap-1.5 text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
-                        {expandedId === s._id ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
-                        {s.name}
+                      )}
+                      {(s.emergencyContacts?.length ?? 0) > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400">
+                          {s.emergencyContacts?.length} ec
+                        </span>
+                      )}
+                      {(!s.addresses || s.addresses.length === 0) && (!s.emergencyContacts || s.emergencyContacts.length === 0) && (
+                        <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="py-3">
+                    <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
+                      {s.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex gap-2">
+                      <Link href={`/staff/${s._id}`} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors">
+                        View
+                      </Link>
+                      <button onClick={(e) => { e.stopPropagation(); openEdit(s); }} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
+                        <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
                       </button>
-                    </TableCell>
-                    <TableCell className="py-3"><span className={roleBadge(s.role)}>{s.role}</span></TableCell>
-                    <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.department}</TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{s.locationName ? `${s.locationType === "truck" ? "🚛" : s.locationType === "factory" ? "🏭" : "🏬"} ${s.locationName}` : "—"}</TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
-                    <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{s.employmentType}</TableCell>
-                    <TableCell className="py-3">
-                      <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
-                        {s.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEdit(s)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
-                          <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
-                        </button>
-                        <button onClick={() => setDeleteTarget(s._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
-                          <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-
-                if (expandedId !== s._id) return [mainRow];
-
-                return [mainRow, (
-                  <TableRow key={`${s._id}-detail`} className="bg-gray-50/50 dark:bg-gray-800/20">
-                    <TableCell colSpan={9} className="py-4 px-6">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</span>
-                          <span className="text-gray-800 dark:text-white/90">{s.phone || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Email</span>
-                          <span className="text-gray-800 dark:text-white/90">{s.email || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Emergency Contact</span>
-                          <span className="text-gray-800 dark:text-white/90">{s.emergencyContact || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Start Date</span>
-                          <span className="text-gray-800 dark:text-white/90">{s.startDate ? new Date(s.startDate).toLocaleDateString() : "—"}</span>
-                        </div>
-                        <div className="col-span-full sm:col-span-1">
-                          <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Location</span>
-                          <span className="text-gray-800 dark:text-white/90">{s.locationName ? `${s.locationType} — ${s.locationName}` : "—"}</span>
-                        </div>
-                        {s.notes && (
-                          <div className="col-span-full">
-                            <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Notes</span>
-                            <span className="text-gray-800 dark:text-white/90">{s.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )];
-              })
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(s._id); }} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                        <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>

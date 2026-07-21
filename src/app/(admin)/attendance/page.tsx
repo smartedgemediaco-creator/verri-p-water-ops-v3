@@ -6,6 +6,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
+import StaffAvatar from "@/components/ui/StaffAvatar";
 
 interface LocationOption {
   type: string;
@@ -16,6 +17,7 @@ interface LocationOption {
 interface StaffRow {
   staffId: string;
   name: string;
+  avatar?: string | null;
   role: string;
   department: string;
   locationLabel?: string;
@@ -240,8 +242,9 @@ export default function AttendancePage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Staff Name</th>
+                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
+                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400"></th>
+                   <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Staff Name</th>
                   {showLocationColumn && (
                     <th className="px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Location</th>
                   )}
@@ -253,13 +256,14 @@ export default function AttendancePage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={showLocationColumn ? 7 : 6} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                  <tr><td colSpan={showLocationColumn ? 8 : 7} className="text-center py-10 text-gray-500">Loading...</td></tr>
                 ) : staff.length === 0 ? (
-                  <tr><td colSpan={showLocationColumn ? 6 : 5} className="text-center py-10 text-gray-500">No staff found at this location.</td></tr>
+                  <tr><td colSpan={showLocationColumn ? 7 : 6} className="text-center py-10 text-gray-500">No staff found at this location.</td></tr>
                 ) : (
                   staff.map((s, i) => (
                     <tr key={s.staffId} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5">
                       <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{i + 1}</td>
+                      <td className="px-3 py-2"><StaffAvatar src={s.avatar} name={s.name} size="sm" /></td>
                       <td className="px-3 py-2 font-medium text-gray-800 dark:text-white/90">{s.name}</td>
                       {showLocationColumn && (
                         <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{s.locationLabel || "—"}</td>

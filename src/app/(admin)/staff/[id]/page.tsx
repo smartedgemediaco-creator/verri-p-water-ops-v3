@@ -16,6 +16,7 @@ import { showSuccess, showError } from "@/lib/toast";
 import { UserIcon, DollarLineIcon, PencilIcon, CalenderIcon, ListIcon, BoltIcon } from "@/icons";
 import { FactoryIcon, DepotIcon } from "@/components/icons/EntityIcons";
 import { LightbulbIcon, CheckCircleIcon, TrendingUpIcon, UserPlusIcon } from "lucide-react";
+import StaffAvatar from "@/components/ui/StaffAvatar";
 
 interface StaffMember {
   _id: string; name: string; phone: string; email: string;
@@ -261,13 +262,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
         <div className="flex items-center gap-4">
           <label className="relative group cursor-pointer flex-shrink-0">
-            {staff.avatar ? (
-              <img src={staff.avatar} alt={staff.name} className="w-14 h-14 rounded-xl object-cover" />
-            ) : (
-              <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-500/10">
-                <UserIcon className="w-7 h-7 text-purple-600 dark:text-purple-400" />
-              </div>
-            )}
+            <StaffAvatar src={staff.avatar} name={staff.name} size="lg" className="rounded-xl" />
             <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
             <span className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
               <span className="text-white text-[10px] font-medium">{uploadingAvatar ? "Uploading..." : "Change Photo"}</span>
@@ -493,13 +488,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {staff.emergencyContacts.map((ec, i) => (
               <div key={i} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 relative group">
-                {ec.photo ? (
-                  <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-red-500" />
-                  </div>
-                )}
+                <StaffAvatar src={ec.photo} name={ec.name || "?"} size="md" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{ec.name || "Unnamed"}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{ec.relationship || "—"} · {ec.phone || "—"}</p>
@@ -710,13 +699,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                   <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-2">
                     <div className="flex items-start gap-3">
                       <label className="relative group cursor-pointer flex-shrink-0">
-                        {ec.photo ? (
-                          <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
-                            <UserIcon className="w-5 h-5 text-red-500" />
-                          </div>
-                        )}
+                        <StaffAvatar src={ec.photo} name={ec.name || "?"} size="md" />
                         <input type="file" accept="image/*" onChange={(e) => handleContactPhotoUpload(i, e)} className="hidden" />
                         <span className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                           <span className="text-white text-[8px] font-medium">{uploadingContactIdx === i ? "..." : "Photo"}</span>
