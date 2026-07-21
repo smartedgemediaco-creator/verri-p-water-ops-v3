@@ -19,7 +19,7 @@ interface PayrollRecord {
   staffId: string;
   month: string;
   baseSalary: number;
-  deductions: { absence: number; lateness: number; debt: number; punishment: number; other: number };
+  deductions: { absence: number; lateness: number; halfDay: number; debt: number; punishment: number; other: number };
   bonus: number;
   netPay: number;
   status: "pending" | "paid" | "partial";
@@ -417,7 +417,7 @@ export default function PayrollPage() {
             ) : (
               records.map((record) => {
                 const badge = STATUS_BADGES[record.status] ?? STATUS_BADGES.pending;
-                const totalDed = (record.deductions?.absence ?? 0) + (record.deductions?.lateness ?? 0) + (record.deductions?.debt ?? 0) + (record.deductions?.punishment ?? 0) + (record.deductions?.other ?? 0);
+                const totalDed = (record.deductions?.absence ?? 0) + (record.deductions?.lateness ?? 0) + (record.deductions?.halfDay ?? 0) + (record.deductions?.debt ?? 0) + (record.deductions?.punishment ?? 0) + (record.deductions?.other ?? 0);
                 return (
                   <TableRow key={record._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <TableCell className="py-3">
