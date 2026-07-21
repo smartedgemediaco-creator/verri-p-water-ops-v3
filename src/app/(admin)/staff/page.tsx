@@ -536,7 +536,7 @@ export default function StaffPage() {
                           <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover" />
                         ) : (
                           <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
-                            <UserIcon className="w-4.5 h-4.5 text-purple-600 dark:text-purple-400" />
+                            <UserIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                           </div>
                         )}
                         <input type="file" accept="image/*" onChange={(e) => handleAvatarUpload(s._id, e)} className="hidden" />

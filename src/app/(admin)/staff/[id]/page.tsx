@@ -442,27 +442,57 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Addresses */}
-      {staff.addresses && staff.addresses.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Addresses</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Addresses</h3>
+          <button onClick={() => {
+            const newAddr = { label: "Home", street: "", city: "", state: "", country: "Nigeria" };
+            const updated = [...(staff?.addresses ?? []), newAddr];
+            setStaff(s => s ? { ...s, addresses: updated } : s);
+            fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addresses: updated }) }).then(() => { showSuccess("Address added"); fetchAll(); });
+          }} className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Address</button>
+        </div>
+        {!staff?.addresses || staff.addresses.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400 dark:text-gray-500">No addresses added yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click &quot;+ Add Address&quot; above to add one.</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {staff.addresses.map((addr, i) => (
-              <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 relative group">
                 <p className="text-xs font-medium text-brand-600 dark:text-brand-400 mb-1">{addr.label || "Address"}</p>
                 <p className="text-sm text-gray-800 dark:text-white/90">{[addr.street, addr.city, addr.state, addr.country].filter(Boolean).join(", ") || "—"}</p>
+                <button onClick={() => {
+                  const updated = (staff.addresses ?? []).filter((_, j) => j !== i);
+                  fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addresses: updated }) }).then(() => { showSuccess("Address removed"); fetchAll(); });
+                }} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition-opacity">✕</button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Emergency Contacts */}
-      {staff.emergencyContacts && staff.emergencyContacts.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Emergency Contacts</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Emergency Contacts</h3>
+          <button onClick={() => {
+            const newContact = { name: "", phone: "", relationship: "" };
+            const updated = [...(staff?.emergencyContacts ?? []), newContact];
+            setStaff(s => s ? { ...s, emergencyContacts: updated } : s);
+            fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emergencyContacts: updated }) }).then(() => { showSuccess("Contact added"); fetchAll(); });
+          }} className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Contact</button>
+        </div>
+        {!staff?.emergencyContacts || staff.emergencyContacts.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400 dark:text-gray-500">No emergency contacts added yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click &quot;+ Add Contact&quot; above to add one.</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {staff.emergencyContacts.map((ec, i) => (
-              <div key={i} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <div key={i} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 relative group">
                 {ec.photo ? (
                   <img src={ec.photo} alt={ec.name} className="w-10 h-10 rounded-full object-cover" />
                 ) : (
@@ -470,15 +500,19 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                     <UserIcon className="w-5 h-5 text-red-500" />
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{ec.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{ec.name || "Unnamed"}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{ec.relationship || "—"} · {ec.phone || "—"}</p>
                 </div>
+                <button onClick={() => {
+                  const updated = (staff.emergencyContacts ?? []).filter((_, j) => j !== i);
+                  fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emergencyContacts: updated }) }).then(() => { showSuccess("Contact removed"); fetchAll(); });
+                }} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition-opacity">✕</button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Salary History */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
