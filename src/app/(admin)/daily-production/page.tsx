@@ -167,6 +167,16 @@ export default function DailyProductionPage() {
     return acc;
   }, {});
 
+  const staffMonthlyTotals = savedRecords.reduce<Record<string, number>>((acc, r) => {
+    acc[r.staffName] = (acc[r.staffName] || 0) + (r.totalEarned || 0);
+    return acc;
+  }, {});
+
+  const monthTotals = savedRecords.reduce(
+    (acc, r) => ({ bags: acc.bags + (r.bagsProduced || 0), earned: acc.earned + (r.totalEarned || 0) }),
+    { bags: 0, earned: 0 }
+  );
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -306,14 +316,15 @@ export default function DailyProductionPage() {
                 <th className="px-3 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Bags</th>
                 <th className="px-3 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Rate</th>
                 <th className="px-3 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Earned</th>
+                <th className="px-3 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Total Paid</th>
                 <th className="px-3 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loadingSaved ? (
-                <tr><td colSpan={7} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-10 text-gray-500">Loading...</td></tr>
               ) : Object.keys(groupedByDate).length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-10 text-gray-500">No records for this month.</td></tr>
+                <tr><td colSpan={8} className="text-center py-10 text-gray-500">No records for this month.</td></tr>
               ) : (
                 Object.entries(groupedByDate).sort(([a], [b]) => b.localeCompare(a)).map(([date, recs]) => (
                   recs.map((r, i) => (
@@ -326,6 +337,7 @@ export default function DailyProductionPage() {
                       <td className="px-3 py-2 text-right text-gray-800 dark:text-white/90">{r.bagsProduced.toLocaleString()}</td>
                       <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">₦{r.rate.toLocaleString()}</td>
                       <td className="px-3 py-2 text-right font-semibold text-brand-600 dark:text-brand-400">₦{r.totalEarned.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-green-600 dark:text-green-400">₦{(staffMonthlyTotals[r.staffName] || 0).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">
                         <button onClick={() => deleteRecord(r._id)} className="text-red-500 hover:text-red-700 text-xs">Del</button>
                       </td>
@@ -334,6 +346,18 @@ export default function DailyProductionPage() {
                 ))
               )}
             </tbody>
+            {Object.keys(groupedByDate).length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold text-gray-800 dark:text-white/90">
+                  <td className="px-3 py-2.5" colSpan={3}>Totals ({savedRecords.length} records)</td>
+                  <td className="px-3 py-2.5 text-right">{monthTotals.bags.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right"></td>
+                  <td className="px-3 py-2.5 text-right text-brand-600 dark:text-brand-400">₦{monthTotals.earned.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right text-green-600 dark:text-green-400">₦{monthTotals.earned.toLocaleString()}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
