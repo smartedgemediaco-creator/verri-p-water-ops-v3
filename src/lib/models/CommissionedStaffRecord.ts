@@ -16,6 +16,14 @@ export interface ICommissionedStaffRecord extends Document {
   stockReturned: number;
   dealPrice: number;
   expectedAmount: number;
+  transferredBy: string;
+  amountTransferred: number;
+  cashPaid: number;
+  deficit: number;
+  debtPaid: number;
+  debtPayer: string;
+  debtors: string;
+  debt: number;
   payments: IPaymentEntry[];
   totalPaid: number;
   totalOwed: number;
@@ -45,6 +53,14 @@ const CommissionedStaffRecordSchema = new Schema<ICommissionedStaffRecord>(
     stockReturned: { type: Number, default: 0, min: 0 },
     dealPrice: { type: Number, required: true, min: 0 },
     expectedAmount: { type: Number, required: true, min: 0 },
+    transferredBy: { type: String, default: "" },
+    amountTransferred: { type: Number, default: 0, min: 0 },
+    cashPaid: { type: Number, default: 0, min: 0 },
+    deficit: { type: Number, default: 0 },
+    debtPaid: { type: Number, default: 0, min: 0 },
+    debtPayer: { type: String, default: "" },
+    debtors: { type: String, default: "" },
+    debt: { type: Number, default: 0, min: 0 },
     payments: { type: [PaymentEntrySchema], default: [] },
     totalPaid: { type: Number, default: 0, min: 0 },
     totalOwed: { type: Number, default: 0, min: 0 },

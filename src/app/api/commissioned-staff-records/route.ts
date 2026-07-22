@@ -67,6 +67,13 @@ export async function POST(req: NextRequest) {
   const bagsConsumed = stockLoaded - stockReturned;
   const expectedAmount = bagsConsumed * dealPrice;
 
+  const amountTransferred = Number(body.amountTransferred) || 0;
+  const cashPaid = Number(body.cashPaid) || 0;
+  const debtPaid = Number(body.debtPaid) || 0;
+  const totalPaid = amountTransferred + cashPaid + debtPaid;
+  const deficit = Math.max(0, expectedAmount - totalPaid);
+  const debt = deficit;
+
   const record = await CommissionedStaffRecord.create({
     staffId: body.staffId,
     date: new Date(body.date),
@@ -74,9 +81,17 @@ export async function POST(req: NextRequest) {
     stockReturned,
     dealPrice,
     expectedAmount,
+    transferredBy: body.transferredBy || "",
+    amountTransferred,
+    cashPaid,
+    deficit,
+    debtPaid,
+    debtPayer: body.debtPayer || "",
+    debtors: body.debtors || "",
+    debt,
     payments: [],
-    totalPaid: 0,
-    totalOwed: expectedAmount,
+    totalPaid,
+    totalOwed: debt,
     notes: body.notes || "",
     createdBy: user.userId,
   });
@@ -85,9 +100,9 @@ export async function POST(req: NextRequest) {
     action: "created",
     entity: "commissioned-staff-record",
     entityId: record._id.toString(),
-    description: `Recorded outing for "${staff.name}": ${stockLoaded} bags loaded, ₦${expectedAmount.toLocaleString()} expected`,
+    description: `Recorded outing for "${staff.name}": ${stockLoaded} bags loaded, ₦${expectedAmount.toLocaleString()} expected, ₦${totalPaid.toLocaleString()} paid`,
     userId: user.userId,
-    metadata: { staffName: staff.name, stockLoaded, stockReturned, expectedAmount },
+    metadata: { staffName: staff.name, stockLoaded, stockReturned, expectedAmount, totalPaid, debt },
   });
 
   return NextResponse.json(record, { status: 201 });

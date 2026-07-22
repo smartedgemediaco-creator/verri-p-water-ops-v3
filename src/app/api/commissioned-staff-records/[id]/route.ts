@@ -32,6 +32,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.date !== undefined) update.date = new Date(body.date);
   if (body.stockLoaded !== undefined) update.stockLoaded = Number(body.stockLoaded);
   if (body.stockReturned !== undefined) update.stockReturned = Number(body.stockReturned);
+  if (body.transferredBy !== undefined) update.transferredBy = body.transferredBy;
+  if (body.amountTransferred !== undefined) update.amountTransferred = Number(body.amountTransferred);
+  if (body.cashPaid !== undefined) update.cashPaid = Number(body.cashPaid);
+  if (body.debtPaid !== undefined) update.debtPaid = Number(body.debtPaid);
+  if (body.debtPayer !== undefined) update.debtPayer = body.debtPayer;
+  if (body.debtors !== undefined) update.debtors = body.debtors;
   if (body.notes !== undefined) update.notes = body.notes;
 
   const stockLoaded = update.stockLoaded !== undefined ? Number(update.stockLoaded) : existing.stockLoaded;
@@ -39,8 +45,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const dealPrice = existing.dealPrice;
   const bagsConsumed = stockLoaded - stockReturned;
   const expectedAmount = bagsConsumed * dealPrice;
+  const amountTransferred = update.amountTransferred !== undefined ? Number(update.amountTransferred) : existing.amountTransferred;
+  const cashPaid = update.cashPaid !== undefined ? Number(update.cashPaid) : existing.cashPaid;
+  const debtPaid = update.debtPaid !== undefined ? Number(update.debtPaid) : existing.debtPaid;
+  const totalPaid = amountTransferred + cashPaid + debtPaid;
+  const deficit = Math.max(0, expectedAmount - totalPaid);
+  const debt = deficit;
+
   update.expectedAmount = expectedAmount;
-  update.totalOwed = expectedAmount - existing.totalPaid;
+  update.totalPaid = totalPaid;
+  update.totalOwed = debt;
+  update.deficit = deficit;
+  update.debt = debt;
 
   const record = await CommissionedStaffRecord.findByIdAndUpdate(id, update, { new: true });
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -49,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     action: "updated",
     entity: "commissioned-staff-record",
     entityId: id,
-    description: `Updated record: ${stockLoaded} loaded, ${stockReturned} returned, ₦${update.expectedAmount} expected`,
+    description: `Updated record: ${stockLoaded} loaded, ${stockReturned} returned, ₦${expectedAmount.toLocaleString()} expected, ₦${debt.toLocaleString()} debt`,
     userId: user.userId,
   });
 
