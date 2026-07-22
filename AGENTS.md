@@ -36,6 +36,7 @@ src/
 │   │   ├── raw-materials/, scheduled-operations/, truck-loads/
 │   │   ├── payment-transactions/, pos-devices/, wastage/
 │   │   ├── disputes/, driver/, settings/, onboarding/
+│   │   ├── daily-production/
 │   │   └── factories/[id]/, depots/[id]/, trucks/[id]/, products/[id]/
 │   ├── (full-width-pages)/       # Public routes (signin, signup, 404)
 │   └── api/                      # CRUD routes per entity
@@ -50,7 +51,7 @@ src/
     ├── db.ts                     # MongoDB connection singleton
     ├── logActivity.ts            # Activity logging helper
     ├── toast.tsx                 # react-hot-toast helpers
-    └── models/                   # 42 Mongoose models (see below)
+    └── models/                   # 43 Mongoose models (see below)
 ```
 
 ## Cog Architecture — Decentralized Entity Model
@@ -80,6 +81,7 @@ Relationships are managed through **connector gears** — separate models that l
 │  Invoice | PaymentReceipt | FuelLog                 │
 │  Attendance | Leave | Trip | Stock | TruckLoad      │
 │  ServiceRecord | ScheduledOperation | Dispute       │
+│  DailyProduction                                    │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -92,7 +94,7 @@ Relationships are managed through **connector gears** — separate models that l
 | `Truck` | plateNumber, chassisNumber, engineNumber, capacity, isActive | No `driverName` or `assignedTo` |
 | `Product` | name, unit, category(sachet/bottle), description, unitPrice | |
 | `RawMaterial` | name, unit, category, currentStock, minimumStock, unitCost | No `supplierId` |
-| `Staff` | name, phone, email, salary, employmentType, startDate, isActive | No `role`/`department`/`location` |
+| `Staff` | name, phone, email, salary, dailyRate, employmentType, startDate, isActive | No `role`/`department`/`location` |
 | `User` | name, email, password, isActive | No `role`/`factoryId`/`depotId`/`truckId` |
 | `Customer` | name, phone, email, address, businessName, customerType, isActive | |
 | `Supplier` | name, phone, email, address, supplyType, materialProvided, isActive | |
@@ -145,6 +147,7 @@ FuelLog ──truckId──→ Truck | driverId──→ Staff
 Attendance ──staffId──→ Staff
 Leave ──staffId──→ Staff | approvedBy──→ User
 Trip ──truckId──→ Truck | driverId──→ Staff | routeId──→ DeliveryRoute
+DailyProduction ──staffId──→ Staff | productId──→ Product
 ```
 
 ## Stock Stats — Data Flow
@@ -189,6 +192,7 @@ All stats support role-based scoping (factory-manager → own factory, depot-man
 | `/reports` | PDF report generation | html2canvas → jsPDF |
 | `/notifications` | Low stock + in-transit alerts | |
 | `/activity` | Audit log | Paginated, entity-filtered |
+| `/daily-production` | Daily production entry for casual workers | Batch entry, per-worker bags × rate |
 | `/users` | User management | |
 | `/profile` | User profile + change password | |
 | `/calendar`, `/blank` | Misc | Calendar uses FullCalendar |

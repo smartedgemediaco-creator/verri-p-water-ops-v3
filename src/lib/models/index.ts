@@ -94,3 +94,5 @@ export { DailyStock } from "./DailyStock";
 export type { IDailyStock } from "./DailyStock";
 export { DailyStockColumn } from "./DailyStockColumn";
 export type { IDailyStockColumn } from "./DailyStockColumn";
+export { DailyProduction } from "./DailyProduction";
+export type { IDailyProduction } from "./DailyProduction";

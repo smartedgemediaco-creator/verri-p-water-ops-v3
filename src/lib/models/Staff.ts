@@ -20,7 +20,8 @@ export interface IStaff extends Document {
   phone: string;
   email: string;
   salary: number;
-  employmentType: "full-time" | "part-time" | "contract";
+  dailyRate: number;
+  employmentType: "full-time" | "part-time" | "contract" | "daily";
   startDate: Date;
   isActive: boolean;
   emergencyContact: string;
@@ -59,9 +60,10 @@ const StaffSchema = new Schema<IStaff>(
     phone: { type: String, default: "" },
     email: { type: String, default: "" },
     salary: { type: Number, default: 0 },
+    dailyRate: { type: Number, default: 0 },
     employmentType: {
       type: String,
-      enum: ["full-time", "part-time", "contract"],
+      enum: ["full-time", "part-time", "contract", "daily"],
       default: "full-time",
     },
     startDate: { type: Date, default: Date.now },

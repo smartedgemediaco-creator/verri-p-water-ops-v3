@@ -27,12 +27,13 @@ interface StaffMember {
   locationId: string;
   locationName: string;
   salary: number;
-  employmentType: "full-time" | "part-time" | "contract";
+  employmentType: "full-time" | "part-time" | "contract" | "daily";
   startDate: string;
   isActive: boolean;
   emergencyContact: string;
   notes: string;
   avatar?: string;
+  dailyRate?: number;
   addresses?: { label: string; street: string; city: string; state: string; country: string }[];
   emergencyContacts?: { name: string; phone: string; relationship: string; photo?: string }[];
 }
@@ -66,6 +67,7 @@ const EMPLOYMENT_TYPES = [
   { value: "full-time", label: "Full Time" },
   { value: "part-time", label: "Part Time" },
   { value: "contract", label: "Contract" },
+  { value: "daily", label: "Daily / Casual" },
 ];
 
 export default function StaffPage() {
@@ -88,6 +90,7 @@ export default function StaffPage() {
   const [locationType, setLocationType] = useState("");
   const [locationId, setLocationId] = useState("");
   const [salary, setSalary] = useState(0);
+  const [dailyRate, setDailyRate] = useState(0);
   const [employmentType, setEmploymentType] = useState("full-time");
   const [startDate, setStartDate] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -149,6 +152,7 @@ export default function StaffPage() {
     setLocationType("");
     setLocationId("");
     setSalary(0);
+    setDailyRate(0);
     setEmploymentType("full-time");
     setStartDate("");
     setIsActive(true);
@@ -168,6 +172,7 @@ export default function StaffPage() {
     setLocationType(s.locationType);
     setLocationId(s.locationId);
     setSalary(s.salary);
+    setDailyRate(s.dailyRate ?? 0);
     setEmploymentType(s.employmentType);
     setStartDate(s.startDate ? new Date(s.startDate).toISOString().split("T")[0] : "");
     setIsActive(s.isActive);
@@ -195,7 +200,7 @@ export default function StaffPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(), phone, email, role, department, locationType, locationId, salary, employmentType,
+          name: name.trim(), phone, email, role, department, locationType, locationId, salary, dailyRate, employmentType,
           startDate: startDate ? new Date(startDate).toISOString() : undefined, isActive, emergencyContact, notes,
           addresses: formAddresses, emergencyContacts: formContacts,
         }),
@@ -399,8 +404,14 @@ export default function StaffPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Salary (₦)</label>
-                  <Input type="number" placeholder="0" value={salary} onChange={(e) => setSalary(Number(e.target.value))} />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {employmentType === "daily" ? "Rate per Bag (₦)" : "Salary (₦)"}
+                  </label>
+                  <Input type="number" placeholder="0" value={employmentType === "daily" ? dailyRate : salary}
+                    onChange={(e) => employmentType === "daily" ? setDailyRate(Number(e.target.value)) : setSalary(Number(e.target.value))} />
+                  {employmentType === "daily" && (
+                    <p className="text-[10px] text-gray-400 mt-1">Current rate per bag for this casual worker</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
@@ -558,7 +569,12 @@ export default function StaffPage() {
                       </button>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.salary ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">
+                    {s.employmentType === "daily"
+                      ? `₦${(s.dailyRate ?? 0).toLocaleString()}/bag`
+                      : `₦${(s.salary ?? 0).toLocaleString()}`
+                    }
+                  </TableCell>
                   <TableCell className="py-3">
                     <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400" : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"}`}>
                       {s.isActive ? "Active" : "Inactive"}
