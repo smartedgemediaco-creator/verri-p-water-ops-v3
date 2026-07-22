@@ -170,7 +170,7 @@ export default function DailyProductionPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Daily Production" />
+        <PageBreadcrumb pageTitle="Daily Staff Pay" />
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchSavedRecords}>
             Refresh
@@ -224,7 +224,7 @@ export default function DailyProductionPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden mb-8">
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Record Production — {selectedDate}</h3>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Record Daily Pay — {selectedDate}</h3>
           <Button size="sm" disabled={saving || entries.length === 0} onClick={saveAll}>
             {saving ? "Saving..." : "Save All"}
           </Button>
@@ -292,7 +292,7 @@ export default function DailyProductionPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Saved Records</h3>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Pay Records</h3>
           <input type="month" value={viewMonth} onChange={(e) => setViewMonth(e.target.value)}
             className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
         </div>

@@ -183,20 +183,11 @@ export default function PayrollPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!formStaffId || !formMonth) return;
-    const found = staffList.find((s) => s._id === formStaffId);
-    if (found?.employmentType === "daily") {
-      fetchDailyProductionEarnings(formStaffId, formMonth);
-    }
-  }, [formStaffId, formMonth, staffList]);
-
   const openCreate = () => {
     setEditingRecord(null);
     setFormStaffId("");
     setFormMonth(selectedMonth);
     setFormBaseSalary("");
-    setDailyProductionSummary(null);
     setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
     setFormBonus("0"); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
     setShowForm(true);
@@ -207,7 +198,6 @@ export default function PayrollPage() {
     setFormStaffId(record.staffId);
     setFormMonth(record.month);
     setFormBaseSalary(String(record.baseSalary));
-    setDailyProductionSummary(null);
     setFormAbsence(String(record.deductions?.absence ?? 0));
     setFormLateness(String(record.deductions?.lateness ?? 0));
     setFormHalfDay(String(record.deductions?.halfDay ?? 0));
@@ -233,70 +223,29 @@ export default function PayrollPage() {
   const handleStaffSelect = (staffId: string) => {
     setFormStaffId(staffId);
     const found = staffList.find((s) => s._id === staffId);
-    if (found) {
-      if (found.employmentType === "daily") {
-        setFormBaseSalary("0");
-        fetchDailyProductionEarnings(staffId, formMonth);
-      } else {
-        setFormBaseSalary(String(found.salary));
-      }
-    }
+    if (found) setFormBaseSalary(String(found.salary));
   };
-
-  const fetchDailyProductionEarnings = async (staffId: string, month: string) => {
-    try {
-      const prodRes = await fetch(`/api/daily-production?staffId=${staffId}&month=${month}`);
-      if (prodRes.ok) {
-        const prodData = await prodRes.json();
-        const records = Array.isArray(prodData) ? prodData : [];
-        const totalBags = records.reduce((sum: number, r: { bagsProduced?: number }) => sum + (r.bagsProduced || 0), 0);
-        const totalEarned = records.reduce((sum: number, r: { totalEarned?: number }) => sum + (r.totalEarned || 0), 0);
-        setFormBaseSalary(String(totalEarned));
-        setDailyProductionSummary({ totalBags, totalEarned, daysWorked: records.length });
-      }
-    } catch { /* ignore */ }
-  };
-
-  const [dailyProductionSummary, setDailyProductionSummary] = useState<{ totalBags: number; totalEarned: number; daysWorked: number } | null>(null);
 
   const autoFillFromAttendance = async () => {
     if (!formStaffId || !formMonth) { showError("Select staff and month first"); return; }
     setAutoFilling(true);
     try {
-      const foundStaff = staffList.find((s) => s._id === formStaffId);
-      const isDaily = foundStaff?.employmentType === "daily";
+      const [factories, depots] = await Promise.all([
+        fetch("/api/factories").then((r) => r.json()),
+        fetch("/api/depots").then((r) => r.json()),
+      ]);
+      const locations: { type: string; id: string }[] = [];
+      if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
+      if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
 
-      if (isDaily) {
-        const prodRes = await fetch(`/api/daily-production?staffId=${formStaffId}&month=${formMonth}`);
-        if (prodRes.ok) {
-          const prodData = await prodRes.json();
-          const totalEarned = (Array.isArray(prodData) ? prodData : []).reduce((sum: number, r: { totalEarned?: number }) => sum + (r.totalEarned || 0), 0);
-          if (totalEarned > 0) {
-            setFormBaseSalary(String(totalEarned));
-            showSuccess(`Auto-filled from daily production: ₦${totalEarned.toLocaleString()}`);
-          } else {
-            showError("No daily production records found for this worker this month.");
-          }
-        } else {
-          showError("Failed to fetch daily production records.");
-        }
-      } else {
-        const [factories, depots] = await Promise.all([
-          fetch("/api/factories").then((r) => r.json()),
-          fetch("/api/depots").then((r) => r.json()),
-        ]);
-        const locations: { type: string; id: string }[] = [];
-        if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
-        if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
-
-        let totalLateAmount = 0;
-        let totalAbsenceAmount = 0;
-        let totalHalfDayAmount = 0;
-        for (const loc of locations) {
-          const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
-          if (!res.ok) continue;
-          const data = await res.json();
-          const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
+      let totalLateAmount = 0;
+      let totalAbsenceAmount = 0;
+      let totalHalfDayAmount = 0;
+      for (const loc of locations) {
+        const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
           if (staffSummary) {
             totalLateAmount += staffSummary.totalLateAmount || 0;
             totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
@@ -311,7 +260,6 @@ export default function PayrollPage() {
         setFormLateness(String(totalLateAmount));
         setFormHalfDay(String(totalHalfDayAmount));
         showSuccess(`Auto-filled: Absence ₦${totalAbsenceAmount.toLocaleString()}, Late ₦${totalLateAmount.toLocaleString()}, Half-Day ₦${totalHalfDayAmount.toLocaleString()}`);
-      }
     } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
   };
 
@@ -561,40 +509,17 @@ export default function PayrollPage() {
                 <Select options={MONTHS} value={formMonth} onChange={setFormMonth} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {(() => { const fs = staffList.find((s) => s._id === formStaffId); return fs?.employmentType === "daily" ? "Total Earnings (₦)" : "Base Salary (₦)"; })()}
-                </label>
-                {(() => { const fs = staffList.find((s) => s._id === formStaffId); return fs?.employmentType === "daily" ? (
-                  <div className="space-y-2">
-                    <InputField type="number" id="baseSalary" value={formBaseSalary} onChange={(e) => setFormBaseSalary(e.target.value)} />
-                    {dailyProductionSummary ? (
-                      <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
-                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">Auto-calculated from daily production:</p>
-                        <div className="flex gap-4 text-xs text-blue-600 dark:text-blue-400">
-                          <span>{dailyProductionSummary.daysWorked} day{dailyProductionSummary.daysWorked !== 1 ? "s" : ""} worked</span>
-                          <span>{dailyProductionSummary.totalBags.toLocaleString()} bags total</span>
-                          <span className="font-semibold">₦{dailyProductionSummary.totalEarned.toLocaleString()} earned</span>
-                        </div>
-                        <p className="text-[10px] text-blue-500 dark:text-blue-400 mt-1">Based on staff rate of ₦{(fs?.dailyRate ?? 0).toLocaleString()}/bag × bags produced</p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400">Select a month to auto-calculate earnings from production records.</p>
-                    )}
-                  </div>
-                ) : (
-                  <InputField type="number" id="baseSalary" value={formBaseSalary} onChange={(e) => setFormBaseSalary(e.target.value)} />
-                ); })()}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Salary (₦)</label>
+                <InputField type="number" id="baseSalary" value={formBaseSalary} onChange={(e) => setFormBaseSalary(e.target.value)} />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Deductions</label>
-                  {(() => { const fs = staffList.find((s) => s._id === formStaffId); return fs?.employmentType !== "daily" ? (
-                    <button type="button" onClick={autoFillFromAttendance} disabled={autoFilling || !formStaffId || !formMonth}
-                      className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                      {autoFilling ? "Loading..." : "Auto-fill from Attendance"}
-                    </button>
-                  ) : null; })()}
+                  <button type="button" onClick={autoFillFromAttendance} disabled={autoFilling || !formStaffId || !formMonth}
+                    className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    {autoFilling ? "Loading..." : "Auto-fill from Attendance"}
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <AdjustField label="Absence" value={formAbsence} onChange={setFormAbsence} />
