@@ -410,6 +410,25 @@ export default function DailyStockPage() {
                   })
                 )}
               </tbody>
+              {paginatedRecords.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold text-gray-800 dark:text-white/90">
+                    <td className="px-1.5 py-2 text-xs">Totals</td>
+                    <td className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number(r.startStock) || 0), 0).toLocaleString()}</td>
+                    <td className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0).toLocaleString()}</td>
+                    {factoryEditableFields.slice(2).map((f) => (
+                      <td key={f} className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f]) || 0), 0).toLocaleString()}</td>
+                    ))}
+                    {visibleColumns.map((col) => (
+                      <td key={col.key} className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[col.key]) || 0), 0).toLocaleString()}</td>
+                    ))}
+                    <td className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + calcTotalSold(r), 0).toLocaleString()}</td>
+                    <td className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + calcTotalReturned(r), 0).toLocaleString()}</td>
+                    <td className="px-1.5 py-2 text-xs text-right text-brand-600 dark:text-brand-400">{paginatedRecords.reduce((s, r) => s + calcEndStock(r), 0).toLocaleString()}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
@@ -692,6 +711,29 @@ export default function DailyStockPage() {
                 })
               )}
             </tbody>
+            {paginatedRecords.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold text-gray-800 dark:text-white/90">
+                  <td className="px-1.5 py-2 text-xs">Totals</td>
+                  {DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
+                    <td key={f.key} className="px-1.5 py-2 text-xs text-right">
+                      {f.type === "text" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
+                    </td>
+                  ))}
+                  {visibleCustomCols.map((col) => (
+                    <td key={col.key} className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[col.key]) || 0), 0).toLocaleString()}</td>
+                  ))}
+                  <td className="px-1.5 py-2 text-xs text-right">{paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)["leakages"]) || 0), 0).toLocaleString()}</td>
+                  <td className="px-1.5 py-2 text-xs text-right text-brand-600 dark:text-brand-400">{paginatedRecords.reduce((s, r) => s + calcDepotEndStock(r), 0).toLocaleString()}</td>
+                  {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
+                    <td key={f.key} className="px-1.5 py-2 text-xs text-right">
+                      {f.type === "select" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
+                    </td>
+                  ))}
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
