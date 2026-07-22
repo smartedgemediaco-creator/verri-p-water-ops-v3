@@ -29,7 +29,7 @@ interface StaffRecord {
   deficit: number;
   debtPaid: number;
   debtPayer: string;
-  debtors: string;
+  debtors: { name: string; amount: number }[];
   debt: number;
   totalPaid: number;
   totalOwed: number;
@@ -40,6 +40,11 @@ interface AllStaffOption {
   _id: string;
   name: string;
   totalOwed: number;
+}
+
+interface DebtorDraft {
+  name: string;
+  amount: string;
 }
 
 const ROWS_PER_PAGE = 15;
@@ -68,7 +73,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
   const [formCashPaid, setFormCashPaid] = useState("");
   const [formDebtPaid, setFormDebtPaid] = useState("");
   const [formDebtPayer, setFormDebtPayer] = useState("");
-  const [formDebtors, setFormDebtors] = useState("");
+  const [formDebtors, setFormDebtors] = useState<DebtorDraft[]>([]);
   const [formNotes, setFormNotes] = useState("");
 
   const [settleType, setSettleType] = useState<"cash" | "transfer">("cash");
@@ -135,7 +140,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
     setFormCashPaid("");
     setFormDebtPaid("");
     setFormDebtPayer("");
-    setFormDebtors("");
+    setFormDebtors([]);
     setFormNotes("");
   };
 
@@ -151,7 +156,9 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
           stockLoaded: Number(formStockLoaded), stockReturned: Number(formStockReturned) || 0,
           transferredBy: formTransferredBy, amountTransferred: Number(formAmountTransferred) || 0,
           cashPaid: Number(formCashPaid) || 0, debtPaid: Number(formDebtPaid) || 0,
-          debtPayer: formDebtPayer, debtors: formDebtors, notes: formNotes,
+          debtPayer: formDebtPayer,
+          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0 })),
+          notes: formNotes,
         }),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
@@ -172,7 +179,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
     setFormCashPaid(String(r.cashPaid));
     setFormDebtPaid(String(r.debtPaid));
     setFormDebtPayer(r.debtPayer);
-    setFormDebtors(r.debtors);
+    setFormDebtors(Array.isArray(r.debtors) ? r.debtors.map((d) => ({ name: d.name, amount: String(d.amount) })) : []);
     setFormNotes(r.notes);
     setShowEditModal(true);
   };
@@ -189,7 +196,9 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
           stockLoaded: Number(formStockLoaded), stockReturned: Number(formStockReturned) || 0,
           transferredBy: formTransferredBy, amountTransferred: Number(formAmountTransferred) || 0,
           cashPaid: Number(formCashPaid) || 0, debtPaid: Number(formDebtPaid) || 0,
-          debtPayer: formDebtPayer, debtors: formDebtors, notes: formNotes,
+          debtPayer: formDebtPayer,
+          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0 })),
+          notes: formNotes,
         }),
       });
       if (!res.ok) { showError("Failed to update"); return; }
@@ -332,7 +341,18 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                           <td className="px-2 py-1.5 text-right text-orange-600 dark:text-orange-400 font-medium">₦{(r.deficit ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right text-purple-600 dark:text-purple-400 font-medium">₦{(r.debtPaid ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-gray-600 dark:text-gray-400">{r.debtPayer || "—"}</td>
-                          <td className="px-2 py-1.5 text-gray-600 dark:text-gray-400">{r.debtors || "—"}</td>
+                          <td className="px-2 py-1.5">
+                            {Array.isArray(r.debtors) && r.debtors.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {r.debtors.map((d, di) => (
+                                  <div key={di} className="flex items-center gap-1 text-[10px]">
+                                    <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap">{d.name}</span>
+                                    <span className="text-red-600 dark:text-red-400 font-medium">₦{(d.amount ?? 0).toLocaleString()}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                          </td>
                           <td className="px-2 py-1.5 text-right font-bold">
                             <span className={(r.debt ?? 0) > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}>
                               ₦{(r.debt ?? 0).toLocaleString()}
@@ -477,10 +497,31 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Debt Payer</label>
                   <Input value={formDebtPayer} onChange={(e) => setFormDebtPayer(e.target.value)} placeholder="Who paid the debt?" />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Debtors</label>
-                  <Input value={formDebtors} onChange={(e) => setFormDebtors(e.target.value)} placeholder="Who still owes?" />
+                <div></div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Debtors (who owes)</label>
+                  <button type="button" onClick={() => setFormDebtors((prev) => [...prev, { name: "", amount: "" }])}
+                    className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">
+                    + Add Debtor
+                  </button>
                 </div>
+                {formDebtors.length === 0 && (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">No debtors — all paid</p>
+                )}
+                {formDebtors.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2 mb-1.5">
+                    <Input value={d.name} onChange={(e) => {
+                      const next = [...formDebtors]; next[i] = { ...next[i], name: e.target.value }; setFormDebtors(next);
+                    }} placeholder="Name" />
+                    <Input type="number" value={d.amount} onChange={(e) => {
+                      const next = [...formDebtors]; next[i] = { ...next[i], amount: e.target.value }; setFormDebtors(next);
+                    }} placeholder="₦ Amount" />
+                    <button type="button" onClick={() => setFormDebtors((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-red-500 hover:text-red-700 text-xs shrink-0">✕</button>
+                  </div>
+                ))}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>

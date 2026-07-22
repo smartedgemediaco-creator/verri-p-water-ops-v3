@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     deficit,
     debtPaid,
     debtPayer: body.debtPayer || "",
-    debtors: body.debtors || "",
+    debtors: Array.isArray(body.debtors) ? body.debtors : [],
     debt,
     payments: [],
     totalPaid,

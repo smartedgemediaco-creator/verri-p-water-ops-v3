@@ -99,4 +99,4 @@ export type { IDailyProduction } from "./DailyProduction";
 export { CommissionedStaff } from "./CommissionedStaff";
 export type { ICommissionedStaff } from "./CommissionedStaff";
 export { CommissionedStaffRecord } from "./CommissionedStaffRecord";
-export type { ICommissionedStaffRecord, IPaymentEntry } from "./CommissionedStaffRecord";
+export type { ICommissionedStaffRecord, IPaymentEntry, IDebtorEntry } from "./CommissionedStaffRecord";
