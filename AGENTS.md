@@ -51,7 +51,7 @@ src/
     ├── db.ts                     # MongoDB connection singleton
     ├── logActivity.ts            # Activity logging helper
     ├── toast.tsx                 # react-hot-toast helpers
-    └── models/                   # 43 Mongoose models (see below)
+    └── models/                   # 45 Mongoose models (see below)
 ```
 
 ## Cog Architecture — Decentralized Entity Model
@@ -97,6 +97,7 @@ Relationships are managed through **connector gears** — separate models that l
 | `Staff` | name, phone, email, salary, dailyRate, employmentType, startDate, isActive | No `role`/`department`/`location` |
 | `User` | name, email, password, isActive | No `role`/`factoryId`/`depotId`/`truckId` |
 | `Customer` | name, phone, email, address, businessName, customerType, isActive | |
+| `CommissionedStaff` | name, phone, email, dealPrice, isActive, notes | Dealers who buy at set price and sell at their own margin |
 | `Supplier` | name, phone, email, address, supplyType, materialProvided, isActive | |
 | `PosDevice` | terminalSerial, name, provider(moniepoint/opay/palmpay), isActive | No `locationType/Id` |
 | `Asset` | name, type, serialNumber, purchaseDate, purchaseCost, currentValue, location | Fixed asset register |
@@ -148,6 +149,10 @@ Attendance ──staffId──→ Staff
 Leave ──staffId──→ Staff | approvedBy──→ User
 Trip ──truckId──→ Truck | driverId──→ Staff | routeId──→ DeliveryRoute
 DailyProduction ──staffId──→ Staff | productId──→ Product
+
+CommissionedStaffRecord ──staffId──→ CommissionedStaff
+CommissionedStaffRecord ──payments──→ [{ type, amount, senderName, addAsCustomer, date }]
+CommissionedStaffRecord.payments.addAsCustomer ──auto-create──→ Customer (optional)
 ```
 
 ## Stock Stats — Data Flow
@@ -193,6 +198,7 @@ All stats support role-based scoping (factory-manager → own factory, depot-man
 | `/notifications` | Low stock + in-transit alerts | |
 | `/activity` | Audit log | Paginated, entity-filtered |
 | `/daily-production` | Daily production entry for casual workers | Batch entry, per-worker bags × rate |
+| `/commissioned-staffs` | Commissioned staffs + individual records | List, add, view records, track debts/payments |
 | `/users` | User management | |
 | `/profile` | User profile + change password | |
 | `/calendar`, `/blank` | Misc | Calendar uses FullCalendar |

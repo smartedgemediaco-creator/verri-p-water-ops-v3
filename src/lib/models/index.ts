@@ -96,3 +96,7 @@ export { DailyStockColumn } from "./DailyStockColumn";
 export type { IDailyStockColumn } from "./DailyStockColumn";
 export { DailyProduction } from "./DailyProduction";
 export type { IDailyProduction } from "./DailyProduction";
+export { CommissionedStaff } from "./CommissionedStaff";
+export type { ICommissionedStaff } from "./CommissionedStaff";
+export { CommissionedStaffRecord } from "./CommissionedStaffRecord";
+export type { ICommissionedStaffRecord, IPaymentEntry } from "./CommissionedStaffRecord";
