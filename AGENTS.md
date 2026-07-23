@@ -93,7 +93,7 @@ Relationships are managed through **connector gears** — separate models that l
 | `Depot` | name, location, isActive | No `manager` field |
 | `Truck` | plateNumber, chassisNumber, engineNumber, capacity, isActive | No `driverName` or `assignedTo` |
 | `Product` | name, unit, category(sachet/bottle), description, unitPrice | |
-| `RawMaterial` | name, unit, category, currentStock, minimumStock, unitCost | No `supplierId` |
+| `RawMaterial` | name, unit, category, currentStock, minimumStock, unitCost, supplierId | Now has supplierId FK |
 | `Staff` | name, phone, email, salary, dailyRate, employmentType, startDate, isActive | No `role`/`department`/`location` |
 | `User` | name, email, password, isActive | No `role`/`factoryId`/`depotId`/`truckId` |
 | `Customer` | name, phone, email, address, businessName, customerType, isActive | |
@@ -151,8 +151,11 @@ Trip ──truckId──→ Truck | driverId──→ Staff | routeId──→ D
 DailyProduction ──staffId──→ Staff | productId──→ Product
 
 CommissionedStaffRecord ──staffId──→ CommissionedStaff
+CommissionedStaffRecord ──transferredBy──→ string[] (list of names)
+CommissionedStaffRecord ──debtors──→ [{ name, amount, settled }]
 CommissionedStaffRecord ──payments──→ [{ type, amount, senderName, addAsCustomer, date }]
 CommissionedStaffRecord.payments.addAsCustomer ──auto-create──→ Customer (optional)
+PurchaseOrder ──status:"received"──→ auto-increments RawMaterial.currentStock per item
 ```
 
 ## Stock Stats — Data Flow
