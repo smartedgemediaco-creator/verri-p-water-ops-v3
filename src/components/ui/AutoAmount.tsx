@@ -21,7 +21,7 @@ export default function AutoAmount({ value, className = "" }: { value: string; c
     return () => ro.disconnect();
   }, [fit]);
   return (
-    <span ref={ref} className={`mt-1 font-bold text-title-sm whitespace-nowrap ${className}`} style={{ overflow: "hidden", display: "block" }}>
+    <span ref={ref} className={`mt-1 font-bold text-title-sm text-gray-800 dark:text-white/90 whitespace-nowrap ${className}`} style={{ overflow: "hidden", display: "block" }}>
       {value}
     </span>
   );
