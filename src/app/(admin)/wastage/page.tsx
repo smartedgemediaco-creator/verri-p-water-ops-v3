@@ -81,7 +81,7 @@ export default function WastagePage() {
   const [spoilageLocations, setSpoilageLocations] = useState<LocationOption[]>([]);
   const [spoilageSubmitting, setSpoilageSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("wastage-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("wastage-list", { title: "Wastage Report" });
 
   useEffect(() => {
     fetch("/api/products")

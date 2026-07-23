@@ -29,7 +29,7 @@ export default function TrucksPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { ref, loading: pdfLoading, download } = usePdfDownload("trucks-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("trucks-list", { title: "Trucks Report" });
 
   useEffect(() => {
     fetch("/api/trucks")

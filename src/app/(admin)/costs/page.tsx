@@ -74,7 +74,7 @@ export default function CostsPage() {
   const [locTypeFilter, setLocTypeFilter] = useState("");
   const [locIdFilter, setLocIdFilter] = useState("");
   const [searchText, setSearchText] = useState("");
-  const { ref, loading: pdfLoading, download } = usePdfDownload("costs-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("costs-list", { title: "Costs Report" });
 
   useEffect(() => {
     let cancelled = false;

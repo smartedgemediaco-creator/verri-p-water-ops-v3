@@ -22,7 +22,7 @@ export default function FactoriesPage() {
   const [factories, setFactories] = useState<Factory[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("factories-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("factories-list", { title: "Factories Report" });
 
   useEffect(() => {
     fetch("/api/factories")

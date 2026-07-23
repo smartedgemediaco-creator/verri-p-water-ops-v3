@@ -114,7 +114,7 @@ export default function ScheduledOperationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ScheduledOperation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("maintenance-records");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("maintenance-records", { title: "Maintenance Records Report" });
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({

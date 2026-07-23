@@ -54,7 +54,7 @@ export default function SuppliersPage() {
   const [materialProvided, setMaterialProvided] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [notes, setNotes] = useState("");
-  const { ref, loading: pdfLoading, download } = usePdfDownload("suppliers-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("suppliers-list", { title: "Suppliers Report" });
 
   const fetchSuppliers = () => {
     setLoading(true);

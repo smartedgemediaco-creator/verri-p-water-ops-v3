@@ -38,7 +38,7 @@ export default function TransfersPage() {
   const [spoilageQty, setSpoilageQty] = useState("0");
   const [spoilageReason, setSpoilageReason] = useState("");
   const [pendingAction, setPendingAction] = useState<{ id: string; action: string } | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("transfers-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("transfers-list", { title: "Transfers Report" });
 
   const fetchTransfers = () => {
     fetch("/api/transfers")

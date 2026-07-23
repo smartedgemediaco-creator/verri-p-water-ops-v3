@@ -67,7 +67,7 @@ export default function AttendancePage() {
   const [summaryWorkingDays, setSummaryWorkingDays] = useState(0);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("attendance-report");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("attendance-report", { title: "Attendance Report" });
 
   useEffect(() => {
     Promise.all([

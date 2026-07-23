@@ -52,7 +52,7 @@ export default function TruckLoadsPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("truck-loads-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("truck-loads-list", { title: "Truck Loads Report" });
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);

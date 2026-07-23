@@ -59,7 +59,7 @@ export default function PaymentTransactionsPage() {
   const [page, setPage] = useState(1);
   const [dateKey, setDateKey] = useState(0);
   const [showManual, setShowManual] = useState(false);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-transactions-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-transactions-list", { title: "POS Transactions Report" });
   const [manualSerial, setManualSerial] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [manualProvider, setManualProvider] = useState("moniepoint");

@@ -13,6 +13,7 @@ import AutoAmount from "@/components/ui/AutoAmount";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
+import { downloadReceiptPdf, downloadTablePdf } from "@/lib/pdf";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
 import { formatDate } from "@/lib/dateFormat";
 import { useAuth } from "@/context/AuthContext";
@@ -222,94 +223,22 @@ export default function SalesPage() {
   const downloadReceipt = async () => {
     if (!receiptRef.current || !shareSale) return;
     setReceiptPdfLoading(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        imageTimeout: 0,
-      });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageW = pdf.internal.pageSize.getWidth();
-      const imgW = pageW - 20;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 10, 10, imgW, imgH);
-      pdf.save(`receipt-${shareSale.productId?.name ?? "sale"}-${formatDate(shareSale.date).replace(/\//g, "-")}.pdf`);
-    } catch (err) {
-      console.error("Receipt PDF failed", err);
-      showError("Failed to generate PDF");
-    } finally {
-      setReceiptPdfLoading(false);
-    }
+    await downloadReceiptPdf(
+      receiptRef,
+      `receipt-${shareSale.productId?.name ?? "sale"}-${formatDate(shareSale.date).replace(/\//g, "-")}.pdf`,
+      setReceiptPdfLoading
+    );
   };
 
   const downloadPDF = async () => {
     if (!reportRef.current) return;
     setPdfLoading(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        onclone: (clonedDoc: Document) => {
-          for (let si = 0; si < clonedDoc.styleSheets.length; si++) {
-            const sheet = clonedDoc.styleSheets[si];
-            try {
-              const removeOklabRules = (rules: CSSRuleList, parent: CSSGroupingRule | CSSStyleSheet) => {
-                for (let i = rules.length - 1; i >= 0; i--) {
-                  const rule = rules[i];
-                  if (rule instanceof CSSGroupingRule && rule.cssRules.length) {
-                    removeOklabRules(rule.cssRules, rule);
-                  }
-                  if (rule.cssText?.includes("color-mix(in oklab")) {
-                    parent.deleteRule(i);
-                  }
-                }
-              };
-              removeOklabRules(sheet.cssRules, sheet);
-            } catch {
-              /* cross-origin sheet */
-            }
-          }
-        },
-      });
-      const _imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const margin = 10;
-      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
-      const _imgWidth = pageWidth;
-      const _imgHeight = (canvas.height * _imgWidth) / canvas.width;
-
-      const pxPerMm = canvas.width / pageWidth;
-      const pageCanvasPx = Math.floor(pageHeight * pxPerMm);
-
-      let srcY = 0;
-      let pageNum = 0;
-      while (srcY < canvas.height) {
-        const sliceH = Math.min(pageCanvasPx, canvas.height - srcY);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceH;
-        const ctx = pageCanvas.getContext("2d");
-        if (ctx) ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        if (pageNum > 0) pdf.addPage();
-        pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", margin, margin, _imgWidth, (sliceH * _imgWidth) / canvas.width);
-        srcY += sliceH;
-        pageNum++;
-      }
-      pdf.save(`sales-report-${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch (err) {
-      console.error("PDF failed", err);
-    } finally {
-      setPdfLoading(false);
-    }
+    await downloadTablePdf(
+      reportRef,
+      "sales-report",
+      setPdfLoading,
+      { title: "Sales Report", subtitle: `${pagination.total} records | ₦${totalRevenue.toLocaleString()} total` }
+    );
   };
 
   return (

@@ -22,7 +22,7 @@ export default function DepotsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [assignedUsers, setAssignedUsers] = useState<Record<string, string>>({});
-  const { ref, loading: pdfLoading, download } = usePdfDownload("depots-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("depots-list", { title: "Depots Report" });
 
   useEffect(() => {
     Promise.all([

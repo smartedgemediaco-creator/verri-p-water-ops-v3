@@ -50,7 +50,7 @@ export default function PosDevicesPage() {
   const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
   const [locationId, setLocationId] = useState("");
   const [isActive, setIsActive] = useState(true);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-devices-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("pos-devices-list", { title: "POS Devices Report" });
 
   const fetchDevices = () => {
     fetch("/api/pos-devices")

@@ -100,7 +100,7 @@ export default function StaffPage() {
   const [formContacts, setFormContacts] = useState<{ name: string; phone: string; relationship: string; photo?: string }[]>([]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingContactIdx, setUploadingContactIdx] = useState<number | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("staff-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("staff-list", { title: "Staff Report" });
 
   const fetchStaff = () => {
     setLoading(true);

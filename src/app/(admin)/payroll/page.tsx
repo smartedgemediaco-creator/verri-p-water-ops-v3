@@ -136,7 +136,7 @@ export default function PayrollPage() {
   const [staffList, setStaffList] = useState<{ _id: string; name: string; salary: number; avatar?: string | null; employmentType?: string; dailyRate?: number }[]>([]);
 
   const [showForm, setShowForm] = useState(false);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("salary-report");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("salary-report", { title: "Payroll Report" });
   const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null);
   const [formStaffId, setFormStaffId] = useState("");
   const [formMonth, setFormMonth] = useState(selectedMonth);

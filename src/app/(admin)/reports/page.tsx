@@ -6,6 +6,7 @@ import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import DatePicker from "@/components/form/date-picker";
 import { formatDate } from "@/lib/dateFormat";
+import { downloadTablePdf } from "@/lib/pdf";
 
 interface FilterOption {
   value: string;
@@ -179,87 +180,13 @@ export default function ReportsPage() {
   const downloadPDF = async () => {
     if (!reportRef.current) return;
     setGenerating(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const target = pdfRef.current ?? reportRef.current;
-      const canvas = await html2canvas(target, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        onclone: (clonedDoc: Document) => {
-          for (let si = 0; si < clonedDoc.styleSheets.length; si++) {
-            const sheet = clonedDoc.styleSheets[si];
-            try {
-              const removeOklabRules = (rules: CSSRuleList, parent: CSSGroupingRule | CSSStyleSheet) => {
-                for (let i = rules.length - 1; i >= 0; i--) {
-                  const rule = rules[i];
-                  if (rule instanceof CSSGroupingRule && rule.cssRules.length) {
-                    removeOklabRules(rule.cssRules, rule);
-                  }
-                  if (rule.cssText?.includes("color-mix(in oklab")) {
-                    parent.deleteRule(i);
-                  }
-                }
-              };
-              removeOklabRules(sheet.cssRules, sheet);
-            } catch {
-              /* cross-origin sheet */
-            }
-          }
-          const style = clonedDoc.createElement("style");
-          style.textContent = `
-            .dark\\:bg-gray-500\\/10 { background-color: rgba(107,114,128,0.1) !important; }
-            .dark\\:bg-white\\/5 { background-color: rgba(255,255,255,0.05) !important; }
-            .dark\\:text-white\\/90 { color: rgba(255,255,255,0.9) !important; }
-            .dark\\:text-gray-400 { color: #9ca3af !important; }
-            table tbody tr:nth-child(even) { background-color: #f8f9fc !important; }
-            table tbody tr td { border-bottom: 1px solid #eef0f4 !important; }
-          `;
-          clonedDoc.head.appendChild(style);
-        },
-      });
-      const _imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const margin = 10;
-      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
-      const _imgWidth = pageWidth;
-      const _imgHeight = (canvas.height * _imgWidth) / canvas.width;
-
-      // Calculate how many pixels of the canvas fit on one PDF page
-      const pxPerMm = canvas.width / (pdf.internal.pageSize.getWidth() - margin * 2);
-      const pageCanvasPx = Math.floor(pageHeight * pxPerMm);
-
-      let srcY = 0;
-      let pageNum = 0;
-
-      while (srcY < canvas.height) {
-        const sliceH = Math.min(pageCanvasPx, canvas.height - srcY);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceH;
-        const ctx = pageCanvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        }
-        const pageImgData = pageCanvas.toDataURL("image/png");
-        const renderH = (sliceH * _imgWidth) / canvas.width;
-
-        if (pageNum > 0) pdf.addPage();
-        pdf.addImage(pageImgData, "PNG", margin, margin, _imgWidth, renderH);
-
-        srcY += sliceH;
-        pageNum++;
-      }
-
-      const filename = `verri-p-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-      pdf.save(filename);
-    } catch (err) {
-      console.error("PDF generation failed", err);
-    } finally {
-      setGenerating(false);
-    }
+    const target = pdfRef.current ?? reportRef.current;
+    await downloadTablePdf(
+      { current: target } as React.RefObject<HTMLElement | null>,
+      `verri-p-report-${new Date().toISOString().slice(0, 10)}`,
+      setGenerating,
+      { title: "Operations Report", subtitle: data?.meta?.filters?.startDate ? `${data.meta.filters.startDate} to ${data.meta.filters.endDate || "present"}` : "", skipHeaderFooter: true }
+    );
   };
 
   const formatCurrency = (n: number) =>

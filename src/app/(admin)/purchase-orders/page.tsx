@@ -56,7 +56,7 @@ export default function PurchaseOrdersPage() {
   const [suppliers, setSuppliers] = useState<{ _id: string; name: string }[]>([]);
   const [rawMaterials, setRawMaterials] = useState<{ _id: string; name: string; unit: string }[]>([]);
   const [poForm, setPoForm] = useState({ supplierId: "", expectedDate: "", notes: "", items: [{ rawMaterialId: "", quantity: 1, unitPrice: 0 }] });
-  const { ref, loading: pdfLoading, download } = usePdfDownload("purchase-orders-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("purchase-orders-list", { title: "Purchase Orders Report" });
 
   const fetchSuppliers = () => {
     fetch("/api/suppliers").then((r) => r.json()).then((data) => setSuppliers(Array.isArray(data) ? data : [])).catch(() => {});

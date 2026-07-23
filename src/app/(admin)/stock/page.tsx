@@ -97,7 +97,7 @@ export default function StockPage() {
   const [activity, setActivity] = useState<Record<string, ActivityData>>({});
   const [activityLoading, setActivityLoading] = useState<string | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("stock-report");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("stock-report", { title: "Stock Report" });
 
   // add stock modal state
   const [showAddStock, setShowAddStock] = useState(false);

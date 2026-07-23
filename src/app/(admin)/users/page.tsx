@@ -58,7 +58,7 @@ export default function UsersPage() {
   const [editDepotId, setEditDepotId] = useState("");
   const [editTruckId, setEditTruckId] = useState("");
   const [editSaving, setEditSaving] = useState(false);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("users-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("users-list", { title: "Users Report" });
 
   const [factories, setFactories] = useState<Option[]>([]);
   const [depots, setDepots] = useState<Option[]>([]);

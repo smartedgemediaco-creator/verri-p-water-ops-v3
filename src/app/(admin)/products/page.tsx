@@ -23,7 +23,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const { ref, loading: pdfLoading, download } = usePdfDownload("products-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("products-list", { title: "Products Report" });
 
   useEffect(() => {
     fetch("/api/products")

@@ -53,7 +53,7 @@ export default function GoodsReceivedNotesPage() {
   const [poList, setPoList] = useState<{ _id: string; orderNumber: string }[]>([]);
   const [rmList, setRmList] = useState<{ _id: string; name: string; unit: string }[]>([]);
   const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
-  const { ref, loading: pdfLoading, download } = usePdfDownload("goods-received-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("goods-received-list", { title: "Goods Received Notes" });
 
   const fetchPoList = () => {
     fetch("/api/purchase-orders").then((r) => r.json()).then((data) => setPoList(Array.isArray(data) ? data : [])).catch(() => {});

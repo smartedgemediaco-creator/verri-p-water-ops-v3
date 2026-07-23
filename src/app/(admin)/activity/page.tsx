@@ -14,6 +14,7 @@ import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { formatDateTime } from "@/lib/dateFormat";
+import { downloadTablePdf } from "@/lib/pdf";
 import Pagination from "@/components/tables/Pagination";
 import DatePicker from "@/components/form/date-picker";
 import { WaterDropIcon } from "@/components/icons/EntityIcons";
@@ -198,68 +199,13 @@ export default function ActivityPage() {
   const downloadPDF = async () => {
     if (!reportRef.current) return;
     setPdfLoading(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const target = pdfRef.current ?? reportRef.current;
-      const canvas = await html2canvas(target, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        onclone: (clonedDoc: Document) => {
-          for (let si = 0; si < clonedDoc.styleSheets.length; si++) {
-            const sheet = clonedDoc.styleSheets[si];
-            try {
-              const removeOklabRules = (rules: CSSRuleList, parent: CSSGroupingRule | CSSStyleSheet) => {
-                for (let i = rules.length - 1; i >= 0; i--) {
-                  const rule = rules[i];
-                  if (rule instanceof CSSGroupingRule && rule.cssRules.length) {
-                    removeOklabRules(rule.cssRules, rule);
-                  }
-                  if (rule.cssText?.includes("color-mix(in oklab")) {
-                    parent.deleteRule(i);
-                  }
-                }
-              };
-              removeOklabRules(sheet.cssRules, sheet);
-            } catch {
-              /* cross-origin sheet */
-            }
-          }
-        },
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const margin = 10;
-      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      const pxPerMm = canvas.width / pageWidth;
-      const pageCanvasPx = Math.floor(pageHeight * pxPerMm);
-
-      let srcY = 0;
-      let pageNum = 0;
-      while (srcY < canvas.height) {
-        const sliceH = Math.min(pageCanvasPx, canvas.height - srcY);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceH;
-        const ctx = pageCanvas.getContext("2d");
-        if (ctx) ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-        if (pageNum > 0) pdf.addPage();
-        pdf.addImage(pageCanvas.toDataURL("image/png"), "PNG", margin, margin, imgWidth, (sliceH * imgWidth) / canvas.width);
-        srcY += sliceH;
-        pageNum++;
-      }
-      const filename = `activity-log-${new Date().toISOString().slice(0, 10)}.pdf`;
-      pdf.save(filename);
-    } catch (err) {
-      console.error("PDF failed", err);
-    } finally {
-      setPdfLoading(false);
-    }
+    const target = pdfRef.current ?? reportRef.current;
+    await downloadTablePdf(
+      { current: target } as React.RefObject<HTMLElement | null>,
+      `activity-log-${new Date().toISOString().slice(0, 10)}`,
+      setPdfLoading,
+      { title: "Activity Log Report", skipHeaderFooter: true }
+    );
   };
 
   return (

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
+import { downloadReceiptPdf } from "@/lib/pdf";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
@@ -296,29 +297,11 @@ export default function NewSalePage() {
   const downloadReceipt = async () => {
     if (!receiptRef.current || !lastSale) return;
     setReceiptPdfLoading(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        imageTimeout: 0,
-      });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageW = pdf.internal.pageSize.getWidth();
-      const imgW = pageW - 20;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 10, 10, imgW, imgH);
-      pdf.save(`receipt-${lastSale.productName}-${lastSale.date.replace(/\//g, "-")}.pdf`);
-    } catch (err) {
-      console.error("Receipt PDF failed", err);
-      showError("Failed to generate PDF");
-    } finally {
-      setReceiptPdfLoading(false);
-    }
+    await downloadReceiptPdf(
+      receiptRef,
+      `receipt-${lastSale.productName}-${lastSale.date.replace(/\//g, "-")}.pdf`,
+      setReceiptPdfLoading
+    );
   };
 
   return (

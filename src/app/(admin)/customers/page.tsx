@@ -59,7 +59,7 @@ export default function CustomersPage() {
   const [outstandingBalance, setOutstandingBalance] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [notes, setNotes] = useState("");
-  const { ref, loading: pdfLoading, download } = usePdfDownload("customers-list");
+  const { ref, loading: pdfLoading, download } = usePdfDownload("customers-list", { title: "Customers Report" });
 
   const fetchCustomers = () => {
     setLoading(true);
