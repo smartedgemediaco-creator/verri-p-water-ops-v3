@@ -12,6 +12,7 @@ export interface IPaymentEntry {
 export interface IDebtorEntry {
   name: string;
   amount: number;
+  settled: number;
 }
 
 export interface ICommissionedStaffRecord extends Document {
@@ -21,7 +22,7 @@ export interface ICommissionedStaffRecord extends Document {
   stockReturned: number;
   dealPrice: number;
   expectedAmount: number;
-  transferredBy: string;
+  transferredBy: string[];
   amountTransferred: number;
   cashPaid: number;
   deficit: number;
@@ -54,6 +55,7 @@ const DebtorEntrySchema = new Schema<IDebtorEntry>(
   {
     name: { type: String, required: true },
     amount: { type: Number, required: true, min: 0 },
+    settled: { type: Number, default: 0, min: 0 },
   },
   { _id: true }
 );
@@ -66,7 +68,7 @@ const CommissionedStaffRecordSchema = new Schema<ICommissionedStaffRecord>(
     stockReturned: { type: Number, default: 0, min: 0 },
     dealPrice: { type: Number, required: true, min: 0 },
     expectedAmount: { type: Number, required: true, min: 0 },
-    transferredBy: { type: String, default: "" },
+    transferredBy: { type: [String], default: [] },
     amountTransferred: { type: Number, default: 0, min: 0 },
     cashPaid: { type: Number, default: 0, min: 0 },
     deficit: { type: Number, default: 0 },

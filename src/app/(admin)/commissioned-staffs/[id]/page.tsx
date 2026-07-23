@@ -23,17 +23,18 @@ interface StaffRecord {
   stockReturned: number;
   dealPrice: number;
   expectedAmount: number;
-  transferredBy: string;
+  transferredBy: string[];
   amountTransferred: number;
   cashPaid: number;
   deficit: number;
   debtPaid: number;
   debtPayer: string;
-  debtors: { name: string; amount: number }[];
+  debtors: { name: string; amount: number; settled: number }[];
   debt: number;
   totalPaid: number;
   totalOwed: number;
   notes: string;
+  payments: { type: string; amount: number; senderName: string; date: string }[];
 }
 
 interface AllStaffOption {
@@ -45,7 +46,28 @@ interface AllStaffOption {
 interface DebtorDraft {
   name: string;
   amount: string;
+  settled?: number;
 }
+
+interface DraftRow {
+  date: string;
+  stockLoaded: string;
+  stockReturned: string;
+  transferredByNames: string[];
+  amountTransferred: string;
+  cashPaid: string;
+  debtPaid: string;
+  debtPayer: string;
+  debtors: DebtorDraft[];
+  notes: string;
+}
+
+const emptyDraft = (): DraftRow => ({
+  date: new Date().toISOString().slice(0, 10),
+  stockLoaded: "", stockReturned: "0",
+  transferredByNames: [], amountTransferred: "", cashPaid: "",
+  debtPaid: "", debtPayer: "", debtors: [], notes: "",
+});
 
 const ROWS_PER_PAGE = 15;
 
@@ -58,6 +80,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [draftRows, setDraftRows] = useState<DraftRow[]>([]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -68,7 +91,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
   const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [formStockLoaded, setFormStockLoaded] = useState("");
   const [formStockReturned, setFormStockReturned] = useState("0");
-  const [formTransferredBy, setFormTransferredBy] = useState("");
+  const [formTransferredByNames, setFormTransferredByNames] = useState<string[]>([]);
   const [formAmountTransferred, setFormAmountTransferred] = useState("");
   const [formCashPaid, setFormCashPaid] = useState("");
   const [formDebtPaid, setFormDebtPaid] = useState("");
@@ -79,7 +102,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
   const [settleType, setSettleType] = useState<"cash" | "transfer">("cash");
   const [settleAmount, setSettleAmount] = useState("");
   const [settleSenderName, setSettleSenderName] = useState("");
-  const [settleDate, setSettleDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [settleDebtorName, setSettleDebtorName] = useState("");
 
   const fetchStaffData = useCallback(async (staffId: string) => {
     setLoading(true);
@@ -135,7 +158,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
     setFormDate(new Date().toISOString().slice(0, 10));
     setFormStockLoaded("");
     setFormStockReturned("0");
-    setFormTransferredBy("");
+    setFormTransferredByNames([]);
     setFormAmountTransferred("");
     setFormCashPaid("");
     setFormDebtPaid("");
@@ -154,10 +177,10 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
         body: JSON.stringify({
           staffId: selectedId, date: formDate,
           stockLoaded: Number(formStockLoaded), stockReturned: Number(formStockReturned) || 0,
-          transferredBy: formTransferredBy, amountTransferred: Number(formAmountTransferred) || 0,
+          transferredBy: formTransferredByNames, amountTransferred: Number(formAmountTransferred) || 0,
           cashPaid: Number(formCashPaid) || 0, debtPaid: Number(formDebtPaid) || 0,
           debtPayer: formDebtPayer,
-          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0 })),
+          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0, settled: 0 })),
           notes: formNotes,
         }),
       });
@@ -174,12 +197,12 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
     setFormDate(r.date.slice(0, 10));
     setFormStockLoaded(String(r.stockLoaded));
     setFormStockReturned(String(r.stockReturned));
-    setFormTransferredBy(r.transferredBy);
+    setFormTransferredByNames(Array.isArray(r.transferredBy) ? r.transferredBy : r.transferredBy ? [r.transferredBy as unknown as string] : []);
     setFormAmountTransferred(String(r.amountTransferred));
     setFormCashPaid(String(r.cashPaid));
     setFormDebtPaid(String(r.debtPaid));
     setFormDebtPayer(r.debtPayer);
-    setFormDebtors(Array.isArray(r.debtors) ? r.debtors.map((d) => ({ name: d.name, amount: String(d.amount) })) : []);
+    setFormDebtors(Array.isArray(r.debtors) ? r.debtors.map((d) => ({ name: d.name, amount: String(d.amount), settled: d.settled || 0 })) : []);
     setFormNotes(r.notes);
     setShowEditModal(true);
   };
@@ -194,10 +217,10 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
         body: JSON.stringify({
           date: formDate,
           stockLoaded: Number(formStockLoaded), stockReturned: Number(formStockReturned) || 0,
-          transferredBy: formTransferredBy, amountTransferred: Number(formAmountTransferred) || 0,
+          transferredBy: formTransferredByNames, amountTransferred: Number(formAmountTransferred) || 0,
           cashPaid: Number(formCashPaid) || 0, debtPaid: Number(formDebtPaid) || 0,
           debtPayer: formDebtPayer,
-          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0 })),
+          debtors: formDebtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0, settled: Number(d.settled) || 0 })),
           notes: formNotes,
         }),
       });
@@ -213,9 +236,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
     if (!settleTarget) return;
     const amount = Number(settleAmount) || 0;
     if (amount <= 0) { showError("Enter a valid amount"); return; }
-
-    const newAmountTransferred = settleTarget.amountTransferred + (settleType === "transfer" ? amount : 0);
-    const newCashPaid = settleTarget.cashPaid + (settleType === "cash" ? amount : 0);
+    if (!settleDebtorName) { showError("No debtor selected"); return; }
 
     setSubmitting(true);
     try {
@@ -223,15 +244,19 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amountTransferred: newAmountTransferred,
-          cashPaid: newCashPaid,
-          transferredBy: settleType === "transfer" && settleSenderName ? settleSenderName : settleTarget.transferredBy,
+          settleDebtor: {
+            debtorName: settleDebtorName,
+            amount,
+            type: settleType,
+            senderName: settleSenderName || settleDebtorName,
+          },
         }),
       });
       if (!res.ok) { showError("Failed to settle"); return; }
-      showSuccess(`₦${amount.toLocaleString()} settled`);
+      showSuccess(`₦${amount.toLocaleString()} settled for ${settleDebtorName}`);
       setShowSettleModal(false);
       setSettleTarget(null);
+      setSettleDebtorName("");
       setSettleAmount("");
       setSettleSenderName("");
       fetchStaffData(selectedId);
@@ -246,6 +271,65 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
       showSuccess("Deleted");
       fetchStaffData(selectedId);
     } catch { showError("Failed"); }
+  };
+
+  const addDraftRow = () => setDraftRows((prev) => [...prev, emptyDraft()]);
+  const removeDraftRow = (idx: number) => setDraftRows((prev) => prev.filter((_, i) => i !== idx));
+  const updateDraftRow = (idx: number, field: keyof DraftRow, value: string | string[] | DebtorDraft[]) =>
+    setDraftRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+
+  const saveDraftRow = async (idx: number) => {
+    const r = draftRows[idx];
+    if (!r.stockLoaded) { showError("Stock loaded is required"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/commissioned-staff-records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staffId: selectedId, date: r.date,
+          stockLoaded: Number(r.stockLoaded), stockReturned: Number(r.stockReturned) || 0,
+          transferredBy: r.transferredByNames, amountTransferred: Number(r.amountTransferred) || 0,
+          cashPaid: Number(r.cashPaid) || 0, debtPaid: Number(r.debtPaid) || 0,
+          debtPayer: r.debtPayer,
+          debtors: r.debtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0, settled: 0 })),
+          notes: r.notes,
+        }),
+      });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
+      showSuccess("Row saved");
+      removeDraftRow(idx);
+      fetchStaffData(selectedId);
+    } catch { showError("Something went wrong"); } finally { setSubmitting(false); }
+  };
+
+  const saveAllDraftRows = async () => {
+    const valid = draftRows.filter((r) => r.stockLoaded);
+    if (valid.length === 0) { showError("No rows with data to save"); return; }
+    setSubmitting(true);
+    let saved = 0;
+    for (let i = 0; i < valid.length; i++) {
+      const r = valid[i];
+      try {
+        const res = await fetch("/api/commissioned-staff-records", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            staffId: selectedId, date: r.date,
+            stockLoaded: Number(r.stockLoaded), stockReturned: Number(r.stockReturned) || 0,
+            transferredBy: r.transferredByNames, amountTransferred: Number(r.amountTransferred) || 0,
+            cashPaid: Number(r.cashPaid) || 0, debtPaid: Number(r.debtPaid) || 0,
+            debtPayer: r.debtPayer,
+            debtors: r.debtors.filter((d) => d.name.trim()).map((d) => ({ name: d.name.trim(), amount: Number(d.amount) || 0, settled: 0 })),
+            notes: r.notes,
+          }),
+        });
+        if (res.ok) saved++;
+      } catch { /* skip */ }
+    }
+    setSubmitting(false);
+    if (saved > 0) { showSuccess(`${saved} record(s) saved`); setDraftRows([]); fetchStaffData(selectedId); }
+    else showError("Failed to save records");
   };
 
   const formExpected = ((Number(formStockLoaded) || 0) - (Number(formStockReturned) || 0)) * (staffInfo?.dealPrice || 0);
@@ -298,6 +382,19 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
           </div>
 
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" startIcon={<PlusIcon />} onClick={addDraftRow}>Add Row</Button>
+                {draftRows.length > 0 && (
+                  <Button size="sm" onClick={saveAllDraftRows} disabled={submitting}>
+                    {submitting ? "Saving..." : `Save All (${draftRows.length})`}
+                  </Button>
+                )}
+              </div>
+              {draftRows.length > 0 && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{draftRows.length} unsaved row(s)</span>
+              )}
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -319,6 +416,85 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                   </tr>
                 </thead>
                 <tbody>
+                  {draftRows.map((r, idx) => {
+                    const bagsConsumed = (Number(r.stockLoaded) || 0) - (Number(r.stockReturned) || 0);
+                    const expected = bagsConsumed * (staffInfo?.dealPrice || 0);
+                    const totalPaid = (Number(r.amountTransferred) || 0) + (Number(r.cashPaid) || 0) + (Number(r.debtPaid) || 0);
+                    const deficit = Math.max(0, expected - totalPaid);
+                    return (
+                      <tr key={`draft-${idx}`} className="border-b border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-500/5">
+                        <td className="px-1 py-1">
+                          <button onClick={() => removeDraftRow(idx)} title="Remove row"
+                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-500/10 text-red-500 text-xs">✕</button>
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="date" value={r.date} onChange={(e) => updateDraftRow(idx, "date", e.target.value)} className="!py-1 !text-[10px] w-[110px]" />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="number" value={r.stockLoaded} onChange={(e) => updateDraftRow(idx, "stockLoaded", e.target.value)} placeholder="0" className="!py-1 !text-[10px] w-[60px] text-right" />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="number" value={r.stockReturned} onChange={(e) => updateDraftRow(idx, "stockReturned", e.target.value)} placeholder="0" className="!py-1 !text-[10px] w-[60px] text-right" />
+                        </td>
+                        <td className="px-2 py-1.5 text-right text-[10px] font-semibold text-gray-800 dark:text-white/90">
+                          ₦{expected.toLocaleString()}
+                        </td>
+                        <td className="px-1 py-1">
+                          {r.transferredByNames.map((name, ni) => (
+                            <div key={ni} className="flex items-center gap-0.5 mb-0.5">
+                              <Input value={name} onChange={(e) => {
+                                const next = [...r.transferredByNames]; next[ni] = e.target.value;
+                                updateDraftRow(idx, "transferredByNames", next);
+                              }} placeholder="Name" className="!py-0.5 !text-[10px] w-[70px]" />
+                              <button onClick={() => { const next = r.transferredByNames.filter((_, j) => j !== ni); updateDraftRow(idx, "transferredByNames", next); }}
+                                className="text-red-400 hover:text-red-600 text-[9px]">✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => updateDraftRow(idx, "transferredByNames", [...r.transferredByNames, ""])}
+                            className="text-[9px] text-brand-500 hover:text-brand-700">+ name</button>
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="number" value={r.amountTransferred} onChange={(e) => updateDraftRow(idx, "amountTransferred", e.target.value)} placeholder="0" className="!py-1 !text-[10px] w-[70px] text-right" />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="number" value={r.cashPaid} onChange={(e) => updateDraftRow(idx, "cashPaid", e.target.value)} placeholder="0" className="!py-1 !text-[10px] w-[70px] text-right" />
+                        </td>
+                        <td className="px-2 py-1.5 text-right text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                          ₦{deficit.toLocaleString()}
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input type="number" value={r.debtPaid} onChange={(e) => updateDraftRow(idx, "debtPaid", e.target.value)} placeholder="0" className="!py-1 !text-[10px] w-[60px] text-right" />
+                        </td>
+                        <td className="px-1 py-1">
+                          <Input value={r.debtPayer} onChange={(e) => updateDraftRow(idx, "debtPayer", e.target.value)} placeholder="Payer" className="!py-1 !text-[10px] w-[70px]" />
+                        </td>
+                        <td className="px-1 py-1">
+                          {r.debtors.map((d, di) => (
+                            <div key={di} className="flex items-center gap-1 mb-0.5">
+                              <Input value={d.name} onChange={(e) => {
+                                const next = [...r.debtors]; next[di] = { ...next[di], name: e.target.value };
+                                updateDraftRow(idx, "debtors", next);
+                              }} placeholder="Name" className="!py-0.5 !text-[10px] w-[55px]" />
+                              <Input type="number" value={d.amount} onChange={(e) => {
+                                const next = [...r.debtors]; next[di] = { ...next[di], amount: e.target.value };
+                                updateDraftRow(idx, "debtors", next);
+                              }} placeholder="₦" className="!py-0.5 !text-[10px] w-[45px]" />
+                              <button onClick={() => { const next = r.debtors.filter((_, j) => j !== di); updateDraftRow(idx, "debtors", next); }}
+                                className="text-red-400 hover:text-red-600 text-[10px]">✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => updateDraftRow(idx, "debtors", [...r.debtors, { name: "", amount: "" }])}
+                            className="text-[9px] text-brand-500 hover:text-brand-700">+ debtor</button>
+                        </td>
+                        <td className="px-1 py-1">
+                          <button onClick={() => saveDraftRow(idx)} disabled={submitting || !r.stockLoaded}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 disabled:opacity-40 transition-colors">
+                            Save
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {loading ? (
                     <tr><td colSpan={14} className="text-center py-10 text-gray-500">Loading...</td></tr>
                   ) : pagedRecords.length === 0 ? (
@@ -335,7 +511,17 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                           <td className="px-2 py-1.5 text-right text-gray-800 dark:text-white/90">{(r.stockLoaded ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right text-gray-800 dark:text-white/90">{(r.stockReturned ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right font-semibold text-gray-800 dark:text-white/90">₦{(r.expectedAmount ?? 0).toLocaleString()}</td>
-                          <td className="px-2 py-1.5 text-gray-600 dark:text-gray-400">{r.transferredBy || "—"}</td>
+                          <td className="px-2 py-1.5 text-gray-600 dark:text-gray-400">
+                            {Array.isArray(r.transferredBy) && r.transferredBy.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {r.transferredBy.map((name, ni) => (
+                                  <div key={ni} className="text-[10px]">{name}</div>
+                                ))}
+                              </div>
+                            ) : typeof r.transferredBy === "string" && r.transferredBy ? (
+                              r.transferredBy
+                            ) : "—"}
+                          </td>
                           <td className="px-2 py-1.5 text-right text-blue-600 dark:text-blue-400 font-medium">₦{(r.amountTransferred ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right text-green-600 dark:text-green-400 font-medium">₦{(r.cashPaid ?? 0).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right text-orange-600 dark:text-orange-400 font-medium">₦{(r.deficit ?? 0).toLocaleString()}</td>
@@ -343,13 +529,29 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                           <td className="px-2 py-1.5 text-gray-600 dark:text-gray-400">{r.debtPayer || "—"}</td>
                           <td className="px-2 py-1.5">
                             {Array.isArray(r.debtors) && r.debtors.length > 0 ? (
-                              <div className="space-y-0.5">
-                                {r.debtors.map((d, di) => (
-                                  <div key={di} className="flex items-center gap-1 text-[10px]">
-                                    <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap">{d.name}</span>
-                                    <span className="text-red-600 dark:text-red-400 font-medium">₦{(d.amount ?? 0).toLocaleString()}</span>
-                                  </div>
-                                ))}
+                              <div className="space-y-1">
+                                {r.debtors.map((d, di) => {
+                                  const remaining = (d.amount ?? 0) - (d.settled ?? 0);
+                                  return (
+                                    <div key={di} className="flex items-center gap-1 text-[10px]">
+                                      <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap font-medium">{d.name}</span>
+                                      <span className="text-red-600 dark:text-red-400 font-bold">₦{remaining.toLocaleString()}</span>
+                                      {remaining > 0 && (
+                                        <button onClick={() => {
+                                          setSettleTarget(r);
+                                          setSettleDebtorName(d.name);
+                                          setSettleAmount(String(remaining));
+                                          setSettleSenderName(d.name);
+                                          setSettleType("cash");
+                                          setShowSettleModal(true);
+                                        }}
+                                          className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 transition-colors whitespace-nowrap">
+                                          Settle
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                           </td>
@@ -364,12 +566,6 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
                                 className="text-[10px] font-medium px-2 py-0.5 rounded bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 transition-colors">
                                 Edit
                               </button>
-                              {(r.debt ?? 0) > 0 && (
-                                <button onClick={() => { setSettleTarget(r); setSettleAmount(""); setSettleSenderName(""); setSettleDate(r.date.slice(0, 10)); setShowSettleModal(true); }}
-                                  className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 transition-colors">
-                                  Settle
-                                </button>
-                              )}
                               <button onClick={() => deleteRecord(r._id)}
                                 className="text-[10px] font-medium px-2 py-0.5 rounded bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 transition-colors">
                                 Del
@@ -437,6 +633,83 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
         </>
       )}
 
+      {records.length > 0 && (() => {
+        const settledPayments: { date: string; payer: string; amount: number; type: string; recordDate: string }[] = [];
+        records.forEach((r) => {
+          if (Array.isArray(r.payments) && r.payments.length > 0) {
+            r.payments.forEach((p: { type: string; amount: number; senderName: string; date: string }) => {
+              settledPayments.push({
+                date: p.date,
+                payer: p.senderName || r.debtPayer || "Unknown",
+                amount: p.amount,
+                type: p.type,
+                recordDate: r.date,
+              });
+            });
+          }
+          if ((r.debtPaid ?? 0) > 0 && (!Array.isArray(r.payments) || r.payments.length === 0)) {
+            settledPayments.push({
+              date: r.date,
+              payer: r.debtPayer || "Unknown",
+              amount: r.debtPaid,
+              type: "cash",
+              recordDate: r.date,
+            });
+          }
+        });
+        settledPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const totalSettled = settledPayments.reduce((s, p) => s + p.amount, 0);
+        if (settledPayments.length === 0) return null;
+        return (
+          <div className="mt-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Settled Debts</h3>
+                <span className="text-xs font-bold text-green-600 dark:text-green-400">₦{totalSettled.toLocaleString()} total settled</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Paid By</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Type</th>
+                      <th className="px-3 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settledPayments.map((p, i) => (
+                      <tr key={i} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5">
+                        <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                        <td className="px-3 py-2 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                          {new Date(p.date).toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{p.payer}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${p.type === "transfer" ? "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" : "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"}`}>
+                            {p.type === "transfer" ? "Transfer" : "Cash"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-green-600 dark:text-green-400">
+                          ₦{p.amount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold">
+                      <td className="px-3 py-2" colSpan={4}>Total ({settledPayments.length} payments)</td>
+                      <td className="px-3 py-2 text-right text-green-600 dark:text-green-400">₦{totalSettled.toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
@@ -474,8 +747,25 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Transferred By</label>
-                  <Input value={formTransferredBy} onChange={(e) => setFormTransferredBy(e.target.value)} placeholder="Name of sender" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Transferred By</label>
+                    <button type="button" onClick={() => setFormTransferredByNames((prev) => [...prev, ""])}
+                      className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">
+                      + Add Name
+                    </button>
+                  </div>
+                  {formTransferredByNames.length === 0 && (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">No names added</p>
+                  )}
+                  {formTransferredByNames.map((name, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-1.5">
+                      <Input value={name} onChange={(e) => {
+                        const next = [...formTransferredByNames]; next[i] = e.target.value; setFormTransferredByNames(next);
+                      }} placeholder="Name" />
+                      <button type="button" onClick={() => setFormTransferredByNames((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-red-500 hover:text-red-700 text-xs shrink-0">✕</button>
+                    </div>
+                  ))}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Transferred</label>
@@ -569,10 +859,10 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Settle Debt</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Outstanding: <span className="font-bold text-red-600 dark:text-red-400">₦{(settleTarget.debt ?? 0).toLocaleString()}</span>
+                  Debtor: <span className="font-bold text-gray-800 dark:text-white/90">{settleDebtorName}</span>
                 </p>
               </div>
-              <button onClick={() => { setShowSettleModal(false); setSettleTarget(null); }}
+              <button onClick={() => { setShowSettleModal(false); setSettleTarget(null); setSettleDebtorName(""); }}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                 <CloseIcon className="w-5 h-5 text-gray-500" />
               </button>
@@ -603,7 +893,7 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
               )}
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="outline" size="sm" onClick={() => { setShowSettleModal(false); setSettleTarget(null); }}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowSettleModal(false); setSettleTarget(null); setSettleDebtorName(""); }}>Cancel</Button>
               <Button size="sm" onClick={submitSettle} disabled={submitting}>
                 {submitting ? "Saving..." : "Settle Payment"}
               </Button>

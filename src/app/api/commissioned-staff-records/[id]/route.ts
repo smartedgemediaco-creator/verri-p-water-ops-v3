@@ -25,51 +25,73 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   await connectDB();
   const body = await req.json();
 
-  const existing = await CommissionedStaffRecord.findById(id).lean();
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const record = await CommissionedStaffRecord.findById(id);
+  if (!record) return NextResponse.json({ error: "Not found", status: 404 });
 
-  const update: Record<string, unknown> = {};
-  if (body.date !== undefined) update.date = new Date(body.date);
-  if (body.stockLoaded !== undefined) update.stockLoaded = Number(body.stockLoaded);
-  if (body.stockReturned !== undefined) update.stockReturned = Number(body.stockReturned);
-  if (body.transferredBy !== undefined) update.transferredBy = body.transferredBy;
-  if (body.amountTransferred !== undefined) update.amountTransferred = Number(body.amountTransferred);
-  if (body.cashPaid !== undefined) update.cashPaid = Number(body.cashPaid);
-  if (body.debtPaid !== undefined) update.debtPaid = Number(body.debtPaid);
-  if (body.debtPayer !== undefined) update.debtPayer = body.debtPayer;
-  if (body.debtors !== undefined) update.debtors = body.debtors;
-  if (body.notes !== undefined) update.notes = body.notes;
+  if (body.transferredBy !== undefined) {
+    record.transferredBy = Array.isArray(body.transferredBy) ? body.transferredBy : body.transferredBy ? [body.transferredBy] : [];
+  }
 
-  const stockLoaded = update.stockLoaded !== undefined ? Number(update.stockLoaded) : existing.stockLoaded;
-  const stockReturned = update.stockReturned !== undefined ? Number(update.stockReturned) : existing.stockReturned;
-  const dealPrice = existing.dealPrice;
-  const bagsConsumed = stockLoaded - stockReturned;
-  const expectedAmount = bagsConsumed * dealPrice;
-  const amountTransferred = update.amountTransferred !== undefined ? Number(update.amountTransferred) : existing.amountTransferred;
-  const cashPaid = update.cashPaid !== undefined ? Number(update.cashPaid) : existing.cashPaid;
-  const debtPaid = update.debtPaid !== undefined ? Number(update.debtPaid) : existing.debtPaid;
-  const totalPaid = amountTransferred + cashPaid + debtPaid;
-  const deficit = Math.max(0, expectedAmount - totalPaid);
-  const debt = deficit;
+  if (body.date !== undefined) record.date = new Date(body.date);
+  if (body.stockLoaded !== undefined) record.stockLoaded = Number(body.stockLoaded);
+  if (body.stockReturned !== undefined) record.stockReturned = Number(body.stockReturned);
+  if (body.amountTransferred !== undefined) record.amountTransferred = Number(body.amountTransferred);
+  if (body.cashPaid !== undefined) record.cashPaid = Number(body.cashPaid);
+  if (body.debtPaid !== undefined) record.debtPaid = Number(body.debtPaid);
+  if (body.debtPayer !== undefined) record.debtPayer = body.debtPayer;
+  if (body.notes !== undefined) record.notes = body.notes;
 
-  update.expectedAmount = expectedAmount;
-  update.totalPaid = totalPaid;
-  update.totalOwed = debt;
-  update.deficit = deficit;
-  update.debt = debt;
+  if (body.debtors !== undefined) {
+    record.debtors = body.debtors.map((d: { name: string; amount: number; settled?: number }) => ({
+      name: d.name, amount: Number(d.amount) || 0, settled: Number(d.settled) || 0,
+    }));
+  }
 
-  const record = await CommissionedStaffRecord.findByIdAndUpdate(id, update, { new: true });
-  if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (body.settleDebtor && typeof body.settleDebtor === "object") {
+    const { debtorName, amount, type, senderName } = body.settleDebtor;
+    const settleAmount = Number(amount) || 0;
+    if (debtorName && settleAmount > 0) {
+      const debtor = record.debtors.find((d: { name: string; amount: number; settled: number }) => d.name === debtorName);
+      if (debtor) {
+        debtor.settled = (debtor.settled || 0) + settleAmount;
+      }
+      record.payments.push({
+        type: type || "cash",
+        amount: settleAmount,
+        senderName: senderName || debtorName,
+        addAsCustomer: false,
+        date: new Date(),
+        notes: `Settled by ${debtorName}`,
+      } as never);
+      if (type === "transfer") {
+        record.amountTransferred = (record.amountTransferred || 0) + settleAmount;
+      } else {
+        record.cashPaid = (record.cashPaid || 0) + settleAmount;
+      }
+    }
+  }
+
+  const bagsConsumed = record.stockLoaded - record.stockReturned;
+  record.expectedAmount = bagsConsumed * record.dealPrice;
+  record.totalPaid = (record.amountTransferred || 0) + (record.cashPaid || 0) + (record.debtPaid || 0);
+  record.deficit = Math.max(0, record.expectedAmount - record.totalPaid);
+  record.debt = record.deficit;
+  record.totalOwed = record.debt;
+
+  await record.save();
 
   await logActivity({
     action: "updated",
     entity: "commissioned-staff-record",
     entityId: id,
-    description: `Updated record: ${stockLoaded} loaded, ${stockReturned} returned, ₦${expectedAmount.toLocaleString()} expected, ₦${debt.toLocaleString()} debt`,
+    description: body.settleDebtor
+      ? `Settled ₦${(Number(body.settleDebtor.amount) || 0).toLocaleString()} for "${body.settleDebtor.debtorName}" on record`
+      : `Updated record: ${record.stockLoaded} loaded, ${record.stockReturned} returned, ₦${record.expectedAmount.toLocaleString()} expected, ₦${record.debt.toLocaleString()} debt`,
     userId: user.userId,
   });
 
-  return NextResponse.json(record);
+  const updated = await CommissionedStaffRecord.findById(id).lean();
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

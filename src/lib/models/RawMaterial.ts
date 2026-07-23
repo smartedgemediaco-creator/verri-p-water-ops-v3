@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IRawMaterial extends Document {
   name: string;
@@ -7,6 +7,7 @@ export interface IRawMaterial extends Document {
   currentStock: number;
   minimumStock: number;
   unitCost: number;
+  supplierId: Types.ObjectId | null;
   notes: string;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ const RawMaterialSchema = new Schema<IRawMaterial>(
     currentStock: { type: Number, default: 0 },
     minimumStock: { type: Number, default: 0 },
     unitCost: { type: Number, default: 0 },
+    supplierId: { type: Schema.Types.ObjectId, ref: "Supplier", default: null },
     notes: { type: String, default: "" },
   },
   { timestamps: true }
