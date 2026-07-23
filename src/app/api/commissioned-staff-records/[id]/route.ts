@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (body.settleDebtor && typeof body.settleDebtor === "object") {
-    const { debtorName, amount, type, senderName } = body.settleDebtor;
+    const { debtorName, amount, type, senderName, date, notes } = body.settleDebtor;
     const settleAmount = Number(amount) || 0;
     if (debtorName && settleAmount > 0) {
       const debtor = record.debtors.find((d: { name: string; amount: number; settled: number }) => d.name === debtorName);
@@ -60,8 +60,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         amount: settleAmount,
         senderName: senderName || debtorName,
         addAsCustomer: false,
-        date: new Date(),
-        notes: `Settled by ${debtorName}`,
+        date: date ? new Date(date) : new Date(),
+        notes: notes || `Settled by ${debtorName}`,
       } as never);
       if (type === "transfer") {
         record.amountTransferred = (record.amountTransferred || 0) + settleAmount;
