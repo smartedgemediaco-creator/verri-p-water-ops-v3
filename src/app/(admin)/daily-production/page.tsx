@@ -33,7 +33,9 @@ interface ProductionEntry {
 
 interface SavedRecord {
   _id: string;
+  staffId: string | { _id: string };
   staffName: string;
+  productId: string | { _id: string };
   productName: string;
   bagsProduced: number;
   rate: number;
@@ -54,6 +56,14 @@ export default function DailyProductionPage() {
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => new Date().toISOString().slice(0, 7));
+
+  const [editTarget, setEditTarget] = useState<SavedRecord | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editProductId, setEditProductId] = useState("");
+  const [editBags, setEditBags] = useState("");
+  const [editRate, setEditRate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -159,6 +169,41 @@ export default function DailyProductionPage() {
     if (!res.ok) { showError("Failed to delete"); return; }
     showSuccess("Record deleted");
     fetchSavedRecords();
+  };
+
+  const openEdit = (r: SavedRecord) => {
+    setEditTarget(r);
+    const pid = typeof r.productId === "object" ? r.productId._id : r.productId;
+    setEditDate(new Date(r.date).toISOString().slice(0, 10));
+    setEditProductId(pid || (products.length > 0 ? products[0]._id : ""));
+    setEditBags(String(r.bagsProduced));
+    setEditRate(String(r.rate));
+    setEditNotes("");
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    const bags = Number(editBags) || 0;
+    const rate = Number(editRate) || 0;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/daily-production/${editTarget._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: editDate,
+          productId: editProductId,
+          bagsProduced: bags,
+          rate,
+          notes: editNotes,
+        }),
+      });
+      if (!res.ok) { showError("Failed to update"); return; }
+      showSuccess("Record updated");
+      setEditTarget(null);
+      fetchSavedRecords();
+    } catch { showError("Network error"); }
+    finally { setEditSaving(false); }
   };
 
   const groupedByDate = savedRecords.reduce<Record<string, SavedRecord[]>>((acc, r) => {
@@ -343,7 +388,10 @@ export default function DailyProductionPage() {
                       <td className="px-3 py-2 text-right font-semibold text-brand-600 dark:text-brand-400">₦{r.totalEarned.toLocaleString()}</td>
                       <td className="px-3 py-2 text-right font-semibold text-green-600 dark:text-green-400">₦{(staffMonthlyTotals[r.staffName]?.earned || 0).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">
-                        <button onClick={() => deleteRecord(r._id)} className="text-red-500 hover:text-red-700 text-xs">Del</button>
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => openEdit(r)} className="text-[10px] font-medium px-2 py-0.5 rounded bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 transition-colors">Edit</button>
+                          <button onClick={() => deleteRecord(r._id)} className="text-[10px] font-medium px-2 py-0.5 rounded bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 transition-colors">Del</button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -366,6 +414,62 @@ export default function DailyProductionPage() {
           </table>
         </div>
       </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Edit Record</h3>
+              <button onClick={() => setEditTarget(null)} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Staff</label>
+                <div className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-700 dark:text-gray-300 font-medium">{editTarget.staffName}</div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Product</label>
+                <select value={editProductId} onChange={(e) => setEditProductId(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10">
+                  {products.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Bags Produced</label>
+                  <input type="number" value={editBags} onChange={(e) => setEditBags(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Rate (₦/bag)</label>
+                  <input type="number" value={editRate} onChange={(e) => setEditRate(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Earned</label>
+                <div className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-brand-600 dark:text-brand-400 font-bold">
+                  ₦{((Number(editBags) || 0) * (Number(editRate) || 0)).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Optional notes..."
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <Button variant="outline" size="sm" onClick={() => setEditTarget(null)}>Cancel</Button>
+              <Button size="sm" onClick={submitEdit} disabled={editSaving}>{editSaving ? "Saving..." : "Update"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
