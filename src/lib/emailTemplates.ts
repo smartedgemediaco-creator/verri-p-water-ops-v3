@@ -325,3 +325,52 @@ export function dailyStockDeletedEmail({ deletedBy, date, data, customColumns }:
 function APP_URL(): string {
   return process.env.APP_URL || "https://verrip.com.ng";
 }
+
+export function overdueOrderEmail({ orderNumber, supplier, expectedDate, daysOverdue }: { orderNumber: string; supplier: string; expectedDate: string; daysOverdue: number }): string {
+  return baseHtml("📦", "#F59E0B", `
+    <h2>Overdue delivery</h2>
+    <div class="alert-box" style="background:#FEF3C7;border-left-color:#F59E0B;">
+      <p style="color:#92400E;"><strong>${orderNumber}</strong> from <strong>${supplier}</strong> is <strong>${daysOverdue} day${daysOverdue !== 1 ? "s" : ""}</strong> overdue (expected ${expectedDate}).</p>
+    </div>
+    <p>Follow up with the supplier to confirm delivery status.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/purchase-orders" class="btn">View Purchase Orders</a>
+    </div>
+  `);
+}
+
+export function paymentReminderEmail({ orderNumber, supplier, amountOwed, totalAmount }: { orderNumber: string; supplier: string; amountOwed: number; totalAmount: number }): string {
+  return baseHtml("💰", "#EF4444", `
+    <h2>Payment overdue</h2>
+    <div class="alert-box">
+      <p><strong>${orderNumber}</strong> to <strong>${supplier}</strong> has an outstanding balance of <strong>₦${amountOwed.toLocaleString()}</strong> (total: ₦${totalAmount.toLocaleString()}).</p>
+    </div>
+    <p>Process payment to maintain good supplier relationships.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/purchase-orders" class="btn">View Purchase Orders</a>
+    </div>
+  `);
+}
+
+export function bulkLowStockEmail({ items }: { items: { name: string; current: number; minimum: number; unit: string }[] }): string {
+  const rowsHtml = items.map(item =>
+    `<div class="stat-row">
+      <span class="stat-label">${item.name}</span>
+      <span class="stat-value" style="color:#EF4444;">${item.current.toLocaleString()} ${item.unit} (min: ${item.minimum.toLocaleString()})</span>
+    </div>`
+  ).join("\n");
+
+  return baseHtml("⚠️", "#EF4444", `
+    <h2>Low stock summary</h2>
+    <div class="alert-box">
+      <p><strong>${items.length} raw material${items.length !== 1 ? "s" : ""}</strong> are below minimum stock levels.</p>
+    </div>
+    <div class="stat-grid">
+      ${rowsHtml}
+    </div>
+    <p>Reorder soon to avoid production delays.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/raw-materials" class="btn">View Materials</a>
+    </div>
+  `);
+}

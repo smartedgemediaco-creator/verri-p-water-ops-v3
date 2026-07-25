@@ -3,7 +3,10 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ISupplier extends Document {
   name: string;
   phone: string;
+  phone2: string;
   email: string;
+  whatsapp: string;
+  contactPerson: string;
   address: string;
   coordinates: { lat: number; lng: number };
   placeId: string;
@@ -19,7 +22,10 @@ const SupplierSchema = new Schema<ISupplier>(
   {
     name: { type: String, required: true },
     phone: { type: String, default: "" },
+    phone2: { type: String, default: "" },
     email: { type: String, default: "" },
+    whatsapp: { type: String, default: "" },
+    contactPerson: { type: String, default: "" },
     address: { type: String, default: "" },
     coordinates: {
       lat: { type: Number, default: 0 },

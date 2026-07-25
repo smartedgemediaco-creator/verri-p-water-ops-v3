@@ -13,7 +13,7 @@ export async function GET(
   const { id } = await params;
   await connectDB();
   const order = await PurchaseOrder.findById(id)
-    .populate("supplierId", "name phone email supplyType")
+    .populate("supplierId", "name phone email whatsapp contactPerson supplyType")
     .populate("items.rawMaterialId", "name unit category");
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(order);

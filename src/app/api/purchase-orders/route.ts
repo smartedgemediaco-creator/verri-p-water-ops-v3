@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { PurchaseOrder } from "@/lib/models";
+import { PurchaseOrder, Supplier } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import mongoose from "mongoose";
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (supplierId) filter.supplierId = new mongoose.Types.ObjectId(supplierId);
 
   const orders = await PurchaseOrder.find(filter)
-    .populate("supplierId", "name supplyType")
+    .populate("supplierId", "name supplyType phone whatsapp email contactPerson")
     .sort({ orderDate: -1 });
   return NextResponse.json(orders);
 }
@@ -42,19 +42,43 @@ export async function POST(req: NextRequest) {
     0
   );
 
+  let contactPhone = body.contactPhone || "";
+  let contactEmail = body.contactEmail || "";
+  let supplierName = body.supplierName || "";
+
+  if (body.supplierId && (!contactPhone && !contactEmail)) {
+    const supplier = await Supplier.findById(body.supplierId).lean();
+    if (supplier) {
+      contactPhone = contactPhone || supplier.phone || "";
+      contactEmail = contactEmail || supplier.email || "";
+      supplierName = supplierName || supplier.name || "";
+    }
+  }
+
+  const items = (body.items ?? []).map((item: Record<string, unknown>) => ({
+    ...item,
+    quantityReceived: 0,
+  }));
+
   const order = await PurchaseOrder.create({
-    ...body,
+    ...(body.supplierId ? { supplierId: body.supplierId } : {}),
+    supplierName,
+    items,
     orderNumber: generateOrderNumber(),
     totalAmount,
+    contactPhone,
+    contactEmail,
+    expectedDate: body.expectedDate || undefined,
+    notes: body.notes || "",
   });
 
   await logActivity({
     action: "created",
     entity: "purchase-order",
     entityId: order._id.toString(),
-    description: `Created purchase order ${order.orderNumber} for ${totalAmount.toLocaleString()}`,
+    description: `Created purchase order ${order.orderNumber} for ₦${totalAmount.toLocaleString()}${supplierName ? ` (Supplier: ${supplierName})` : ""}`,
     userId: user.userId,
-    metadata: { orderNumber: order.orderNumber, totalAmount },
+    metadata: { orderNumber: order.orderNumber, totalAmount, supplierName },
   });
 
   return NextResponse.json(order, { status: 201 });

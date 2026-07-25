@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IGRNItem {
-  rawMaterialId: Types.ObjectId;
+  rawMaterialId?: Types.ObjectId;
+  itemName?: string;
   quantityReceived: number;
   quantityOrdered: number;
   condition: "good" | "damaged" | "partial";
@@ -19,7 +20,8 @@ export interface IGoodsReceivedNote extends Document {
 
 const GRNItemSchema = new Schema<IGRNItem>(
   {
-    rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial", required: true },
+    rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial" },
+    itemName: { type: String, default: "" },
     quantityReceived: { type: Number, required: true },
     quantityOrdered: { type: Number, required: true },
     condition: {

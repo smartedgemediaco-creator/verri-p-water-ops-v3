@@ -29,13 +29,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!record) return NextResponse.json({ error: "Not found", status: 404 });
 
   if (body.transferredBy !== undefined) {
-    record.transferredBy = Array.isArray(body.transferredBy) ? body.transferredBy : body.transferredBy ? [body.transferredBy] : [];
+    record.transferredBy = Array.isArray(body.transferredBy)
+      ? body.transferredBy
+          .filter((t: { name?: string; amount?: number }) => t.name && t.name.trim())
+          .map((t: { name: string; amount?: number }) => ({ name: t.name.trim(), amount: Number(t.amount) || 0 }))
+      : [];
   }
 
   if (body.date !== undefined) record.date = new Date(body.date);
   if (body.stockLoaded !== undefined) record.stockLoaded = Number(body.stockLoaded);
   if (body.stockReturned !== undefined) record.stockReturned = Number(body.stockReturned);
-  if (body.amountTransferred !== undefined) record.amountTransferred = Number(body.amountTransferred);
+  record.amountTransferred = record.transferredBy.reduce((sum: number, t: { name: string; amount: number }) => sum + t.amount, 0);
   if (body.cashPaid !== undefined) record.cashPaid = Number(body.cashPaid);
   if (body.debtPaid !== undefined) record.debtPaid = Number(body.debtPaid);
   if (body.debtPayer !== undefined) record.debtPayer = body.debtPayer;

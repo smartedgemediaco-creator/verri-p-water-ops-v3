@@ -2,7 +2,7 @@ import connectDB from "./db";
 import { User } from "./models/User";
 import { UserRole } from "./models/UserRole";
 import { sendEmail } from "./email";
-import { lowStockEmail, transferStatusEmail, wastageAlertEmail, productionAlertEmail } from "./emailTemplates";
+import { lowStockEmail, transferStatusEmail, wastageAlertEmail, productionAlertEmail, overdueOrderEmail, paymentReminderEmail, bulkLowStockEmail } from "./emailTemplates";
 
 async function getAdminEmails(): Promise<string[]> {
   await connectDB();
@@ -77,6 +77,49 @@ export async function notifyWastage(product: string, qty: number, location: stri
         to: email,
         subject: `⚠ Wastage: ${product}`,
         html: wastageAlertEmail({ product, qty, location, source }),
+      })
+    )
+  );
+}
+
+export async function notifyOverdueOrder(orderNumber: string, supplier: string, expectedDate: string, daysOverdue: number) {
+  const emails = await getAllRecipientEmails();
+  if (!emails.length) return;
+  await Promise.allSettled(
+    emails.map(email =>
+      sendEmail({
+        to: email,
+        subject: `📦 Overdue: ${orderNumber} from ${supplier}`,
+        html: overdueOrderEmail({ orderNumber, supplier, expectedDate, daysOverdue }),
+      })
+    )
+  );
+}
+
+export async function notifyPaymentReminder(orderNumber: string, supplier: string, amountOwed: number, totalAmount: number) {
+  const emails = await getAllRecipientEmails();
+  if (!emails.length) return;
+  await Promise.allSettled(
+    emails.map(email =>
+      sendEmail({
+        to: email,
+        subject: `💰 Payment Due: ${orderNumber} — ₦${amountOwed.toLocaleString()} outstanding`,
+        html: paymentReminderEmail({ orderNumber, supplier, amountOwed, totalAmount }),
+      })
+    )
+  );
+}
+
+export async function notifyBulkLowStock(items: { name: string; current: number; minimum: number; unit: string }[]) {
+  if (!items.length) return;
+  const emails = await getAllRecipientEmails();
+  if (!emails.length) return;
+  await Promise.allSettled(
+    emails.map(email =>
+      sendEmail({
+        to: email,
+        subject: `⚠ ${items.length} Raw Material${items.length !== 1 ? "s" : ""} Low on Stock`,
+        html: bulkLowStockEmail({ items }),
       })
     )
   );

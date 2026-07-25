@@ -19,7 +19,8 @@ interface RawMaterialRef {
 }
 
 interface GRNItem {
-  rawMaterialId: RawMaterialRef;
+  rawMaterialId?: RawMaterialRef;
+  itemName?: string;
   quantityReceived: number;
   quantityOrdered: number;
   condition: "good" | "damaged" | "partial";
@@ -33,7 +34,8 @@ interface SupplierRef {
 interface PORef {
   _id: string;
   orderNumber: string;
-  supplierId: SupplierRef;
+  supplierId?: SupplierRef;
+  supplierName?: string;
 }
 
 interface GoodsReceivedNote {
@@ -52,7 +54,7 @@ export default function GoodsReceivedNotesPage() {
   const [formSaving, setFormSaving] = useState(false);
   const [poList, setPoList] = useState<{ _id: string; orderNumber: string }[]>([]);
   const [rmList, setRmList] = useState<{ _id: string; name: string; unit: string }[]>([]);
-  const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+  const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", itemName: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
   const { ref, loading: pdfLoading, download } = usePdfDownload("goods-received-list", { title: "Goods Received Notes" });
 
   const fetchPoList = () => {
@@ -79,19 +81,19 @@ export default function GoodsReceivedNotesPage() {
           receivedDate: grnForm.receivedDate || undefined,
           receivedBy: grnForm.receivedBy,
           notes: grnForm.notes,
-          items: grnForm.items.filter((i) => i.rawMaterialId && i.quantityReceived > 0),
+          items: grnForm.items.filter((i) => (i.rawMaterialId || i.itemName) && i.quantityReceived > 0),
         }),
       });
       if (!res.ok) { showError("Failed to create GRN"); return; }
       showSuccess("Goods received note created");
       setShowForm(false);
-      setGrnForm({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+      setGrnForm({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", itemName: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
       fetchGrns();
     } catch { showError("Network error"); }
     finally { setFormSaving(false); }
   };
 
-  const addGrnItem = () => setGrnForm({ ...grnForm, items: [...grnForm.items, { rawMaterialId: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
+  const addGrnItem = () => setGrnForm({ ...grnForm, items: [...grnForm.items, { rawMaterialId: "", itemName: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
   const updateGrnItem = (i: number, field: string, value: string | number) => {
     const items = [...grnForm.items];
     items[i] = { ...items[i], [field]: value };
@@ -125,7 +127,7 @@ export default function GoodsReceivedNotesPage() {
   };
 
   const getSupplierName = (grn: GoodsReceivedNote): string => {
-    return grn.purchaseOrderId?.supplierId?.name ?? "Unknown";
+    return grn.purchaseOrderId?.supplierId?.name ?? grn.purchaseOrderId?.supplierName ?? "Unknown";
   };
 
   const getPoNumber = (grn: GoodsReceivedNote): string => {
@@ -221,7 +223,7 @@ export default function GoodsReceivedNotesPage() {
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center gap-2">
-                        <span>{firstItem?.rawMaterialId?.name ?? "Unknown"}</span>
+                        <span>{firstItem?.rawMaterialId?.name ?? firstItem?.itemName ?? "Unknown"}</span>
                         {remaining > 0 && (
                           <Badge variant="light" color="info">+{remaining} more</Badge>
                         )}

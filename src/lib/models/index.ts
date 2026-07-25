@@ -70,6 +70,7 @@ export type { INAFDACRecord } from "./NAFDACRecord";
 // ─── New transactional models ─────────────────────────────
 export { PurchaseOrder } from "./PurchaseOrder";
 export type { IPurchaseOrder, IPurchaseOrderItem } from "./PurchaseOrder";
+export type { IPaymentEntry as IPOPaymentEntry } from "./PurchaseOrder";
 export { GoodsReceivedNote } from "./GoodsReceivedNote";
 export type { IGoodsReceivedNote, IGRNItem } from "./GoodsReceivedNote";
 export { BillOfMaterials } from "./BillOfMaterials";
@@ -100,3 +101,5 @@ export { CommissionedStaff } from "./CommissionedStaff";
 export type { ICommissionedStaff } from "./CommissionedStaff";
 export { CommissionedStaffRecord } from "./CommissionedStaffRecord";
 export type { ICommissionedStaffRecord, IPaymentEntry, IDebtorEntry } from "./CommissionedStaffRecord";
+export { RawMaterialStockMovement } from "./RawMaterialStockMovement";
+export type { IRawMaterialStockMovement } from "./RawMaterialStockMovement";

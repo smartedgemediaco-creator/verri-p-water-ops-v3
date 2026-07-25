@@ -67,7 +67,12 @@ export async function POST(req: NextRequest) {
   const bagsConsumed = stockLoaded - stockReturned;
   const expectedAmount = bagsConsumed * dealPrice;
 
-  const amountTransferred = Number(body.amountTransferred) || 0;
+  const transferredBy = Array.isArray(body.transferredBy)
+    ? body.transferredBy
+        .filter((t: { name?: string; amount?: number }) => t.name && t.name.trim())
+        .map((t: { name: string; amount?: number }) => ({ name: t.name.trim(), amount: Number(t.amount) || 0 }))
+    : [];
+  const amountTransferred = transferredBy.reduce((sum: number, t: { name: string; amount: number }) => sum + t.amount, 0);
   const cashPaid = Number(body.cashPaid) || 0;
   const debtPaid = Number(body.debtPaid) || 0;
   const totalPaid = amountTransferred + cashPaid + debtPaid;
@@ -81,7 +86,7 @@ export async function POST(req: NextRequest) {
     stockReturned,
     dealPrice,
     expectedAmount,
-    transferredBy: Array.isArray(body.transferredBy) ? body.transferredBy : body.transferredBy ? [body.transferredBy] : [],
+    transferredBy,
     amountTransferred,
     cashPaid,
     deficit,
