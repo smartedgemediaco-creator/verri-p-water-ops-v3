@@ -8,6 +8,9 @@ export interface IPurchaseOrderItem {
   unit: string;
   unitPrice: number;
   quantityReceived: number;
+  batchIds: Types.ObjectId[];
+  unitCount: number;
+  itemUnit: string;
 }
 
 export interface IPaymentEntry {
@@ -35,6 +38,8 @@ export interface IPurchaseOrder extends Document {
   totalAmount: number;
   contactPhone: string;
   contactEmail: string;
+  deliveryLocationType: "factory" | "depot" | "";
+  deliveryLocationId?: Types.ObjectId;
   notes: string;
   createdAt: Date;
   updatedAt: Date;
@@ -61,6 +66,9 @@ const PurchaseOrderItemSchema = new Schema<IPurchaseOrderItem>(
     unit: { type: String, default: "" },
     unitPrice: { type: Number, required: true },
     quantityReceived: { type: Number, default: 0 },
+    batchIds: [{ type: Schema.Types.ObjectId, ref: "RawMaterialBatch" }],
+    unitCount: { type: Number, default: 0 },
+    itemUnit: { type: String, default: "" },
   },
   { _id: false }
 );
@@ -86,6 +94,8 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     totalAmount: { type: Number, default: 0 },
     contactPhone: { type: String, default: "" },
     contactEmail: { type: String, default: "" },
+    deliveryLocationType: { type: String, enum: ["factory", "depot", ""], default: "" },
+    deliveryLocationId: { type: Schema.Types.ObjectId, default: null },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

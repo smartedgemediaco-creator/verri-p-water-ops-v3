@@ -17,6 +17,7 @@ import {
   CloseIcon,
   PencilIcon,
   ListIcon,
+  ArrowDownIcon,
 } from "../icons/index";
 import {
   FactoryIcon,
@@ -48,6 +49,8 @@ const navItems: NavItem[] = [
   { icon: <BottleIcon />, name: "Products", path: "/products", color: "text-teal-500" },
   { icon: <FactoryIcon />, name: "Production", path: "/production/new", color: "text-blue-500" },
   { icon: <BoxIcon />, name: "Raw Materials", path: "/raw-materials", color: "text-yellow-500" },
+  { icon: <BoxIcon />, name: "Material Batches", path: "/raw-materials/batches", color: "text-purple-500" },
+  { icon: <ArrowDownIcon />, name: "Consume Material", path: "/raw-materials/consume", color: "text-amber-500" },
   { icon: <UserIcon />, name: "Customers", path: "/customers", color: "text-indigo-500" },
   { icon: <GroupIcon />, name: "Staff", path: "/staff", color: "text-cyan-500" },
   { icon: <TimeIcon />, name: "Attendance", path: "/attendance", color: "text-violet-500" },

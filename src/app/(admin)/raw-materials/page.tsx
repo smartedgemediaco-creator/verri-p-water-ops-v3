@@ -12,7 +12,7 @@ import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import AutoAmount from "@/components/ui/AutoAmount";
 import Badge from "@/components/ui/badge/Badge";
-import { PlusIcon, TrashBinIcon, PencilIcon, BoxIcon, GroupIcon, CloseIcon, DollarLineIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, BoxIcon, GroupIcon, CloseIcon, DollarLineIcon, ArrowDownIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { formatDate } from "@/lib/dateFormat";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
@@ -32,6 +32,9 @@ interface RawMaterial {
   totalConsumed: number;
   lastReceivedDate?: string;
   lastConsumedDate?: string;
+  totalBatchStock: number;
+  averageCost: number;
+  batchCount: number;
   notes: string;
 }
 
@@ -492,6 +495,7 @@ export default function RawMaterialsPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Category</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Stock</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Min</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Batches</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Value</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Supplier</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
@@ -519,7 +523,12 @@ export default function RawMaterialsPage() {
                     <TableCell className="py-3 text-theme-sm capitalize text-gray-500 dark:text-gray-400">{m.category}</TableCell>
                     <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{(m.currentStock ?? 0).toLocaleString()}</TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(m.minimumStock ?? 0).toLocaleString()}</TableCell>
-                    <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{((m.currentStock ?? 0) * (m.unitCost ?? 0)).toLocaleString()}</TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                      {m.batchCount > 0 ? (
+                        <Link href={`/raw-materials/${m._id}?tab=batches`} className="text-blue-600 dark:text-blue-400 hover:underline">{m.batchCount}</Link>
+                      ) : <span className="text-gray-400">0</span>}
+                    </TableCell>
+                    <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{((m.totalBatchStock ?? m.currentStock ?? 0) * (m.averageCost ?? m.unitCost ?? 0)).toLocaleString()}</TableCell>
                     <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                       {m.supplierId ? (
                         <Link href={`/suppliers/${m.supplierId._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{m.supplierId.name}</Link>
@@ -540,8 +549,11 @@ export default function RawMaterialsPage() {
                           <PlusIcon className="w-3.5 h-3.5 mr-0.5" /> Add
                         </button>
                         <button onClick={() => { setConsumeTarget(m); setConsumeAmount(0); setConsumeType("consumption"); setConsumeNotes(""); setShowConsumeModal(true); }} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 transition-colors">
-                          Use
+                          <ArrowDownIcon className="w-3.5 h-3.5 mr-0.5" /> Use
                         </button>
+                        <Link href={`/raw-materials/${m._id}?tab=batches`} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:hover:bg-purple-500/20 transition-colors">
+                          Batches
+                        </Link>
                         <button onClick={() => openMovements(m)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
                           History
                         </button>

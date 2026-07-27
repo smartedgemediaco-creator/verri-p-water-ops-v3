@@ -14,6 +14,9 @@ export interface IRawMaterial extends Document {
   totalConsumed: number;
   lastReceivedDate?: Date;
   lastConsumedDate?: Date;
+  totalBatchStock: number;
+  averageCost: number;
+  batchCount: number;
   notes: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +41,9 @@ const RawMaterialSchema = new Schema<IRawMaterial>(
     totalConsumed: { type: Number, default: 0 },
     lastReceivedDate: { type: Date },
     lastConsumedDate: { type: Date },
+    totalBatchStock: { type: Number, default: 0 },
+    averageCost: { type: Number, default: 0 },
+    batchCount: { type: Number, default: 0 },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

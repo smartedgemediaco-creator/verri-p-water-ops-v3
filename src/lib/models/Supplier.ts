@@ -12,6 +12,9 @@ export interface ISupplier extends Document {
   placeId: string;
   supplyType: "material" | "equipment" | "transport" | "service" | "other";
   materialProvided: string;
+  totalOwedToUs: number;
+  totalWeOwe: number;
+  netBalance: number;
   isActive: boolean;
   notes: string;
   createdAt: Date;
@@ -38,6 +41,9 @@ const SupplierSchema = new Schema<ISupplier>(
       default: "material",
     },
     materialProvided: { type: String, default: "" },
+    totalOwedToUs: { type: Number, default: 0 },
+    totalWeOwe: { type: Number, default: 0 },
+    netBalance: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     notes: { type: String, default: "" },
   },

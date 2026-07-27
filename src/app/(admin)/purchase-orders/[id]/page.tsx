@@ -20,6 +20,7 @@ interface POItem {
   itemName?: string;
   itemDescription?: string;
   quantity: number; unit: string; unitPrice: number; quantityReceived: number;
+  batchIds: string[]; unitCount: number; itemUnit: string;
 }
 
 interface PaymentEntry {
@@ -56,6 +57,9 @@ export default function PurchaseOrderDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState("transfer");
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [receiveDeliveries, setReceiveDeliveries] = useState<Array<{ itemIndex: number; receivedQuantity: number; unitCount: number; qualityNotes: string }>>([]);
+  const [receiveSaving, setReceiveSaving] = useState(false);
 
   const fetchOrder = () => {
     setLoading(true);
@@ -94,6 +98,37 @@ export default function PurchaseOrderDetailPage() {
     } catch { showError("Network error"); } finally { setPaymentSaving(false); }
   };
 
+  const openReceive = () => {
+    if (!order) return;
+    setReceiveDeliveries(order.items.map((item, i) => ({
+      itemIndex: i,
+      receivedQuantity: Math.max(0, item.quantity - (item.quantityReceived || 0)),
+      unitCount: 0,
+      qualityNotes: "",
+    })));
+    setShowReceiveModal(true);
+  };
+
+  const updateReceiveDelivery = (index: number, field: string, value: string | number) => {
+    const updated = [...receiveDeliveries];
+    updated[index] = { ...updated[index], [field]: value };
+    setReceiveDeliveries(updated);
+  };
+
+  const handleReceive = async () => {
+    const activeDeliveries = receiveDeliveries.filter((d) => d.receivedQuantity > 0);
+    if (activeDeliveries.length === 0) { showError("Enter received quantities"); return; }
+    setReceiveSaving(true);
+    try {
+      const res = await fetch(`/api/purchase-orders/${id}/receive`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliveries: activeDeliveries }),
+      });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
+      showSuccess("Goods received and batches created"); setShowReceiveModal(false); fetchOrder();
+    } catch { showError("Network error"); } finally { setReceiveSaving(false); }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
   if (!order) return <div className="p-8 text-center text-gray-500">Order not found.</div>;
 
@@ -110,8 +145,11 @@ export default function PurchaseOrderDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle={order.orderNumber} />
         <div className="flex gap-3">
-          {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>📞 Call</Button>}
-          {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>💬 WhatsApp</Button>}
+          {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>Call</Button>}
+          {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>WhatsApp</Button>}
+          {(order.status === "confirmed" || order.status === "partially-received") && (
+            <Button variant="primary" size="sm" onClick={openReceive}>Receive Goods</Button>
+          )}
           {outstanding > 0 && order.status !== "draft" && order.status !== "cancelled" && (
             <Button variant="primary" size="sm" onClick={() => { setPaymentAmount(outstanding); setShowPaymentModal(true); }}>Record Payment</Button>
           )}
@@ -274,6 +312,56 @@ export default function PurchaseOrderDetailPage() {
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setShowPaymentModal(false)} disabled={paymentSaving}>Cancel</Button>
                 <Button variant="primary" onClick={handlePayment} disabled={paymentSaving || paymentAmount <= 0}>{paymentSaving ? "Saving..." : "Record Payment"}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReceiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!receiveSaving) setShowReceiveModal(false); }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Receive Goods — {order.orderNumber}</h3>
+              <button onClick={() => setShowReceiveModal(false)} className="text-gray-400 hover:text-gray-600"><CloseIcon className="size-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Enter the quantities actually received. This will create batch records for each item.</p>
+              {receiveDeliveries.map((delivery, i) => {
+                const item = order.items[delivery.itemIndex];
+                if (!item) return null;
+                const mat = typeof item.rawMaterialId === "object" ? item.rawMaterialId : null;
+                const remaining = item.quantity - (item.quantityReceived || 0);
+                return (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                        {mat?.name || item.itemName || `Item ${i + 1}`}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Ordered: {item.quantity.toLocaleString()} | Received: {(item.quantityReceived || 0).toLocaleString()} | Remaining: {remaining.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Received Qty *</label>
+                        <Input type="number" value={delivery.receivedQuantity} onChange={(e) => updateReceiveDelivery(i, "receivedQuantity", Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Item Count (rolls, etc)</label>
+                        <Input type="number" value={delivery.unitCount} onChange={(e) => updateReceiveDelivery(i, "unitCount", Number(e.target.value))} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality Notes</label>
+                        <Input value={delivery.qualityNotes} onChange={(e) => updateReceiveDelivery(i, "qualityNotes", e.target.value)} placeholder="Optional" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setShowReceiveModal(false)} disabled={receiveSaving}>Cancel</Button>
+                <Button variant="primary" onClick={handleReceive} disabled={receiveSaving}>{receiveSaving ? "Receiving..." : "Confirm Receipt & Create Batches"}</Button>
               </div>
             </div>
           </div>

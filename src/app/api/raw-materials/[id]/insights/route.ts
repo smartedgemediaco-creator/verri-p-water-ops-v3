@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { RawMaterial, PurchaseOrder } from "@/lib/models";
+import { RawMaterial, PurchaseOrder, RawMaterialBatch } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 
@@ -16,12 +16,16 @@ export async function GET(
 
   const materialId = new mongoose.Types.ObjectId(id);
 
-  const [material, poAgg] = await Promise.all([
+  const [material, poAgg, batchStats] = await Promise.all([
     RawMaterial.findById(materialId),
     PurchaseOrder.aggregate([
       { $unwind: "$items" },
       { $match: { "items.rawMaterialId": materialId } },
       { $group: { _id: null, totalQty: { $sum: "$items.quantity" }, count: { $sum: 1 }, totalSpent: { $sum: { $multiply: ["$items.quantity", "$items.unitPrice"] } } } },
+    ]),
+    RawMaterialBatch.aggregate([
+      { $match: { rawMaterialId: materialId } },
+      { $group: { _id: null, totalReceived: { $sum: "$receivedQuantity" }, totalConsumed: { $sum: "$consumedQuantity" }, totalAvailable: { $sum: "$availableQuantity" }, totalCost: { $sum: "$totalCost" }, batchCount: { $sum: 1 }, avgUnitCost: { $avg: "$unitPrice" } } },
     ]),
   ]);
 
@@ -34,6 +38,8 @@ export async function GET(
   const totalSpent = poAgg[0]?.totalSpent ?? 0;
   const needsReorder = currentStock <= minimumStock;
 
+  const bs = batchStats[0];
+
   return NextResponse.json({
     currentStock,
     minimumStock,
@@ -43,5 +49,13 @@ export async function GET(
     timesOrdered,
     totalSpent,
     needsReorder,
+    batch: {
+      totalReceived: bs?.totalReceived ?? 0,
+      totalConsumed: bs?.totalConsumed ?? 0,
+      totalAvailable: bs?.totalAvailable ?? 0,
+      totalCost: bs?.totalCost ?? 0,
+      batchCount: bs?.batchCount ?? 0,
+      avgUnitCost: bs?.avgUnitCost ?? 0,
+    },
   });
 }
