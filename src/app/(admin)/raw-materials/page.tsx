@@ -171,10 +171,10 @@ export default function RawMaterialsPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(), unit, stockUnit, conversionRate, category,
-          currentStock, minimumStock, unitCost, supplierId: supplierId || undefined, notes,
-        }),
+        body: JSON.stringify(editTarget
+          ? { name: name.trim(), unit, stockUnit, conversionRate, category, minimumStock, unitCost, supplierId: supplierId || undefined, notes }
+          : { name: name.trim(), unit, stockUnit, conversionRate, category, currentStock, minimumStock, unitCost, supplierId: supplierId || undefined, notes }
+        ),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Operation failed"); return; }
       showSuccess(editTarget ? "Material updated" : "Material added");
@@ -184,9 +184,11 @@ export default function RawMaterialsPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const res = await fetch(`/api/raw-materials/${deleteTarget}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Failed to delete");
-    showSuccess("Material deleted"); setDeleteTarget(null); fetchMaterials(); fetchStats();
+    try {
+      const res = await fetch(`/api/raw-materials/${deleteTarget}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
+      showSuccess("Material deleted"); setDeleteTarget(null); fetchMaterials(); fetchStats();
+    } catch { showError("Network error"); }
   };
 
   const handleRecordStock = async () => {
@@ -504,9 +506,9 @@ export default function RawMaterialsPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>Loading...</TableCell></TableRow>
+              <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={10}>Loading...</TableCell></TableRow>
             ) : filteredMaterials.length === 0 ? (
-              <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={9}>{materials.length === 0 ? "No raw materials found. Click \"Add Material\" to create one." : "No materials match your search."}</TableCell></TableRow>
+              <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={10}>{materials.length === 0 ? "No raw materials found. Click \"Add Material\" to create one." : "No materials match your search."}</TableCell></TableRow>
             ) : (
               filteredMaterials.map((m) => {
                 const isLow = m.minimumStock > 0 && m.currentStock < m.minimumStock;

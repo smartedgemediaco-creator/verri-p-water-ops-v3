@@ -112,3 +112,28 @@ export async function POST(
 
   return NextResponse.json({ sale, transaction: txn });
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = getUserFromRequest(_req);
+  if (!user || !isAdmin(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  await connectDB();
+  const txn = await PaymentTransaction.findByIdAndDelete(id);
+  if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await logActivity({
+    action: "deleted",
+    entity: "payment-transaction",
+    entityId: id,
+    description: `Deleted POS transaction ${txn.transactionRef.slice(-12)} (₦${txn.amount.toLocaleString()})`,
+    userId: user.userId,
+  });
+
+  return NextResponse.json({ message: "Deleted" });
+}

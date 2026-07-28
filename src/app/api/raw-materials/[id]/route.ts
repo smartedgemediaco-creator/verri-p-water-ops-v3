@@ -21,7 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   await connectDB();
   const body = await req.json();
-  const material = await RawMaterial.findByIdAndUpdate(id, body, { new: true });
+  const allowedFields: Record<string, unknown> = {};
+  for (const key of ["name", "unit", "stockUnit", "conversionRate", "category", "minimumStock", "unitCost", "supplierId", "notes"]) {
+    if (key in body) allowedFields[key] = body[key];
+  }
+  const material = await RawMaterial.findByIdAndUpdate(id, allowedFields, { new: true });
   if (!material) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await logActivity({
     action: "updated",

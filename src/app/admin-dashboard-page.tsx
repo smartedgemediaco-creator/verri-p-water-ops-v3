@@ -75,6 +75,7 @@ export default function AdminDashboardPage() {
   const [staffCount, setStaffCount] = useState(0);
   const [supplierCount, setSupplierCount] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [rawMaterialCount, setRawMaterialCount] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<RawMaterialItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -141,6 +142,7 @@ export default function AdminDashboardPage() {
           setStaffCount(Array.isArray(staff) ? staff.length : 0);
           setSupplierCount(Array.isArray(suppliers) ? suppliers.length : 0);
           const materials = Array.isArray(rawMaterials) ? (rawMaterials as RawMaterialItem[]) : [];
+          setRawMaterialCount(materials.length);
           const lowStock = materials.filter((m) => m.currentStock < m.minimumStock);
           setLowStockCount(lowStock.length);
           setLowStockItems(lowStock);
@@ -187,7 +189,7 @@ export default function AdminDashboardPage() {
       ? [{ label: "Suppliers", value: supplierCount, icon: <BoxIcon />, href: "/suppliers", circleBg: "bg-yellow-100 dark:bg-yellow-500/10", iconColor: "text-yellow-600 dark:text-yellow-400" }]
       : []),
     ...(isOwner || isFactoryManager
-      ? [{ label: "Raw Materials", value: lowStockCount > 0 ? `${lowStockCount} low` : supplierCount, icon: <BoxIcon />, href: "/raw-materials", circleBg: lowStockCount > 0 ? "bg-red-100 dark:bg-red-500/10" : "bg-gray-100 dark:bg-gray-500/10", iconColor: lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-400" }]
+      ? [{ label: "Raw Materials", value: lowStockCount > 0 ? `${lowStockCount} low` : rawMaterialCount, icon: <BoxIcon />, href: "/raw-materials", circleBg: lowStockCount > 0 ? "bg-red-100 dark:bg-red-500/10" : "bg-gray-100 dark:bg-gray-500/10", iconColor: lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-400" }]
       : []),
     { label: "Active Transfers", value: stats.activeTransfers, icon: <TransferIcon className="w-5 h-5" />, href: "/transfers", circleBg: "bg-purple-100 dark:bg-purple-500/10", iconColor: "text-purple-600 dark:text-purple-400" },
   ];

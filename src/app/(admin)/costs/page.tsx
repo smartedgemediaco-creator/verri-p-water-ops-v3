@@ -8,9 +8,11 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import AutoAmount from "@/components/ui/AutoAmount";
 import InputField from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
-import { PlusIcon, ListIcon, DollarLineIcon, ChevronDownIcon, ArrowRightIcon, CloseIcon } from "@/icons";
+import { PlusIcon, ListIcon, DollarLineIcon, ChevronDownIcon, ArrowRightIcon, CloseIcon, TrashBinIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
 import AdminEditButton from "@/components/disputes/AdminEditButton";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface Cost {
@@ -72,6 +74,7 @@ export default function CostsPage() {
   const [endDate, setEndDate] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [locTypeFilter, setLocTypeFilter] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [locIdFilter, setLocIdFilter] = useState("");
   const [searchText, setSearchText] = useState("");
   const { ref, loading: pdfLoading, download } = usePdfDownload("costs-list", { title: "Costs Report" });
@@ -134,6 +137,15 @@ export default function CostsPage() {
   const locOptions = locTypeFilter === "factory" ? factories : locTypeFilter === "depot" ? depots : locTypeFilter === "truck" ? trucks : [];
 
   const toggleRow = (id: string) => setExpanded(expanded === id ? null : id);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/costs/${deleteTarget}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
+      showSuccess("Cost deleted"); setDeleteTarget(null); setRefreshKey((k) => k + 1);
+    } catch { showError("Network error"); }
+  };
 
   return (
     <div>
@@ -342,6 +354,9 @@ export default function CostsPage() {
                                 date: cost.date?.split("T")[0] ?? "",
                               }}
                             />
+                            <button onClick={() => setDeleteTarget(cost._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                              <TrashBinIcon className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -394,6 +409,14 @@ export default function CostsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Cost"
+        message="Are you sure you want to delete this cost record? This action cannot be undone."
+      />
     </div>
   );
 }

@@ -9,8 +9,9 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Badge from "@/components/ui/badge/Badge";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
-import { ListIcon, GroupIcon, PlusIcon } from "@/icons";
+import { ListIcon, GroupIcon, PlusIcon, TrashBinIcon } from "@/icons";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface RawMaterialRef {
   _id: string;
@@ -56,6 +57,7 @@ export default function GoodsReceivedNotesPage() {
   const [rmList, setRmList] = useState<{ _id: string; name: string; unit: string }[]>([]);
   const [grnForm, setGrnForm] = useState({ purchaseOrderId: "", receivedDate: new Date().toISOString().split("T")[0], receivedBy: "", notes: "", items: [{ rawMaterialId: "", itemName: "", quantityReceived: 1, quantityOrdered: 1, condition: "good" as const }] });
   const { ref, loading: pdfLoading, download } = usePdfDownload("goods-received-list", { title: "Goods Received Notes" });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const fetchPoList = () => {
     fetch("/api/purchase-orders").then((r) => r.json()).then((data) => setPoList(Array.isArray(data) ? data : [])).catch(() => {});
@@ -134,6 +136,15 @@ export default function GoodsReceivedNotesPage() {
     return grn.purchaseOrderId?.orderNumber ?? "N/A";
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/goods-received-notes/${deleteTarget}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
+      showSuccess("GRN deleted"); setDeleteTarget(null); fetchGrns();
+    } catch { showError("Network error"); }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -186,16 +197,17 @@ export default function GoodsReceivedNotesPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Items</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Received By</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Condition</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>Loading...</TableCell>
               </TableRow>
             ) : grns.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>No goods received notes found.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>No goods received notes found.</TableCell>
               </TableRow>
             ) : (
               grns.map((g) => {
@@ -237,6 +249,11 @@ export default function GoodsReceivedNotesPage() {
                         {partialCount > 0 && <Badge variant="light" color="warning">{partialCount} partial</Badge>}
                         {items.length === 0 && <span className="text-gray-400 text-xs">&mdash;</span>}
                       </div>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <button onClick={() => setDeleteTarget(g._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                        <TrashBinIcon className="w-3.5 h-3.5" />
+                      </button>
                     </TableCell>
                   </TableRow>
                 );
@@ -369,6 +386,14 @@ export default function GoodsReceivedNotesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete GRN"
+        message="Are you sure you want to delete this goods received note? This action cannot be undone."
+      />
     </div>
   );
 }

@@ -12,7 +12,8 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components
 import AutoAmount from "@/components/ui/AutoAmount";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
-import { PlusIcon, CloseIcon, TrashBinIcon } from "@/icons";
+import { PlusIcon, CloseIcon, TrashBinIcon, PencilIcon } from "@/icons";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface RawMaterial {
   _id: string; name: string; unit: string; stockUnit: string; conversionRate: number;
@@ -72,6 +73,16 @@ export default function RawMaterialDetailPage() {
   const [allocations, setAllocations] = useState<Array<{ batchId: string; quantity: number; itemCount: number }>>([]);
   const [factories, setFactories] = useState<{ _id: string; name: string }[]>([]);
   const [depots, setDepots] = useState<{ _id: string; name: string }[]>([]);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editUnit, setEditUnit] = useState("");
+  const [editMinimumStock, setEditMinimumStock] = useState(0);
+  const [editUnitCost, setEditUnitCost] = useState(0);
+  const [editNotes, setEditNotes] = useState("");
+  const [editSupplierId, setEditSupplierId] = useState("");
+  const [editCategory, setEditCategory] = useState("chemical");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [supplierOpts, setSupplierOpts] = useState<{ value: string; label: string }[]>([]);
 
   const fetchData = () => {
     setLoading(true);
@@ -90,7 +101,37 @@ export default function RawMaterialDetailPage() {
     if (id) fetchData();
     fetch("/api/factories").then((r) => r.json()).then((d) => setFactories(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/depots").then((r) => r.json()).then((d) => setDepots(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/suppliers").then((r) => r.json()).then((d: { _id: string; name: string }[]) => setSupplierOpts(Array.isArray(d) ? d.map((s) => ({ value: s._id, label: s.name })) : [])).catch(() => {});
   }, [id]);
+
+  const openEditModal = () => {
+    if (!material) return;
+    setEditName(material.name); setEditUnit(material.unit); setEditMinimumStock(material.minimumStock);
+    setEditUnitCost(material.unitCost); setEditNotes(material.notes || ""); setEditCategory(material.category);
+    setEditSupplierId(material.supplierId?._id ?? ""); setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editName.trim()) { showError("Name is required"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/raw-materials/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim(), unit: editUnit, minimumStock: editMinimumStock, unitCost: editUnitCost, supplierId: editSupplierId || undefined, notes: editNotes, category: editCategory }),
+      });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
+      showSuccess("Material updated"); setShowEditModal(false); fetchData();
+    } catch { showError("Network error"); } finally { setSubmitting(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/raw-materials/${deleteTarget}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
+      showSuccess("Material deleted"); setDeleteTarget(null); router.push("/raw-materials");
+    } catch { showError("Network error"); }
+  };
 
   const handleAddStock = async () => {
     if (stockAmount <= 0) { showError("Enter a valid quantity"); return; }
@@ -175,6 +216,8 @@ export default function RawMaterialDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle={material.name} />
         <div className="flex gap-3">
+          <Button variant="outline" size="sm" startIcon={<PencilIcon />} onClick={openEditModal}>Edit</Button>
+          <Button variant="outline" size="sm" startIcon={<TrashBinIcon />} onClick={() => setDeleteTarget(id)} className="text-error-600 hover:text-error-700 dark:text-error-400">Delete</Button>
           {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>Call Supplier</Button>}
           {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>WhatsApp</Button>}
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setStockAmount(0); setShowStockModal(true); }}>Add Stock</Button>
@@ -467,6 +510,42 @@ export default function RawMaterialDetailPage() {
           </div>
         </div>
       )}
+
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Edit Material</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400"><CloseIcon className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Name *</label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Unit</label><Input value={editUnit} onChange={(e) => setEditUnit(e.target.value)} /></div>
+                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label><Input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Min Stock</label><Input type="number" value={editMinimumStock} onChange={(e) => setEditMinimumStock(Number(e.target.value))} /></div>
+                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Unit Cost</label><Input type="number" value={editUnitCost} onChange={(e) => setEditUnitCost(Number(e.target.value))} /></div>
+              </div>
+              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Supplier</label><Select options={[{ value: "", label: "None" }, ...supplierOpts]} value={editSupplierId} onChange={setEditSupplierId} /></div>
+              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+            </div>
+            <div className="flex justify-end gap-3 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowEditModal(false)} disabled={submitting}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleEditSave} disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Material"
+        message="Are you sure you want to delete this raw material? This action cannot be undone."
+      />
     </div>
   );
 }

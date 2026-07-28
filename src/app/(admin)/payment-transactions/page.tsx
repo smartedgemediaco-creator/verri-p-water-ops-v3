@@ -9,8 +9,9 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Pagination from "@/components/tables/Pagination";
 import DatePicker from "@/components/form/date-picker";
 import Link from "next/link";
-import { BoxIconLine, DollarLineIcon, PlusIcon } from "@/icons";
+import { BoxIconLine, DollarLineIcon, PlusIcon, TrashBinIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
 
 interface PaymentTransaction {
@@ -79,6 +80,7 @@ export default function PaymentTransactionsPage() {
   const [convertQty, setConvertQty] = useState("1");
   const [convertCustomer, setConvertCustomer] = useState("");
   const [convertSubmitting, setConvertSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -229,6 +231,15 @@ export default function PaymentTransactionsPage() {
   const matchedCount = transactions.filter((t) => t.status === "matched").length;
   const unmatchedCount = transactions.filter((t) => t.status === "unmatched").length;
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/payment-transactions/${deleteTarget}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
+      showSuccess("Transaction deleted"); setDeleteTarget(null); loadTransactions();
+    } catch { showError("Network error"); }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -358,6 +369,9 @@ export default function PaymentTransactionsPage() {
                       {txn.status === "matched" && txn.saleId && (
                         <span className="text-xs text-gray-400">Linked</span>
                       )}
+                      <button onClick={() => setDeleteTarget(txn._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                        <TrashBinIcon className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -463,6 +477,14 @@ export default function PaymentTransactionsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this POS transaction? This action cannot be undone."
+      />
     </div>
   );
 }

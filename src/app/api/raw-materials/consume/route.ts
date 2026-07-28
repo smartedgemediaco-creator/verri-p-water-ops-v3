@@ -63,19 +63,19 @@ export async function POST(req: NextRequest) {
     processedAllocations.push({
       batchId: alloc.batchId,
       quantity: qty,
-      unitCost: batch.unitCost,
+      unitCost: batch.unitPrice,
       itemCount: Number(alloc.itemCount) || 0,
     });
 
     totalQuantity += qty;
-    totalCost += qty * batch.unitCost;
+    totalCost += qty * batch.unitPrice;
 
     await RawMaterialStockMovement.create({
       rawMaterialId: body.rawMaterialId,
       type: body.purpose === "wastage" ? "waste" : "consumption",
       quantity: -qty,
       unit: batch.unit,
-      unitCost: batch.unitCost,
+      unitCost: batch.unitPrice,
       reference: `${body.purpose || "consumption"} — batch ${batch.batchNumber}`,
       notes: body.notes || "",
       performedBy: user.email || user.userId,

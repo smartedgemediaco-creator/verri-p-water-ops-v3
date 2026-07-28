@@ -22,7 +22,7 @@ const RawMaterialStockMovementSchema = new Schema<IRawMaterialStockMovement>(
       enum: ["purchase", "consumption", "adjustment", "waste", "return", "correction"],
       required: true,
     },
-    quantity: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true },
     unit: { type: String, default: "" },
     unitCost: { type: Number, default: 0 },
     reference: { type: String, default: "" },
