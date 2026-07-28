@@ -19,7 +19,7 @@ const CostSchema = new Schema<ICost>(
       enum: ["production", "transport", "maintenance", "salary", "utility", "other"],
       required: true,
     },
-    amount: { type: Number, required: true },
+    amount: { type: Number, required: true, min: 0 },
     description: { type: String, default: "" },
     locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true },

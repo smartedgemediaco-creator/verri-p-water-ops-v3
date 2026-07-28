@@ -24,6 +24,9 @@ interface PurchaseOrderItem {
   unit: string;
   unitPrice: number;
   quantityReceived: number;
+  unitCount: number;
+  itemUnit: string;
+  batchIds: string[];
 }
 
 interface SupplierRef {
@@ -52,6 +55,8 @@ interface PurchaseOrder {
   contactPhone: string;
   contactEmail: string;
   notes: string;
+  deliveryLocationType?: "" | "factory" | "depot";
+  deliveryLocationId?: string;
 }
 
 const statusColor: Record<string, "light" | "info" | "warning" | "success" | "error"> = {
@@ -86,18 +91,32 @@ export default function PurchaseOrdersPage() {
   const [formSaving, setFormSaving] = useState(false);
   const [suppliers, setSuppliers] = useState<{ _id: string; name: string; phone?: string; whatsapp?: string }[]>([]);
   const [rawMaterials, setRawMaterials] = useState<{ _id: string; name: string; unit: string }[]>([]);
+  const [factories, setFactories] = useState<{ _id: string; name: string }[]>([]);
+  const [depots, setDepots] = useState<{ _id: string; name: string }[]>([]);
   const [poForm, setPoForm] = useState({
     supplierId: "", supplierName: "", expectedDate: "", notes: "",
-    items: [{ rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, isCustom: false }],
+    deliveryLocationType: "" as "" | "factory" | "depot",
+    deliveryLocationId: "",
+    items: [{ rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, unitCount: 0, itemUnit: "", isCustom: false }],
   });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("transfer");
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<PurchaseOrder | null>(null);
+  const [editForm, setEditForm] = useState({
+    supplierId: "", supplierName: "", expectedDate: "", notes: "",
+    deliveryLocationType: "" as "" | "factory" | "depot",
+    deliveryLocationId: "",
+    items: [] as Array<{ rawMaterialId: string; itemName: string; itemDescription: string; quantity: number; unit: string; unitPrice: number; unitCount: number; itemUnit: string; isCustom: boolean; quantityReceived: number }>,
+  });
+  const [editSaving, setEditSaving] = useState(false);
   const { ref: pdfRef, loading: pdfLoading, download } = usePdfDownload("purchase-orders-list", { title: "Purchase Orders Report" });
 
   const fetchSuppliers = () => {
@@ -105,6 +124,12 @@ export default function PurchaseOrdersPage() {
   };
   const fetchRawMaterials = () => {
     fetch("/api/raw-materials").then((r) => r.json()).then((data) => setRawMaterials(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+  const fetchFactories = () => {
+    fetch("/api/factories").then((r) => r.json()).then((data) => setFactories(Array.isArray(data) ? data : [])).catch(() => {});
+  };
+  const fetchDepots = () => {
+    fetch("/api/depots").then((r) => r.json()).then((data) => setDepots(Array.isArray(data) ? data : [])).catch(() => {});
   };
 
   const handleNewOrder = async () => {
@@ -121,6 +146,8 @@ export default function PurchaseOrdersPage() {
           supplierName: poForm.supplierName,
           expectedDate: poForm.expectedDate || undefined,
           notes: poForm.notes,
+          deliveryLocationType: poForm.deliveryLocationType || undefined,
+          deliveryLocationId: poForm.deliveryLocationId || undefined,
           items: validItems.map((i) => ({
             rawMaterialId: i.isCustom ? undefined : i.rawMaterialId,
             itemName: i.isCustom ? i.itemName : undefined,
@@ -128,6 +155,8 @@ export default function PurchaseOrdersPage() {
             quantity: i.quantity,
             unit: i.unit,
             unitPrice: i.unitPrice,
+            unitCount: i.unitCount || 0,
+            itemUnit: i.itemUnit || "",
           })),
         }),
       });
@@ -136,14 +165,15 @@ export default function PurchaseOrdersPage() {
       setShowForm(false);
       setPoForm({
         supplierId: "", supplierName: "", expectedDate: "", notes: "",
-        items: [{ rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, isCustom: false }],
+        deliveryLocationType: "", deliveryLocationId: "",
+        items: [{ rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, unitCount: 0, itemUnit: "", isCustom: false }],
       });
       fetchOrders();
     } catch { showError("Network error"); }
     finally { setFormSaving(false); }
   };
 
-  const addItem = () => setPoForm({ ...poForm, items: [...poForm.items, { rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, isCustom: false }] });
+  const addItem = () => setPoForm({ ...poForm, items: [...poForm.items, { rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, unitCount: 0, itemUnit: "", isCustom: false }] });
   const updateItem = (i: number, field: string, value: string | number) => {
     const items = [...poForm.items];
     items[i] = { ...items[i], [field]: value };
@@ -154,7 +184,7 @@ export default function PurchaseOrdersPage() {
     setPoForm({ ...poForm, items: poForm.items.filter((_, idx) => idx !== i) });
   };
 
-  useEffect(() => { fetchSuppliers(); fetchRawMaterials(); }, []);
+  useEffect(() => { fetchSuppliers(); fetchRawMaterials(); fetchFactories(); fetchDepots(); }, []);
 
   const fetchOrders = () => {
     setLoading(true);
@@ -181,9 +211,10 @@ export default function PurchaseOrdersPage() {
     return orders.filter((o) => {
       const matchSearch = !search || o.orderNumber.toLowerCase().includes(search.toLowerCase()) || o.supplierId?.name?.toLowerCase().includes(search.toLowerCase()) || o.supplierName?.toLowerCase().includes(search.toLowerCase());
       const matchStatus = !statusFilter || o.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchSupplier = !supplierFilter || o.supplierId?._id === supplierFilter || (!o.supplierId && supplierFilter === "__none__");
+      return matchSearch && matchStatus && matchSupplier;
     });
-  }, [orders, search, statusFilter]);
+  }, [orders, search, statusFilter, supplierFilter]);
 
   const handleStatusUpdate = async () => {
     if (!statusTarget) return;
@@ -250,6 +281,89 @@ export default function PurchaseOrdersPage() {
     if (phone) window.open(`https://wa.me/${phone.replace(/[^0-9]/g, "")}`, "_blank");
   };
 
+  const openEditModal = (order: PurchaseOrder) => {
+    setEditTarget(order);
+    setEditForm({
+      supplierId: order.supplierId?._id || "",
+      supplierName: order.supplierName || "",
+      expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : "",
+      notes: order.notes || "",
+      deliveryLocationType: order.deliveryLocationType || "",
+      deliveryLocationId: order.deliveryLocationId || "",
+      items: order.items.map((it) => {
+        const mat = typeof it.rawMaterialId === "object" ? it.rawMaterialId : null;
+        return {
+          rawMaterialId: mat?._id || (typeof it.rawMaterialId === "string" ? it.rawMaterialId : ""),
+          itemName: it.itemName || "",
+          itemDescription: it.itemDescription || "",
+          quantity: it.quantity,
+          unit: it.unit || mat?.unit || "",
+          unitPrice: it.unitPrice,
+          unitCount: it.unitCount || 0,
+          itemUnit: it.itemUnit || "",
+          isCustom: !mat,
+          quantityReceived: it.quantityReceived || 0,
+        };
+      }),
+    });
+    setShowEditModal(true);
+  };
+
+  const updateEditItem = (i: number, field: string, value: string | number) => {
+    const items = [...editForm.items];
+    items[i] = { ...items[i], [field]: value };
+    setEditForm({ ...editForm, items });
+  };
+  const addEditItem = () => setEditForm({ ...editForm, items: [...editForm.items, { rawMaterialId: "", itemName: "", itemDescription: "", quantity: 1, unit: "", unitPrice: 0, unitCount: 0, itemUnit: "", isCustom: false, quantityReceived: 0 }] });
+  const removeEditItem = (i: number) => {
+    if (editForm.items.length <= 1) return;
+    setEditForm({ ...editForm, items: editForm.items.filter((_, idx) => idx !== i) });
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    const validItems = editForm.items.filter((i) => (i.isCustom ? i.itemName.trim() : i.rawMaterialId) && i.quantity > 0);
+    if (validItems.length === 0) { showError("Add at least one item"); return; }
+    for (const item of validItems) {
+      if (item.quantity < item.quantityReceived) {
+        showError(`Quantity for "${item.itemName || item.rawMaterialId}" cannot be less than already received (${item.quantityReceived})`);
+        return;
+      }
+    }
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/purchase-orders/${editTarget._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierId: editForm.supplierId || undefined,
+          supplierName: editForm.supplierName,
+          expectedDate: editForm.expectedDate || undefined,
+          notes: editForm.notes,
+          deliveryLocationType: editForm.deliveryLocationType || undefined,
+          deliveryLocationId: editForm.deliveryLocationId || undefined,
+          items: validItems.map((i) => ({
+            rawMaterialId: i.isCustom ? undefined : i.rawMaterialId,
+            itemName: i.isCustom ? i.itemName : undefined,
+            itemDescription: i.itemDescription,
+            quantity: i.quantity,
+            unit: i.unit,
+            unitPrice: i.unitPrice,
+            unitCount: i.unitCount || 0,
+            itemUnit: i.itemUnit || "",
+            quantityReceived: i.quantityReceived,
+          })),
+        }),
+      });
+      if (!res.ok) { showError("Failed to update order"); return; }
+      showSuccess("Purchase order updated");
+      setShowEditModal(false);
+      setEditTarget(null);
+      fetchOrders();
+    } catch { showError("Network error"); }
+    finally { setEditSaving(false); }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -303,6 +417,16 @@ export default function PurchaseOrdersPage() {
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="flex-1">
           <Input placeholder="Search by order # or supplier..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="w-48">
+          <Select
+            options={[
+              { value: "", label: "All Suppliers" },
+              ...suppliers.map((s) => ({ value: s._id, label: s.name })),
+              { value: "__none__", label: "No Supplier (Walk-in)" },
+            ]}
+            value={supplierFilter} onChange={setSupplierFilter}
+          />
         </div>
         <div className="w-48">
           <Select
@@ -390,6 +514,11 @@ export default function PurchaseOrdersPage() {
                     <TableCell className="py-3">
                       <div className="flex gap-2 items-center">
                         {statusAction(o)}
+                        {(o.status === "draft" || o.status === "sent") && (
+                          <button onClick={() => openEditModal(o)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
+                            Edit
+                          </button>
+                        )}
                         {o.status === "draft" && (
                           <button onClick={() => setDeleteTarget(o._id)} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
                             <TrashBinIcon className="w-3.5 h-3.5" />
@@ -513,7 +642,7 @@ export default function PurchaseOrdersPage() {
                 <Button size="sm" variant="outline" onClick={addItem}>+ Add Item</Button>
               </div>
               {poForm.items.map((item, i) => (
-                <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 mb-2">
+                <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-2">
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       type="button"
@@ -524,10 +653,13 @@ export default function PurchaseOrdersPage() {
                       }}
                       className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"}`}
                     >
-                      {item.isCustom ? "✏ Custom Item" : "📦 Raw Material"}
+                      {item.isCustom ? "Custom Item" : "Raw Material"}
                     </button>
+                    <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 ml-auto">
+                      Item Total: <span className="text-green-600 dark:text-green-400">₦{((item.quantity ?? 0) * (item.unitPrice ?? 0)).toLocaleString()}</span>
+                    </span>
                     {poForm.items.length > 1 && (
-                      <button onClick={() => removeItem(i)} className="text-red-500 hover:text-red-700 text-sm ml-auto">&times;</button>
+                      <button onClick={() => removeItem(i)} className="text-red-500 hover:text-red-700 text-sm">&times;</button>
                     )}
                   </div>
                   <div className="flex gap-2 items-end">
@@ -573,22 +705,33 @@ export default function PurchaseOrdersPage() {
                       </div>
                     )}
                     <div className="w-20">
-                      <label className="block text-xs text-gray-500 mb-1">Qty</label>
+                      <label className="block text-xs text-gray-500 mb-1">Qty ({item.unit || "unit"})</label>
                       <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
                     </div>
-                    <div className="w-28">
+                    <div className="w-20">
                       <label className="block text-xs text-gray-500 mb-1">Unit Price (₦)</label>
                       <input type="number" min={0} step={0.01} value={item.unitPrice} onChange={(e) => updateItem(i, "unitPrice", Number(e.target.value))} className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
                     </div>
                   </div>
-                  <div className="mt-1.5">
-                    <input
-                      type="text"
-                      value={item.itemDescription}
-                      onChange={(e) => updateItem(i, "itemDescription", e.target.value)}
-                      placeholder="Description (optional)"
-                      className="h-8 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
-                    />
+                  <div className="flex gap-2 items-end mt-2">
+                    <div className="w-20">
+                      <label className="block text-xs text-gray-500 mb-1">Item Count</label>
+                      <input type="number" min={0} value={item.unitCount} onChange={(e) => updateItem(i, "unitCount", Number(e.target.value))} placeholder="e.g. 300" className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-xs text-gray-500 mb-1">Item Unit</label>
+                      <input type="text" value={item.itemUnit} onChange={(e) => updateItem(i, "itemUnit", e.target.value)} placeholder="rolls/bags/etc" className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Description (optional)</label>
+                      <input
+                        type="text"
+                        value={item.itemDescription}
+                        onChange={(e) => updateItem(i, "itemDescription", e.target.value)}
+                        placeholder="Any additional notes..."
+                        className="h-10 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-xs text-gray-600 dark:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -599,9 +742,281 @@ export default function PurchaseOrdersPage() {
               <textarea value={poForm.notes} onChange={(e) => setPoForm({ ...poForm, notes: e.target.value })} placeholder="Optional notes..." rows={2} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 resize-none" />
             </div>
 
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Location</label>
+                <select
+                  value={poForm.deliveryLocationType}
+                  onChange={(e) => setPoForm({ ...poForm, deliveryLocationType: e.target.value as "" | "factory" | "depot", deliveryLocationId: "" })}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                >
+                  <option value="">Not set</option>
+                  <option value="factory">Factory</option>
+                  <option value="depot">Depot</option>
+                </select>
+              </div>
+              {poForm.deliveryLocationType && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {poForm.deliveryLocationType === "factory" ? "Factory" : "Depot"} *
+                  </label>
+                  <select
+                    value={poForm.deliveryLocationId}
+                    onChange={(e) => setPoForm({ ...poForm, deliveryLocationId: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                  >
+                    <option value="" disabled>Select</option>
+                    {(poForm.deliveryLocationType === "factory" ? factories : depots).map((loc) => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {poForm.items.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Order Total ({poForm.items.length} item{poForm.items.length !== 1 ? "s" : ""})</span>
+                <span className="text-lg font-bold text-gray-800 dark:text-white/90">
+                  ₦{poForm.items.reduce((sum, it) => sum + (it.quantity ?? 0) * (it.unitPrice ?? 0), 0).toLocaleString()}
+                </span>
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
               <Button size="sm" disabled={formSaving} onClick={handleNewOrder}>{formSaving ? "Creating..." : "Create Order"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editTarget && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => { if (!editSaving) { setShowEditModal(false); setEditTarget(null); } }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Edit {editTarget.orderNumber}</h3>
+              <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                {editTarget.items.filter((it) => (it.quantityReceived ?? 0) > 0).length > 0 ? "Partially received — edits limited" : "No items received yet"}
+              </span>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier</label>
+              <select
+                value={editForm.supplierId}
+                onChange={(e) => setEditForm({ ...editForm, supplierId: e.target.value, supplierName: "" })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              >
+                <option value="">No Supplier</option>
+                {suppliers.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {!editForm.supplierId && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier Name</label>
+                <input
+                  type="text"
+                  value={editForm.supplierName}
+                  onChange={(e) => setEditForm({ ...editForm, supplierName: e.target.value })}
+                  placeholder="Supplier name"
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                />
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expected Delivery</label>
+              <input
+                type="date"
+                value={editForm.expectedDate}
+                onChange={(e) => setEditForm({ ...editForm, expectedDate: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+              />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Items</label>
+                <Button size="sm" variant="outline" onClick={addEditItem}>+ Add Item</Button>
+              </div>
+              {editForm.items.map((item, i) => {
+                const mat = typeof editTarget.items[i]?.rawMaterialId === "object" ? editTarget.items[i].rawMaterialId as { _id: string; name: string; unit: string } : null;
+                const isPartial = (item.quantityReceived ?? 0) > 0;
+                const maxQty = isPartial ? undefined : undefined;
+                return (
+                  <div key={i} className={`border rounded-lg p-3 mb-2 ${isPartial ? "border-amber-300 dark:border-amber-600 bg-amber-50/30 dark:bg-amber-500/5" : "border-gray-200 dark:border-gray-700"}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const items = [...editForm.items];
+                          items[i] = { ...items[i], isCustom: !items[i].isCustom, rawMaterialId: "", itemName: "", unit: "" };
+                          setEditForm({ ...editForm, items });
+                        }}
+                        className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"}`}
+                      >
+                        {item.isCustom ? "Custom Item" : "Raw Material"}
+                      </button>
+                      {isPartial && (
+                        <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                          {item.quantityReceived} received
+                        </span>
+                      )}
+                      <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 ml-auto">
+                        Item Total: <span className="text-green-600 dark:text-green-400">₦{((item.quantity ?? 0) * (item.unitPrice ?? 0)).toLocaleString()}</span>
+                      </span>
+                      {editForm.items.length > 1 && (
+                        <button onClick={() => removeEditItem(i)} className="text-red-500 hover:text-red-700 text-sm">&times;</button>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-end">
+                      {item.isCustom ? (
+                        <>
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-500 mb-1">Item Name *</label>
+                            <input
+                              type="text"
+                              value={item.itemName}
+                              onChange={(e) => updateEditItem(i, "itemName", e.target.value)}
+                              placeholder="Item name"
+                              className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                            />
+                          </div>
+                          <div className="w-24">
+                            <label className="block text-xs text-gray-500 mb-1">Unit</label>
+                            <input
+                              type="text"
+                              value={item.unit}
+                              onChange={(e) => updateEditItem(i, "unit", e.target.value)}
+                              placeholder="unit"
+                              className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-500 mb-1">Material</label>
+                          <select
+                            value={item.rawMaterialId}
+                            onChange={(e) => {
+                              const items = [...editForm.items];
+                              const rm = rawMaterials.find((r) => r._id === e.target.value);
+                              items[i] = { ...items[i], rawMaterialId: e.target.value, unit: rm?.unit || items[i].unit };
+                              setEditForm({ ...editForm, items });
+                            }}
+                            className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                          >
+                            <option value="" disabled>Select</option>
+                            {rawMaterials.map((rm) => <option key={rm._id} value={rm._id}>{rm.name} ({rm.unit})</option>)}
+                          </select>
+                        </div>
+                      )}
+                      <div className="w-20">
+                        <label className="block text-xs text-gray-500 mb-1">Qty ({item.unit || "unit"})</label>
+                        <input
+                          type="number"
+                          min={isPartial ? item.quantityReceived : 1}
+                          value={item.quantity}
+                          onChange={(e) => updateEditItem(i, "quantity", Number(e.target.value))}
+                          className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                        />
+                        {isPartial && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">min: {item.quantityReceived}</p>}
+                      </div>
+                      <div className="w-20">
+                        <label className="block text-xs text-gray-500 mb-1">Unit Price (₦)</label>
+                        <input type="number" min={0} step={0.01} value={item.unitPrice} onChange={(e) => updateEditItem(i, "unitPrice", Number(e.target.value))} className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-end mt-2">
+                      <div className="w-20">
+                        <label className="block text-xs text-gray-500 mb-1">Item Count</label>
+                        <input type="number" min={0} value={item.unitCount} onChange={(e) => updateEditItem(i, "unitCount", Number(e.target.value))} placeholder="e.g. 300" className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                      </div>
+                      <div className="w-24">
+                        <label className="block text-xs text-gray-500 mb-1">Item Unit</label>
+                        <input type="text" value={item.itemUnit} onChange={(e) => updateEditItem(i, "itemUnit", e.target.value)} placeholder="rolls/bags" className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">Description</label>
+                        <input
+                          type="text"
+                          value={item.itemDescription}
+                          onChange={(e) => updateEditItem(i, "itemDescription", e.target.value)}
+                          placeholder="Notes..."
+                          className="h-10 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-xs text-gray-600 dark:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} placeholder="Optional notes..." rows={2} className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 resize-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivery Location</label>
+                <select
+                  value={editForm.deliveryLocationType}
+                  onChange={(e) => setEditForm({ ...editForm, deliveryLocationType: e.target.value as "" | "factory" | "depot", deliveryLocationId: "" })}
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                >
+                  <option value="">Not set</option>
+                  <option value="factory">Factory</option>
+                  <option value="depot">Depot</option>
+                </select>
+              </div>
+              {editForm.deliveryLocationType && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {editForm.deliveryLocationType === "factory" ? "Factory" : "Depot"}
+                  </label>
+                  <select
+                    value={editForm.deliveryLocationId}
+                    onChange={(e) => setEditForm({ ...editForm, deliveryLocationId: e.target.value })}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:text-white/90 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10"
+                  >
+                    <option value="" disabled>Select</option>
+                    {(editForm.deliveryLocationType === "factory" ? factories : depots).map((loc) => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {editForm.items.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Order Total ({editForm.items.length} item{editForm.items.length !== 1 ? "s" : ""})</span>
+                  <span className="text-lg font-bold text-gray-800 dark:text-white/90">
+                    ₦{editForm.items.reduce((sum, it) => sum + (it.quantity ?? 0) * (it.unitPrice ?? 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500 dark:text-gray-400">Already Received</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    ₦{editForm.items.reduce((sum, it) => sum + (it.quantityReceived ?? 0) * (it.unitPrice ?? 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs border-t border-gray-200 dark:border-gray-700 pt-1">
+                  <span className="text-gray-500 dark:text-gray-400">Remaining to Receive</span>
+                  <span className="font-medium text-blue-600 dark:text-blue-400">
+                    ₦{editForm.items.reduce((sum, it) => sum + ((it.quantity ?? 0) - (it.quantityReceived ?? 0)) * (it.unitPrice ?? 0), 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setShowEditModal(false); setEditTarget(null); }} disabled={editSaving}>Cancel</Button>
+              <Button size="sm" disabled={editSaving} onClick={handleEditSave}>{editSaving ? "Saving..." : "Save Changes"}</Button>
             </div>
           </div>
         </div>

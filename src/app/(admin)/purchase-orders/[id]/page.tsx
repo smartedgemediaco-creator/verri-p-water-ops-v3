@@ -33,6 +33,7 @@ interface PurchaseOrder {
   orderNumber: string; items: POItem[]; status: string; paymentStatus: string; amountPaid: number;
   payments: PaymentEntry[]; deliveryStatus: string; orderDate: string; expectedDate?: string;
   receivedDate?: string; totalAmount: number; contactPhone: string; contactEmail: string; notes: string;
+  deliveryLocationType?: string; deliveryLocationId?: string;
 }
 
 const statusColor: Record<string, "light" | "info" | "warning" | "success" | "error"> = {
@@ -216,6 +217,7 @@ export default function PurchaseOrderDetailPage() {
                 <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Description</TableCell>
                 <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Ordered</TableCell>
                 <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Received</TableCell>
+                <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Pending</TableCell>
                 <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit Price</TableCell>
                 <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Subtotal</TableCell>
               </TableRow>
@@ -223,6 +225,8 @@ export default function PurchaseOrderDetailPage() {
             <TableBody>
               {order.items.map((item, i) => {
                 const mat = typeof item.rawMaterialId === "object" ? item.rawMaterialId : null;
+                const pending = Math.max(0, item.quantity - (item.quantityReceived || 0));
+                const isComplete = (item.quantityReceived || 0) >= item.quantity;
                 return (
                   <TableRow key={i}>
                     <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
@@ -231,8 +235,13 @@ export default function PurchaseOrderDetailPage() {
                     <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{item.itemDescription || "—"}</TableCell>
                     <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{item.quantity.toLocaleString()} {mat?.unit || item.unit || ""}</TableCell>
                     <TableCell className="py-2 text-theme-sm">
-                      <span className={item.quantityReceived >= item.quantity ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}>
+                      <span className={isComplete ? "text-green-600 dark:text-green-400 font-medium" : "text-gray-500 dark:text-gray-400"}>
                         {(item.quantityReceived ?? 0).toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2 text-theme-sm">
+                      <span className={pending > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-green-600 dark:text-green-400"}>
+                        {pending.toLocaleString()}
                       </span>
                     </TableCell>
                     <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">₦{item.unitPrice.toLocaleString()}</TableCell>
@@ -242,6 +251,14 @@ export default function PurchaseOrderDetailPage() {
               })}
             </TableBody>
           </Table>
+          <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm">
+            <span className="text-gray-500 dark:text-gray-400">Total: {order.items.length} item{order.items.length !== 1 ? "s" : ""}</span>
+            <div className="flex gap-4">
+              <span className="text-gray-600 dark:text-gray-400">Ordered: <strong>₦{order.totalAmount.toLocaleString()}</strong></span>
+              <span className="text-green-600 dark:text-green-400">Received: <strong>₦{order.items.reduce((sum, it) => sum + (it.quantityReceived || 0) * it.unitPrice, 0).toLocaleString()}</strong></span>
+              <span className="text-amber-600 dark:text-amber-400">Pending: <strong>₦{order.items.reduce((sum, it) => sum + Math.max(0, it.quantity - (it.quantityReceived || 0)) * it.unitPrice, 0).toLocaleString()}</strong></span>
+            </div>
+          </div>
         </div>
       </div>
 

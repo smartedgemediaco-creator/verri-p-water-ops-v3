@@ -17,7 +17,7 @@ const TruckSchema = new Schema<ITruck>(
     plateNumber: { type: String, required: true, unique: true },
     chassisNumber: { type: String, default: "" },
     engineNumber: { type: String, default: "" },
-    capacity: { type: Number, default: 0 },
+    capacity: { type: Number, default: 0, min: 0 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

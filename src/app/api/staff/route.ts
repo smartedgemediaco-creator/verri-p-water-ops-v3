@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       metadata: { name: body.name, role },
     });
     return NextResponse.json(staff, { status: 201 });
-  } catch (err) {
+  } catch (err: unknown) {
     await session.abortTransaction();
     throw err;
   } finally {

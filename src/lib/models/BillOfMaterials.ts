@@ -18,7 +18,7 @@ export interface IBillOfMaterials extends Document {
 const BOMItemSchema = new Schema<IBOMItem>(
   {
     rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial", required: true },
-    quantity: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 0 },
     unit: { type: String, default: "kg" },
   },
   { _id: false }
@@ -28,7 +28,7 @@ const BillOfMaterialsSchema = new Schema<IBillOfMaterials>(
   {
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true, unique: true },
     items: { type: [BOMItemSchema], default: [] },
-    outputQuantity: { type: Number, required: true },
+    outputQuantity: { type: Number, required: true, min: 0 },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

@@ -4,7 +4,7 @@ export interface IStaffAssignment extends Document {
   staffId: Types.ObjectId;
   locationType: "factory" | "depot" | "truck";
   locationId: Types.ObjectId;
-  role: "manager" | "supervisor" | "operator" | "loader" | "security" | "cleaner" | "other";
+  role: "manager" | "supervisor" | "operator" | "driver" | "loader" | "security" | "cleaner" | "other";
   department: "production" | "logistics" | "sales" | "administration" | "maintenance";
   isActive: boolean;
   startDate: Date;

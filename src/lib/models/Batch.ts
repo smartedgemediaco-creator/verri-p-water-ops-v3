@@ -17,7 +17,7 @@ const BatchSchema = new Schema<IBatch>(
     batchNumber: { type: String, required: true, unique: true },
     productionId: { type: Schema.Types.ObjectId, ref: "Production", required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    quantity: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 0 },
     date: { type: Date, default: Date.now },
     expiryDate: { type: Date },
     status: {

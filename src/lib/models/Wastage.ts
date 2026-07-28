@@ -21,7 +21,7 @@ const WastageSchema = new Schema<IWastage>(
     locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: Schema.Types.ObjectId, required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    quantity: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 0 },
     source: { type: String, enum: ["production", "transfer", "sale", "storage", "other"], required: true },
     deductFromStock: { type: Boolean, default: false },
     recordAsSale: { type: Boolean, default: false },

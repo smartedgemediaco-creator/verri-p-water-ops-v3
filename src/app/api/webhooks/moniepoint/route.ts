@@ -7,10 +7,13 @@ const MONIEPOINT_WEBHOOK_SECRET = process.env.MONIEPOINT_WEBHOOK_SECRET;
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("moniepoint-signature") || req.headers.get("x-moniepoint-signature");
 
-  if (MONIEPOINT_WEBHOOK_SECRET) {
-    if (!signature) {
-      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
-    }
+  if (!MONIEPOINT_WEBHOOK_SECRET) {
+    console.error("MONIEPOINT_WEBHOOK_SECRET not configured — rejecting webhook");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
+
+  if (!signature) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
   await connectDB();

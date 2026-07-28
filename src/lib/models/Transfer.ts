@@ -22,7 +22,7 @@ const TransferSchema = new Schema<ITransfer>(
     toType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     toId: { type: Schema.Types.ObjectId, required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    quantity: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 0 },
     truckId: { type: Schema.Types.ObjectId, ref: "Truck", required: true },
     status: {
       type: String,

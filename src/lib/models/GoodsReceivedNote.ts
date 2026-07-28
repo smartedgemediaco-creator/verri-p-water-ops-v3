@@ -22,8 +22,8 @@ const GRNItemSchema = new Schema<IGRNItem>(
   {
     rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial" },
     itemName: { type: String, default: "" },
-    quantityReceived: { type: Number, required: true },
-    quantityOrdered: { type: Number, required: true },
+    quantityReceived: { type: Number, required: true, min: 0 },
+    quantityOrdered: { type: Number, required: true, min: 0 },
     condition: {
       type: String,
       enum: ["good", "damaged", "partial"],

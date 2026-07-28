@@ -190,10 +190,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(sale, { status: 201 });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal server error";
     console.error("Sales POST error:", e);
     return NextResponse.json(
-      { error: e?.message ?? "Internal server error" },
+      { error: message },
       { status: 500 }
     );
   }

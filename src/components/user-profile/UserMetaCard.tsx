@@ -1,21 +1,42 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
+import { showSuccess, showError } from "@/lib/toast";
 
 export default function UserMetaCard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { isOpen, openModal, closeModal } = useModal();
-  const handleSave = () => { closeModal(); };
+  const [name, setName] = useState(user?.name || "");
+  const [submitting, setSubmitting] = useState(false);
 
   const displayName = user?.name || "User";
   const displayEmail = user?.email || "—";
   const displayRole = user?.role ? user.role.replace("-", " ") : "—";
   const displayLocation = user?.factoryName || user?.depotName || null;
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { showError("Name is required"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
+      await refreshUser();
+      showSuccess("Profile updated");
+      closeModal();
+    } catch { showError("Network error"); } finally { setSubmitting(false); }
+  };
+
+  const openEdit = () => { setName(user?.name || ""); openModal(); };
 
   return (
     <>
@@ -30,7 +51,7 @@ export default function UserMetaCard() {
                 {displayName}
               </h4>
               <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
-                <p className="text-sm text-gray-500 dark:text-gray-400">{displayRole}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{displayRole}</p>
                 {displayLocation && (
                   <>
                     <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
@@ -42,7 +63,7 @@ export default function UserMetaCard() {
             </div>
           </div>
           <button
-            onClick={openModal}
+            onClick={openEdit}
             className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto"
           >
             <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -58,25 +79,25 @@ export default function UserMetaCard() {
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">Edit Personal Information</h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">Update your details to keep your profile up-to-date.</p>
           </div>
-          <form className="flex flex-col">
+          <form className="flex flex-col" onSubmit={handleSave}>
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
               <div className="mt-7">
                 <h5 className="mb-5 text-lg font-medium text-gray-800 dark:text-white/90 lg:mb-6">Personal Information</h5>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                   <div className="col-span-2 lg:col-span-1">
                     <Label>Name</Label>
-                    <Input type="text" defaultValue={displayName} />
+                    <Input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
                   </div>
                   <div className="col-span-2 lg:col-span-1">
                     <Label>Email</Label>
-                    <Input type="text" defaultValue={displayEmail} />
+                    <Input type="text" value={displayEmail} disabled />
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>Close</Button>
-              <Button size="sm" onClick={handleSave}>Save Changes</Button>
+              <Button size="sm" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</Button>
             </div>
           </form>
         </div>

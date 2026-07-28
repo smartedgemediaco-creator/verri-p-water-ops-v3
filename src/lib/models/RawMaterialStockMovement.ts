@@ -11,6 +11,7 @@ export interface IRawMaterialStockMovement extends Document {
   notes: string;
   performedBy: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const RawMaterialStockMovementSchema = new Schema<IRawMaterialStockMovement>(
@@ -21,7 +22,7 @@ const RawMaterialStockMovementSchema = new Schema<IRawMaterialStockMovement>(
       enum: ["purchase", "consumption", "adjustment", "waste", "return", "correction"],
       required: true,
     },
-    quantity: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 0 },
     unit: { type: String, default: "" },
     unitCost: { type: Number, default: 0 },
     reference: { type: String, default: "" },

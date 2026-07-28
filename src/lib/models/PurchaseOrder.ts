@@ -91,7 +91,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     orderDate: { type: Date, default: Date.now },
     expectedDate: { type: Date },
     receivedDate: { type: Date },
-    totalAmount: { type: Number, default: 0 },
+    totalAmount: { type: Number, default: 0, min: 0 },
     contactPhone: { type: String, default: "" },
     contactEmail: { type: String, default: "" },
     deliveryLocationType: { type: String, enum: ["factory", "depot", ""], default: "" },

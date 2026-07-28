@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
   const items = (body.items ?? []).map((item: Record<string, unknown>) => ({
     ...item,
     quantityReceived: 0,
+    batchIds: [],
+    unitCount: item.unitCount ?? 0,
+    itemUnit: item.itemUnit ?? "",
   }));
 
   const order = await PurchaseOrder.create({
@@ -70,6 +73,8 @@ export async function POST(req: NextRequest) {
     contactEmail,
     expectedDate: body.expectedDate || undefined,
     notes: body.notes || "",
+    deliveryLocationType: body.deliveryLocationType || "",
+    deliveryLocationId: body.deliveryLocationId || undefined,
   });
 
   await logActivity({

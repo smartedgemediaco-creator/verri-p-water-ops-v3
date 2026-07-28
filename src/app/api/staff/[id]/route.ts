@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       userId: user.userId,
     });
     return NextResponse.json(staff);
-  } catch (err) {
+  } catch (err: unknown) {
     await session.abortTransaction();
     throw err;
   } finally {

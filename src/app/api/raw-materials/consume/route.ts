@@ -6,10 +6,11 @@ import { logActivity } from "@/lib/logActivity";
 import { notifyLowStock } from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
-  const user = getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  await connectDB();
-  const body = await req.json();
+  try {
+    const user = getUserFromRequest(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await connectDB();
+    const body = await req.json();
 
   if (!body.rawMaterialId || !body.locationType || !body.locationId) {
     return NextResponse.json({ error: "rawMaterialId, locationType, and locationId are required" }, { status: 400 });
@@ -115,4 +116,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(consumption, { status: 201 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

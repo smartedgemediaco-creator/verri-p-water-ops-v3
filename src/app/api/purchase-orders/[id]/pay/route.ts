@@ -8,11 +8,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await params;
-  await connectDB();
-  const body = await req.json();
+  try {
+    const user = getUserFromRequest(req);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    await connectDB();
+    const body = await req.json();
 
   const amount = Number(body.amount);
   if (!amount || amount <= 0) {
@@ -87,4 +88,8 @@ export async function POST(
     .lean();
 
   return NextResponse.json(updated);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
