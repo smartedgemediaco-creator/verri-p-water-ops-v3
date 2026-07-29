@@ -652,7 +652,7 @@ export default function PurchaseOrdersPage() {
                       }}
                       className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-500/20" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/20"}`}
                     >
-                      <><Pointer className="inline size-3 mr-1" />{item.isCustom ? "Custom Item" : "Raw Material"}</>
+                      <><Pointer className="inline size-3" /><span className="ml-1">{item.isCustom ? "Custom Item" : "Raw Material"}</span><span className="ml-1 text-[9px] opacity-60">click to change</span></>
                     </button>
                     <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 ml-auto">
                       Subtotal: <span className="text-green-600 dark:text-green-400">₦{((item.quantity ?? 0) * (item.unitPrice ?? 0)).toLocaleString()}</span>
@@ -792,7 +792,7 @@ export default function PurchaseOrdersPage() {
                         }}
                         className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-500/20" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/20"}`}
                       >
-                        <><Pointer className="inline size-3 mr-1" />{item.isCustom ? "Custom Item" : "Raw Material"}</>
+                        <><Pointer className="inline size-3" /><span className="ml-1">{item.isCustom ? "Custom Item" : "Raw Material"}</span><span className="ml-1 text-[9px] opacity-60">click to change</span></>
                       </button>
                       {isPartial && (
                         <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
