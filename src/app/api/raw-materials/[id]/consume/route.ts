@@ -33,8 +33,6 @@ export async function POST(
     }
 
     material.currentStock -= quantity;
-    material.totalConsumed += quantity;
-    material.lastConsumedDate = new Date();
     await material.save();
 
     await RawMaterialStockMovement.create({

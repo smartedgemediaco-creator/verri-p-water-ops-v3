@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -39,9 +40,7 @@ interface PurchaseOrder {
 const statusColor: Record<string, "light" | "info" | "warning" | "success" | "error"> = {
   draft: "light", sent: "info", confirmed: "warning", "partially-received": "info", received: "success", cancelled: "error",
 };
-const paymentColor: Record<string, "light" | "info" | "warning" | "success" | "error"> = {
-  unpaid: "error", partial: "warning", paid: "success",
-};
+
 const deliveryColor: Record<string, "light" | "info" | "warning" | "success"> = {
   pending: "light", "in-transit": "info", partial: "warning", delivered: "success",
 };
@@ -51,13 +50,16 @@ export default function PurchaseOrderDetailPage() {
   const id = params.id as string;
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [statusTarget, setStatusTarget] = useState<{ status: string; label: string } | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("transfer");
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentSaving, setPaymentSaving] = useState(false);
+
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveDeliveries, setReceiveDeliveries] = useState<Array<{ itemIndex: number; receivedQuantity: number; unitCount: number; qualityNotes: string }>>([]);
   const [receiveSaving, setReceiveSaving] = useState(false);
@@ -70,7 +72,7 @@ export default function PurchaseOrderDetailPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { if (id) fetchOrder(); }, [id]);
+  useEffect(() => { if (id) fetchOrder(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [id]);
 
   const handleStatusUpdate = async () => {
     if (!statusTarget) return;
@@ -89,7 +91,7 @@ export default function PurchaseOrderDetailPage() {
     if (paymentAmount <= 0 || !order) { showError("Enter a valid amount"); return; }
     setPaymentSaving(true);
     try {
-      const res = await fetch(`/api/purchase-orders/${id}/payment`, {
+      const res = await fetch(`/api/purchase-orders/${id}/pay`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: paymentAmount, method: paymentMethod, reference: paymentRef }),
       });
@@ -136,22 +138,28 @@ export default function PurchaseOrderDetailPage() {
   const supplier = order.supplierId;
   const outstanding = order.totalAmount - order.amountPaid;
   const isOverdue = order.expectedDate && new Date(order.expectedDate) < new Date() && (order.status === "sent" || order.status === "confirmed");
+  const canReceive = order.status === "confirmed" || order.status === "partially-received";
+  const canPay = outstanding > 0 && order.status !== "draft" && order.status !== "cancelled";
+
   const statusActions: { status: string; label: string; variant: "primary" | "outline" }[] = [];
   if (order.status === "draft") statusActions.push({ status: "sent", label: "Send", variant: "primary" });
   if (order.status === "sent") statusActions.push({ status: "confirmed", label: "Confirm", variant: "outline" });
-  if (order.status === "confirmed" || order.status === "partially-received") statusActions.push({ status: "received", label: "Receive", variant: "primary" });
+  if (canReceive) statusActions.push({ status: "received", label: "Receive", variant: "primary" });
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle={order.orderNumber} />
         <div className="flex gap-3">
+          <Link href={`/purchase-orders/${id}/edit`}>
+            <Button variant="outline" size="sm">Edit</Button>
+          </Link>
           {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>Call</Button>}
           {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>WhatsApp</Button>}
-          {(order.status === "confirmed" || order.status === "partially-received") && (
+          {canReceive && (
             <Button variant="primary" size="sm" onClick={openReceive}>Receive Goods</Button>
           )}
-          {outstanding > 0 && order.status !== "draft" && order.status !== "cancelled" && (
+          {canPay && (
             <Button variant="primary" size="sm" onClick={() => { setPaymentAmount(outstanding); setShowPaymentModal(true); }}>Record Payment</Button>
           )}
         </div>
@@ -160,20 +168,22 @@ export default function PurchaseOrderDetailPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
-          <AutoAmount value={`₦${order.totalAmount.toLocaleString()}`} />
+          <AutoAmount value={`\u20A6${order.totalAmount.toLocaleString()}`} />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Amount Paid</p>
-          <AutoAmount value={`₦${order.amountPaid.toLocaleString()}`} />
+          <AutoAmount value={`\u20A6${order.amountPaid.toLocaleString()}`} />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding</p>
-          <h4 className={`mt-1 font-bold text-title-sm ${outstanding > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>₦{outstanding.toLocaleString()}</h4>
+          <h4 className={`mt-1 font-bold text-title-sm ${outstanding > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+            \u20A6{outstanding.toLocaleString()}
+          </h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
           <div className="flex gap-2 mt-1 flex-wrap">
-            <Badge variant="light" color={statusColor[order.status] ?? "light"}>{order.status}</Badge>
+            <Badge variant="light" color={statusColor[order.status] ?? "light"}>{order.status.replace("-", " ")}</Badge>
             {isOverdue && <span className="text-xs text-red-500 self-center">Overdue!</span>}
           </div>
         </div>
@@ -187,15 +197,68 @@ export default function PurchaseOrderDetailPage() {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Order Info</h3>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Order Date</dt><dd className="text-gray-800 dark:text-white/90">{formatDate(order.orderDate)}</dd></div>
-            {order.expectedDate && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Expected</dt><dd className={`${isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-800 dark:text-white/90"}`}>{formatDate(order.expectedDate)}</dd></div>}
-            {order.receivedDate && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Received</dt><dd className="text-gray-800 dark:text-white/90">{formatDate(order.receivedDate)}</dd></div>}
+            <div className="flex justify-between">
+              <dt className="text-gray-500 dark:text-gray-400">Order Date</dt>
+              <dd className="text-gray-800 dark:text-white/90">{formatDate(order.orderDate)}</dd>
+            </div>
+            {order.expectedDate && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500 dark:text-gray-400">Expected</dt>
+                <dd className={`${isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-800 dark:text-white/90"}`}>
+                  {formatDate(order.expectedDate)}
+                </dd>
+              </div>
+            )}
+            {order.receivedDate && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500 dark:text-gray-400">Received</dt>
+                <dd className="text-gray-800 dark:text-white/90">{formatDate(order.receivedDate)}</dd>
+              </div>
+            )}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2" />
-            <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Supplier</dt><dd>{supplier?._id ? <Link href={`/suppliers/${supplier._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{supplier.name}</Link> : <span className="text-gray-800 dark:text-white/90 font-medium">{order.supplierName || "—"}</span>}</dd></div>
-            {supplier?.contactPerson && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Contact</dt><dd className="text-gray-800 dark:text-white/90">{supplier.contactPerson}</dd></div>}
-            {supplier?.phone && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Phone</dt><dd className="text-gray-800 dark:text-white/90">{supplier.phone}</dd></div>}
-            {supplier?.email && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Email</dt><dd className="text-gray-800 dark:text-white/90">{supplier.email}</dd></div>}
-            {order.notes && <><div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2" /><div><dt className="text-gray-500 dark:text-gray-400 mb-1">Notes</dt><dd className="text-gray-600 dark:text-gray-300">{order.notes}</dd></div></>}
+            <div className="flex justify-between">
+              <dt className="text-gray-500 dark:text-gray-400">Supplier</dt>
+              <dd>
+                {supplier?._id ? (
+                  <Link href={`/suppliers/${supplier._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                    {supplier.name}
+                  </Link>
+                ) : (
+                  <span className="text-gray-800 dark:text-white/90 font-medium">{order.supplierName || "\u2014"}</span>
+                )}
+              </dd>
+            </div>
+            {supplier?.contactPerson && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500 dark:text-gray-400">Contact</dt>
+                <dd className="text-gray-800 dark:text-white/90">{supplier.contactPerson}</dd>
+              </div>
+            )}
+            {supplier?.phone && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500 dark:text-gray-400">Phone</dt>
+                <dd className="text-gray-800 dark:text-white/90">
+                  <a href={`tel:${supplier.phone}`} className="text-blue-600 dark:text-blue-400 hover:underline">{supplier.phone}</a>
+                </dd>
+              </div>
+            )}
+            {supplier?.email && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500 dark:text-gray-400">Email</dt>
+                <dd className="text-gray-800 dark:text-white/90">
+                  <a href={`mailto:${supplier.email}`} className="text-blue-600 dark:text-blue-400 hover:underline">{supplier.email}</a>
+                </dd>
+              </div>
+            )}
+            {order.notes && (
+              <>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2" />
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400 mb-1">Notes</dt>
+                  <dd className="text-gray-600 dark:text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">{order.notes}</dd>
+                </div>
+              </>
+            )}
           </dl>
           {statusActions.length > 0 && (
             <div className="mt-4 flex gap-2 flex-wrap">
@@ -230,9 +293,11 @@ export default function PurchaseOrderDetailPage() {
                 return (
                   <TableRow key={i}>
                     <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                      {mat ? <Link href={`/raw-materials/${mat._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{mat.name}</Link> : (item.itemName || "—")}
+                      {mat ? (
+                        <Link href={`/raw-materials/${mat._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{mat.name}</Link>
+                      ) : (item.itemName || "\u2014")}
                     </TableCell>
-                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{item.itemDescription || "—"}</TableCell>
+                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{item.itemDescription || "\u2014"}</TableCell>
                     <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{item.quantity.toLocaleString()} {mat?.unit || item.unit || ""}</TableCell>
                     <TableCell className="py-2 text-theme-sm">
                       <span className={isComplete ? "text-green-600 dark:text-green-400 font-medium" : "text-gray-500 dark:text-gray-400"}>
@@ -244,28 +309,42 @@ export default function PurchaseOrderDetailPage() {
                         {pending.toLocaleString()}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">₦{item.unitPrice.toLocaleString()}</TableCell>
-                    <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">₦{(item.quantity * item.unitPrice).toLocaleString()}</TableCell>
+                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">
+                      \u20A6{item.unitPrice.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                      \u20A6{(item.quantity * item.unitPrice).toLocaleString()}
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
           <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Total: {order.items.length} item{order.items.length !== 1 ? "s" : ""}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              Total: {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+            </span>
             <div className="flex gap-4">
-              <span className="text-gray-600 dark:text-gray-400">Ordered: <strong>₦{order.totalAmount.toLocaleString()}</strong></span>
-              <span className="text-green-600 dark:text-green-400">Received: <strong>₦{order.items.reduce((sum, it) => sum + (it.quantityReceived || 0) * it.unitPrice, 0).toLocaleString()}</strong></span>
-              <span className="text-amber-600 dark:text-amber-400">Pending: <strong>₦{order.items.reduce((sum, it) => sum + Math.max(0, it.quantity - (it.quantityReceived || 0)) * it.unitPrice, 0).toLocaleString()}</strong></span>
+              <span className="text-gray-600 dark:text-gray-400">
+                Ordered: <strong>\u20A6{order.totalAmount.toLocaleString()}</strong>
+              </span>
+              <span className="text-green-600 dark:text-green-400">
+                Received: <strong>\u20A6{order.items.reduce((sum, it) => sum + (it.quantityReceived || 0) * it.unitPrice, 0).toLocaleString()}</strong>
+              </span>
+              <span className="text-amber-600 dark:text-amber-400">
+                Pending: <strong>\u20A6{order.items.reduce((sum, it) => sum + Math.max(0, it.quantity - (it.quantityReceived || 0)) * it.unitPrice, 0).toLocaleString()}</strong>
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {order.payments.length > 0 && (
+      {(order.payments?.length ?? 0) > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-sm mb-6">
           <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Payment History ({order.payments.length})</h3>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Payment History ({order.payments.length})
+            </h3>
           </div>
           <Table>
             <TableHeader>
@@ -281,10 +360,12 @@ export default function PurchaseOrderDetailPage() {
               {order.payments.map((p, i) => (
                 <TableRow key={i}>
                   <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(p.date)}</TableCell>
-                  <TableCell className="py-2 text-theme-sm font-medium text-green-600 dark:text-green-400">₦{p.amount.toLocaleString()}</TableCell>
+                  <TableCell className="py-2 text-theme-sm font-medium text-green-600 dark:text-green-400">
+                    \u20A6{p.amount.toLocaleString()}
+                  </TableCell>
                   <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{p.method}</TableCell>
-                  <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{p.reference || "—"}</TableCell>
-                  <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{p.recordedBy || "—"}</TableCell>
+                  <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{p.reference || "\u2014"}</TableCell>
+                  <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{p.recordedBy || "\u2014"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -312,15 +393,27 @@ export default function PurchaseOrderDetailPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
-                <p className="text-red-600 dark:text-red-400 font-medium">Outstanding: ₦{outstanding.toLocaleString()}</p>
+                <p className="text-red-600 dark:text-red-400 font-medium">
+                  Outstanding: \u20A6{outstanding.toLocaleString()}
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (₦)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (\u20A6)</label>
                 <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Method</label>
-                <Select options={[{ value: "transfer", label: "Bank Transfer" }, { value: "cash", label: "Cash" }, { value: "pos", label: "POS" }, { value: "cheque", label: "Cheque" }, { value: "other", label: "Other" }]} value={paymentMethod} onChange={setPaymentMethod} />
+                <Select
+                  options={[
+                    { value: "transfer", label: "Bank Transfer" },
+                    { value: "cash", label: "Cash" },
+                    { value: "pos", label: "POS" },
+                    { value: "cheque", label: "Cheque" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  value={paymentMethod}
+                  onChange={setPaymentMethod}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference (optional)</label>
@@ -328,7 +421,9 @@ export default function PurchaseOrderDetailPage() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setShowPaymentModal(false)} disabled={paymentSaving}>Cancel</Button>
-                <Button variant="primary" onClick={handlePayment} disabled={paymentSaving || paymentAmount <= 0}>{paymentSaving ? "Saving..." : "Record Payment"}</Button>
+                <Button variant="primary" onClick={handlePayment} disabled={paymentSaving || paymentAmount <= 0}>
+                  {paymentSaving ? "Saving..." : "Record Payment"}
+                </Button>
               </div>
             </div>
           </div>
@@ -339,16 +434,19 @@ export default function PurchaseOrderDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!receiveSaving) setShowReceiveModal(false); }}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Receive Goods — {order.orderNumber}</h3>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Receive Goods \u2014 {order.orderNumber}</h3>
               <button onClick={() => setShowReceiveModal(false)} className="text-gray-400 hover:text-gray-600"><CloseIcon className="size-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Enter the quantities actually received. This will create batch records for each item.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Enter the quantities actually received. This will create batch records for each item.
+              </p>
               {receiveDeliveries.map((delivery, i) => {
                 const item = order.items[delivery.itemIndex];
                 if (!item) return null;
                 const mat = typeof item.rawMaterialId === "object" ? item.rawMaterialId : null;
                 const remaining = item.quantity - (item.quantityReceived || 0);
+                if (remaining <= 0) return null;
                 return (
                   <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
@@ -362,23 +460,46 @@ export default function PurchaseOrderDetailPage() {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Received Qty *</label>
-                        <Input type="number" value={delivery.receivedQuantity} onChange={(e) => updateReceiveDelivery(i, "receivedQuantity", Number(e.target.value))} />
+                        <Input
+                          type="number"
+                          value={delivery.receivedQuantity}
+                          onChange={(e) => updateReceiveDelivery(i, "receivedQuantity", Number(e.target.value))}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Item Count (rolls, etc)</label>
-                        <Input type="number" value={delivery.unitCount} onChange={(e) => updateReceiveDelivery(i, "unitCount", Number(e.target.value))} placeholder="0" />
+                        <Input
+                          type="number"
+                          value={delivery.unitCount}
+                          onChange={(e) => updateReceiveDelivery(i, "unitCount", Number(e.target.value))}
+                          placeholder="0"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality Notes</label>
-                        <Input value={delivery.qualityNotes} onChange={(e) => updateReceiveDelivery(i, "qualityNotes", e.target.value)} placeholder="Optional" />
+                        <Input
+                          value={delivery.qualityNotes}
+                          onChange={(e) => updateReceiveDelivery(i, "qualityNotes", e.target.value)}
+                          placeholder="Optional"
+                        />
                       </div>
                     </div>
                   </div>
                 );
               })}
+              {receiveDeliveries.every((d) => {
+                const item = order.items[d.itemIndex];
+                return !item || (item.quantity - (item.quantityReceived || 0)) <= 0;
+              }) && (
+                <p className="text-sm text-green-600 dark:text-green-400 text-center py-4">
+                  All items have been fully received.
+                </p>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setShowReceiveModal(false)} disabled={receiveSaving}>Cancel</Button>
-                <Button variant="primary" onClick={handleReceive} disabled={receiveSaving}>{receiveSaving ? "Receiving..." : "Confirm Receipt & Create Batches"}</Button>
+                <Button variant="primary" onClick={handleReceive} disabled={receiveSaving}>
+                  {receiveSaving ? "Receiving..." : "Confirm Receipt & Create Batches"}
+                </Button>
               </div>
             </div>
           </div>

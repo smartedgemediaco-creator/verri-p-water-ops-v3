@@ -1,39 +1,45 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState, useMemo } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
+import TextArea from "@/components/form/input/TextArea";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import AutoAmount from "@/components/ui/AutoAmount";
 import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
-import { PlusIcon, CloseIcon, TrashBinIcon, PencilIcon } from "@/icons";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import TextArea from "@/components/form/input/TextArea";
+import { PlusIcon, CloseIcon, PencilIcon, ArrowDownIcon } from "@/icons";
 
 interface RawMaterial {
-  _id: string; name: string; unit: string; stockUnit: string; conversionRate: number;
-  category: string; currentStock: number; minimumStock: number; unitCost: number;
-  supplierId: { _id: string; name: string; phone?: string; whatsapp?: string; email?: string } | null;
-  totalReceived: number; totalConsumed: number; lastReceivedDate?: string; lastConsumedDate?: string;
-  totalBatchStock: number; averageCost: number; batchCount: number; notes: string;
-}
-
-interface Batch {
-  _id: string; batchNumber: string; receivedQuantity: number; availableQuantity: number;
-  unit: string; unitPrice: number; totalCost: number; itemCount: number; itemUnit: string;
-  status: string; locationType: string; locationId: { _id: string; name: string } | string;
-  consumedQuantity: number; receivedDate?: string; qualityNotes: string; createdAt: string;
+  _id: string; name: string; unit: string; category: string;
+  currentStock: number; minimumStock: number; unitCost: number;
+  supplierId: { _id: string; name: string; phone?: string } | null;
+  notes: string;
 }
 
 interface StockMovement {
-  _id: string; type: string; quantity: number; unit: string; unitCost: number;
+  _id: string; type: string; quantity: number; unit: string;
   reference: string; notes: string; performedBy: string; createdAt: string;
+}
+
+interface PoItem {
+  rawMaterialId: string;
+  quantity: number;
+  received: number;
+  unitPrice: number;
+}
+
+interface PurchaseOrder {
+  _id: string; orderNumber: string; status: string; totalAmount: number;
+  supplier: { _id: string; name: string } | null;
+  items: PoItem[];
+  createdAt: string;
 }
 
 const movementTypeColors: Record<string, string> = {
@@ -43,88 +49,84 @@ const movementTypeColors: Record<string, string> = {
   waste: "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400",
   return: "bg-theme-pink-50 text-theme-pink-700 dark:bg-theme-pink-500/10 dark:text-theme-pink-400",
   correction: "bg-gray-50 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400",
-};
-
-const statusColors: Record<string, "light" | "info" | "warning" | "success" | "error"> = {
-  pending: "light", "partially-received": "warning", received: "success", consumed: "info", expired: "error",
+  other: "bg-gray-50 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400",
 };
 
 export default function RawMaterialDetailPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const id = params.id as string;
-  const initialTab = searchParams.get("tab") || "overview";
 
   const [material, setMaterial] = useState<RawMaterial | null>(null);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [batches, setBatches] = useState<Batch[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [showStockModal, setShowStockModal] = useState(false);
-  const [showConsumeModal, setShowConsumeModal] = useState(false);
-  const [stockForm, setStockForm] = useState({
-    receivedQuantity: 0,
-    unit: "",
-    unitPrice: 0,
-    itemCount: 0,
-    itemUnit: "",
-    batchNumber: "",
-    locationType: "factory",
-    locationId: "",
-    receivedDate: new Date().toISOString().split("T")[0],
-    expiryDate: "",
-    qualityNotes: "",
-    purchaseOrderId: "",
-  });
-  const [purchaseOrders, setPurchaseOrders] = useState<{ _id: string; orderNumber: string }[]>([]);
+  const [activeTab, setActiveTab] = useState("history");
   const [submitting, setSubmitting] = useState(false);
 
-  const [consumeLocationType, setConsumeLocationType] = useState("factory");
-  const [consumeLocationId, setConsumeLocationId] = useState("");
-  const [consumePurpose, setConsumePurpose] = useState("production");
-  const [consumeDate, setConsumeDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [consumeNotes, setConsumeNotes] = useState("");
-  const [allocations, setAllocations] = useState<Array<{ batchId: string; quantity: number; itemCount: number }>>([]);
   const [factories, setFactories] = useState<{ _id: string; name: string }[]>([]);
   const [depots, setDepots] = useState<{ _id: string; name: string }[]>([]);
+  const [supplierOpts, setSupplierOpts] = useState<{ value: string; label: string }[]>([]);
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState("");
   const [editUnit, setEditUnit] = useState("");
-  const [editMinimumStock, setEditMinimumStock] = useState(0);
+  const [editCategory, setEditCategory] = useState("");
+  const [editMinStock, setEditMinStock] = useState(0);
   const [editUnitCost, setEditUnitCost] = useState(0);
-  const [editNotes, setEditNotes] = useState("");
   const [editSupplierId, setEditSupplierId] = useState("");
-  const [editCategory, setEditCategory] = useState("chemical");
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [supplierOpts, setSupplierOpts] = useState<{ value: string; label: string }[]>([]);
+  const [editNotes, setEditNotes] = useState("");
+
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [recQty, setRecQty] = useState(0);
+  const [recUnit, setRecUnit] = useState("");
+  const [recUnitPrice, setRecUnitPrice] = useState(0);
+  const [recLocationType, setRecLocationType] = useState("factory");
+  const [recLocationId, setRecLocationId] = useState("");
+  const [recDate, setRecDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [recNotes, setRecNotes] = useState("");
+
+  const [showUseModal, setShowUseModal] = useState(false);
+  const [useQty, setUseQty] = useState(0);
+  const [useReason, setUseReason] = useState("consumption");
+  const [useNotes, setUseNotes] = useState("");
 
   const fetchData = () => {
     setLoading(true);
     Promise.all([
-      fetch(`/api/raw-materials/${id}`).then((r) => r.json()),
-      fetch(`/api/raw-materials/${id}/movements?limit=50`).then((r) => r.json()),
-      fetch(`/api/raw-materials/batches?rawMaterialId=${id}`).then((r) => r.json()),
-    ]).then(([mat, mvmts, batchData]) => {
+      fetch(`/api/raw-materials/${id}`).then(r => r.json()),
+      fetch(`/api/raw-materials/${id}/movements?limit=50`).then(r => r.json()),
+      fetch("/api/purchase-orders").then(r => r.json()),
+    ]).then(([mat, mvts, pos]) => {
       setMaterial(mat);
-      setMovements(Array.isArray(mvmts) ? mvmts : []);
-      setBatches(Array.isArray(batchData) ? batchData : []);
+      setMovements(Array.isArray(mvts) ? mvts : []);
+      setPurchaseOrders(Array.isArray(pos) ? pos : []);
     }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
     if (id) fetchData();
-    fetch("/api/factories").then((r) => r.json()).then((d) => setFactories(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch("/api/depots").then((r) => r.json()).then((d) => setDepots(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch("/api/suppliers").then((r) => r.json()).then((d: { _id: string; name: string }[]) => setSupplierOpts(Array.isArray(d) ? d.map((s) => ({ value: s._id, label: s.name })) : [])).catch(() => {});
-    fetch("/api/purchase-orders").then((r) => r.json()).then((d) => setPurchaseOrders(Array.isArray(d) ? d.filter((po: { status: string }) => ["sent", "confirmed", "partially-received"].includes(po.status)).map((po: { _id: string; orderNumber: string }) => ({ _id: po._id, orderNumber: po.orderNumber })) : [])).catch(() => {});
-  }, [id]);
+    fetch("/api/factories").then(r => r.json()).then(d => setFactories(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/depots").then(r => r.json()).then(d => setDepots(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/suppliers").then(r => r.json()).then((d: { _id: string; name: string }[]) =>
+      setSupplierOpts(Array.isArray(d) ? d.map(s => ({ value: s._id, label: s.name })) : [])
+    ).catch(() => {});
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const linkedPOs = purchaseOrders.filter(po =>
+    Array.isArray(po.items) && po.items.some(item => item.rawMaterialId === id)
+  );
 
   const openEditModal = () => {
     if (!material) return;
-    setEditName(material.name); setEditUnit(material.unit); setEditMinimumStock(material.minimumStock);
-    setEditUnitCost(material.unitCost); setEditNotes(material.notes || ""); setEditCategory(material.category);
-    setEditSupplierId(material.supplierId?._id ?? ""); setShowEditModal(true);
+    setEditName(material.name);
+    setEditUnit(material.unit);
+    setEditCategory(material.category);
+    setEditMinStock(material.minimumStock);
+    setEditUnitCost(material.unitCost);
+    setEditSupplierId(material.supplierId?._id ?? "");
+    setEditNotes(material.notes || "");
+    setShowEditModal(true);
   };
 
   const handleEditSave = async () => {
@@ -132,26 +134,28 @@ export default function RawMaterialDetailPage() {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/raw-materials/${id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName.trim(), unit: editUnit, minimumStock: editMinimumStock, unitCost: editUnitCost, supplierId: editSupplierId || undefined, notes: editNotes, category: editCategory }),
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          unit: editUnit,
+          category: editCategory,
+          minimumStock: editMinStock,
+          unitCost: editUnitCost,
+          supplierId: editSupplierId || undefined,
+          notes: editNotes,
+        }),
       });
-      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
-      showSuccess("Material updated"); setShowEditModal(false); fetchData();
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to update"); return; }
+      showSuccess("Material updated");
+      setShowEditModal(false);
+      fetchData();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      const res = await fetch(`/api/raw-materials/${deleteTarget}`, { method: "DELETE" });
-      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to delete"); return; }
-      showSuccess("Material deleted"); setDeleteTarget(null); router.push("/raw-materials");
-    } catch { showError("Network error"); }
-  };
-
-  const handleAddStock = async () => {
-    if (stockForm.receivedQuantity <= 0) { showError("Enter a valid quantity"); return; }
-    if (!stockForm.locationId) { showError("Select a location"); return; }
+  const handleReceiveStock = async () => {
+    if (recQty <= 0) { showError("Enter a valid quantity"); return; }
+    if (!recLocationId) { showError("Select a location"); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/raw-materials/batches", {
@@ -159,93 +163,59 @@ export default function RawMaterialDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rawMaterialId: id,
-          locationType: stockForm.locationType,
-          locationId: stockForm.locationId,
+          locationType: recLocationType,
+          locationId: recLocationId,
+          receivedQuantity: recQty,
+          unit: recUnit || material?.unit || "kg",
+          unitPrice: recUnitPrice,
           supplierId: material?.supplierId?._id || undefined,
-          receivedQuantity: stockForm.receivedQuantity,
-          unit: stockForm.unit || material?.unit || "kg",
-          unitPrice: stockForm.unitPrice,
-          itemCount: stockForm.itemCount,
-          itemUnit: stockForm.itemUnit,
-          batchNumber: stockForm.batchNumber || undefined,
-          purchaseOrderId: stockForm.purchaseOrderId || undefined,
-          receivedDate: stockForm.receivedDate,
-          expiryDate: stockForm.expiryDate || undefined,
-          qualityNotes: stockForm.qualityNotes,
+          receivedDate: recDate,
+          qualityNotes: recNotes,
         }),
       });
-      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
-      showSuccess("Stock added — batch created");
-      setShowStockModal(false);
-      setStockForm({ receivedQuantity: 0, unit: "", unitPrice: 0, itemCount: 0, itemUnit: "", batchNumber: "", locationType: "factory", locationId: "", receivedDate: new Date().toISOString().split("T")[0], expiryDate: "", qualityNotes: "", purchaseOrderId: "" });
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to receive stock"); return; }
+      showSuccess("Stock received");
+      setShowReceiveModal(false);
+      setRecQty(0); setRecUnit(""); setRecUnitPrice(0); setRecLocationId(""); setRecNotes("");
       fetchData();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
-  const consumeLocationOptions = consumeLocationType === "factory"
-    ? factories.map((f) => ({ value: f._id, label: f.name }))
-    : depots.map((d) => ({ value: d._id, label: d.name }));
-
-  const availableBatches = useMemo(() =>
-    batches.filter((b) => b.availableQuantity > 0 && (b.locationType === consumeLocationType) && (typeof b.locationId === "object" ? b.locationId._id : b.locationId) === consumeLocationId),
-    [batches, consumeLocationType, consumeLocationId]
-  );
-
-  const totalConsumeQty = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
-  const totalConsumeCost = allocations.reduce((s, a) => {
-    const batch = batches.find((b) => b._id === a.batchId);
-    return s + (Number(a.quantity) || 0) * (batch?.unitPrice || 0);
-  }, 0);
-
-  const addAllocation = () => setAllocations([...allocations, { batchId: "", quantity: 0, itemCount: 0 }]);
-  const updateAllocation = (i: number, field: string, value: string | number) => {
-    const updated = [...allocations];
-    updated[i] = { ...updated[i], [field]: value };
-    setAllocations(updated);
-  };
-  const removeAllocation = (i: number) => setAllocations(allocations.filter((_, idx) => idx !== i));
-
-  const handleConsume = async () => {
-    if (!consumeLocationId) { showError("Select a location"); return; }
-    if (allocations.length === 0) { showError("Add at least one batch allocation"); return; }
-    const invalid = allocations.find((a) => !a.batchId || a.quantity <= 0);
-    if (invalid) { showError("Each allocation needs a batch and quantity > 0"); return; }
-
+  const handleUseStock = async () => {
+    if (useQty <= 0) { showError("Enter a valid quantity"); return; }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/raw-materials/consume", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const res = await fetch(`/api/raw-materials/${id}/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          rawMaterialId: id,
-          locationType: consumeLocationType,
-          locationId: consumeLocationId,
-          purpose: consumePurpose,
-          date: consumeDate,
-          notes: consumeNotes,
-          allocations: allocations.map((a) => ({ batchId: a.batchId, quantity: Number(a.quantity), itemCount: Number(a.itemCount) || 0 })),
+          quantity: useQty,
+          type: useReason,
+          notes: useNotes || undefined,
         }),
       });
-      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
-      showSuccess("Consumption recorded");
-      setShowConsumeModal(false);
-      setAllocations([]); setConsumeLocationId(""); setConsumeNotes("");
+      if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to record consumption"); return; }
+      showSuccess("Stock consumed");
+      setShowUseModal(false);
+      setUseQty(0); setUseNotes(""); setUseReason("consumption");
       fetchData();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
-  if (!material) return <div className="p-8 text-center text-gray-500">Material not found.</div>;
+  if (loading && !material) {
+    return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading...</div>;
+  }
+  if (!material) {
+    return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Material not found.</div>;
+  }
 
   const isLow = material.minimumStock > 0 && material.currentStock < material.minimumStock;
   const isOut = material.currentStock <= 0;
   const supplier = material.supplierId;
-  const totalBatchValue = batches.reduce((s, b) => s + b.availableQuantity * b.unitPrice, 0);
 
-  const tabs = [
-    { key: "overview", label: "Overview" },
-    { key: "batches", label: `Batches (${material.batchCount || batches.length})` },
-    { key: "movements", label: "History" },
-  ];
+  const recLocationOpts = recLocationType === "factory"
+    ? factories.map(f => ({ value: f._id, label: f.name }))
+    : depots.map(d => ({ value: d._id, label: d.name }));
 
   return (
     <div>
@@ -253,144 +223,125 @@ export default function RawMaterialDetailPage() {
         <PageBreadcrumb pageTitle={material.name} />
         <div className="flex gap-3">
           <Button variant="outline" size="sm" startIcon={<PencilIcon />} onClick={openEditModal}>Edit</Button>
-          <Button variant="outline" size="sm" startIcon={<TrashBinIcon />} onClick={() => setDeleteTarget(id)} className="text-error-600 hover:text-error-700 dark:text-error-400">Delete</Button>
-          {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>Call Supplier</Button>}
-          {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>WhatsApp</Button>}
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setStockForm({ receivedQuantity: 0, unit: material.unit, unitPrice: material.unitCost || 0, itemCount: 0, itemUnit: "", batchNumber: "", locationType: "factory", locationId: "", receivedDate: new Date().toISOString().split("T")[0], expiryDate: "", qualityNotes: "", purchaseOrderId: "" }); setShowStockModal(true); }}>Add Stock</Button>
-          <Button variant="outline" size="sm" onClick={() => { setAllocations([]); setConsumeLocationId(""); setShowConsumeModal(true); }}>Consume</Button>
+          <Button variant="outline" size="sm" onClick={() => router.push(`/purchase-orders/new?rawMaterialId=${id}`)}>
+            New PO
+          </Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setRecQty(0); setRecUnit(material.unit); setRecUnitPrice(material.unitCost); setRecLocationId(""); setRecNotes(""); setRecDate(new Date().toISOString().split("T")[0]); setShowReceiveModal(true); }}>
+            Receive Stock
+          </Button>
+          <Button variant="outline" size="sm" startIcon={<ArrowDownIcon />} onClick={() => { setUseQty(0); setUseReason("consumption"); setUseNotes(""); setShowUseModal(true); }}>
+            Use Stock
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5 md:gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Current Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-xl dark:text-white/90">{material.currentStock.toLocaleString()} <span className="text-sm font-normal text-gray-400">{material.unit}</span></h4>
-          <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${isOut ? "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400" : isLow ? "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400" : "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"}`}>
+          <h4 className="mt-1 font-bold text-gray-800 dark:text-white/90 text-xl">
+            {material.currentStock.toLocaleString()}{" "}
+            <span className="text-sm font-normal text-gray-400">{material.unit}</span>
+          </h4>
+          <span className={`inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded-full ${
+            isOut
+              ? "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400"
+              : isLow
+                ? "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
+                : "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
+          }`}>
             {isOut ? "Out of Stock" : isLow ? "Low Stock" : "In Stock"}
           </span>
         </div>
+
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Minimum Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-xl dark:text-white/90">{material.minimumStock.toLocaleString()} <span className="text-sm font-normal text-gray-400">{material.unit}</span></h4>
+          <h4 className="mt-1 font-bold text-gray-800 dark:text-white/90 text-xl">
+            {material.minimumStock.toLocaleString()}{" "}
+            <span className="text-sm font-normal text-gray-400">{material.unit}</span>
+          </h4>
         </div>
+
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Active Batches</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-xl dark:text-white/90">{batches.filter((b) => b.availableQuantity > 0).length}</h4>
-          {material.averageCost > 0 && <p className="text-xs text-gray-400 mt-1">Avg cost: ₦{material.averageCost.toLocaleString()}/{material.unit}</p>}
+          <p className="text-sm text-gray-500 dark:text-gray-400">Supplier</p>
+          {supplier ? (
+            <>
+              <p className="mt-1 font-medium text-gray-800 dark:text-white/90 text-sm">{supplier.name}</p>
+              {supplier.phone && (
+                <a href={`tel:${supplier.phone}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                  {supplier.phone}
+                </a>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">No supplier linked</p>
+          )}
         </div>
+
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Consumed</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-xl dark:text-white/90">{(material.totalConsumed ?? 0).toLocaleString()}</h4>
-          {material.lastConsumedDate && <p className="text-xs text-gray-400 mt-1">Last: {formatDate(material.lastConsumedDate)}</p>}
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Batch Stock Value</p>
-          <AutoAmount value={`₦${totalBatchValue.toLocaleString()}`} />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Unit Cost</p>
+          <AutoAmount value={`₦${(material.unitCost ?? 0).toLocaleString()}`} />
         </div>
       </div>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-6">
-        {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400" : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"}`}>
+        {[
+          { key: "history", label: "History" },
+          { key: "linked-pos", label: `Linked POs (${linkedPOs.length})` },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.key
+                ? "border-brand-600 text-brand-600 dark:border-brand-400 dark:text-brand-400"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            }`}
+          >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {activeTab === "overview" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90 mb-3">Material Details</h3>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Category</dt><dd className="text-gray-800 dark:text-white/90 capitalize">{material.category}</dd></div>
-              <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Unit</dt><dd className="text-gray-800 dark:text-white/90">{material.unit}</dd></div>
-              {material.stockUnit && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Stock Unit</dt><dd className="text-gray-800 dark:text-white/90">{material.stockUnit} ({material.conversionRate} {material.unit}/{material.stockUnit})</dd></div>}
-              {supplier && (
-                <>
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2" />
-                  <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Supplier</dt><dd><Link href={`/suppliers/${supplier._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{supplier.name}</Link></dd></div>
-                  {supplier.phone && <div className="flex justify-between"><dt className="text-gray-500 dark:text-gray-400">Phone</dt><dd className="text-gray-800 dark:text-white/90">{supplier.phone}</dd></div>}
-                </>
-              )}
-              {material.notes && <><div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2" /><div><dt className="text-gray-500 dark:text-gray-400 mb-1">Notes</dt><dd className="text-gray-600 dark:text-gray-300">{material.notes}</dd></div></>}
-            </dl>
+      {activeTab === "history" && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-sm">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Stock Movement History</h3>
           </div>
-          <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-sm">
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Recent Batches</h3>
-            </div>
-            {batches.length === 0 ? (
-              <p className="p-5 text-sm text-gray-500 text-center">No batches yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Batch</TableCell>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Received</TableCell>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Available</TableCell>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Items</TableCell>
-                    <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {batches.slice(0, 5).map((b) => (
-                    <TableRow key={b._id}>
-                      <TableCell className="py-2 text-theme-sm font-mono text-blue-600 dark:text-blue-400">{b.batchNumber}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{b.locationType}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.receivedQuantity.toLocaleString()} {b.unit}</TableCell>
-                      <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">{b.availableQuantity.toLocaleString()} {b.unit}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.itemCount > 0 ? `${b.itemCount} ${b.itemUnit}` : "—"}</TableCell>
-                      <TableCell className="py-2"><Badge variant="light" color={statusColors[b.status] ?? "light"}>{b.status}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === "batches" && (
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">All Batches ({batches.length})</h3>
-            <Link href="/raw-materials/batches"><Button size="sm" variant="outline">View All Batches</Button></Link>
-          </div>
-          {batches.length === 0 ? (
-            <p className="p-8 text-sm text-gray-500 text-center">No batches for this material yet.</p>
+          {movements.length === 0 ? (
+            <p className="p-8 text-sm text-gray-500 text-center">No movements recorded yet.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Batch #</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Received</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Available</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Consumed</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Items</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit Cost</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Value</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Type</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Direction</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Quantity</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Reference</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">By</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {batches.map((b) => {
-                  const loc = typeof b.locationId === "object" ? b.locationId : null;
+                {movements.map(mv => {
+                  const isIn = mv.quantity > 0;
                   return (
-                    <TableRow key={b._id}>
-                      <TableCell className="py-2 text-theme-sm font-mono text-blue-600 dark:text-blue-400">{b.batchNumber}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">{b.locationType}{loc ? ` — ${loc.name}` : ""}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.receivedQuantity.toLocaleString()} {b.unit}</TableCell>
-                      <TableCell className="py-2 text-theme-sm font-medium text-gray-800 dark:text-white/90">{b.availableQuantity.toLocaleString()} {b.unit}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.consumedQuantity.toLocaleString()} {b.unit}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.itemCount > 0 ? `${b.itemCount} ${b.itemUnit}` : "—"}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">₦{b.unitPrice.toLocaleString()}</TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-800 dark:text-white/90">₦{(b.availableQuantity * b.unitPrice).toLocaleString()}</TableCell>
-                      <TableCell className="py-2"><Badge variant="light" color={statusColors[b.status] ?? "light"}>{b.status}</Badge></TableCell>
-                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{b.receivedDate ? formatDate(b.receivedDate) : "—"}</TableCell>
+                    <TableRow key={mv._id}>
+                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(mv.createdAt)}</TableCell>
+                      <TableCell className="py-2">
+                        <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full capitalize ${movementTypeColors[mv.type] || ""}`}>
+                          {mv.type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <span className={`text-xs font-medium ${isIn ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {isIn ? "In" : "Out"}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`py-2 text-theme-sm font-medium ${isIn ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                        {isIn ? "+" : ""}{mv.quantity.toLocaleString()} {mv.unit}
+                      </TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{mv.reference || "—"}</TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{mv.performedBy || "—"}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -400,257 +351,233 @@ export default function RawMaterialDetailPage() {
         </div>
       )}
 
-      {activeTab === "movements" && (
+      {activeTab === "linked-pos" && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-theme-sm">
-          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Stock Movement History</h3>
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Purchase Orders</h3>
+            <Link href={`/purchase-orders/new?rawMaterialId=${id}`}>
+              <Button size="sm" variant="outline" startIcon={<PlusIcon />}>New PO</Button>
+            </Link>
           </div>
-          {movements.length === 0 ? (
-            <p className="p-5 text-sm text-gray-500 text-center">No movements recorded yet.</p>
+          {linkedPOs.length === 0 ? (
+            <p className="p-8 text-sm text-gray-500 text-center">No purchase orders for this material.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Type</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Quantity</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Reference</TableCell>
-                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">By</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">PO #</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Supplier</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Ordered</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Received</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Pending</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Payment</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {movements.map((mv) => (
-                  <TableRow key={mv._id}>
-                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(mv.createdAt)}</TableCell>
-                    <TableCell className="py-2"><span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full capitalize ${movementTypeColors[mv.type] || ""}`}>{mv.type}</span></TableCell>
-                    <TableCell className={`py-2 text-theme-sm font-medium ${mv.quantity > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                      {mv.quantity > 0 ? "+" : ""}{mv.quantity.toLocaleString()} {mv.unit}
-                    </TableCell>
-                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{mv.reference || "—"}</TableCell>
-                    <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{mv.performedBy || "—"}</TableCell>
-                  </TableRow>
-                ))}
+                {linkedPOs.map(po => {
+                  const item = po.items.find(i => i.rawMaterialId === id);
+                  const ordered = item?.quantity ?? 0;
+                  const received = item?.received ?? 0;
+                  const pending = ordered - received;
+
+                  let statusColor: "primary" | "success" | "warning" | "error" | "info" | "light" | "dark" = "light";
+                  if (po.status === "received" || po.status === "completed") statusColor = "success";
+                  else if (po.status === "confirmed" || po.status === "sent") statusColor = "info";
+                  else if (po.status === "pending") statusColor = "warning";
+                  else if (po.status === "cancelled") statusColor = "error";
+
+                  return (
+                    <TableRow key={po._id}>
+                      <TableCell className="py-2">
+                        <Link href={`/purchase-orders/${po._id}`} className="text-theme-sm font-mono text-blue-600 dark:text-blue-400 hover:underline">
+                          {po.orderNumber || po._id.slice(-6).toUpperCase()}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{po.supplier?.name || "—"}</TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-800 dark:text-white/90">{ordered.toLocaleString()}</TableCell>
+                      <TableCell className="py-2 text-theme-sm text-green-600 dark:text-green-400">{received.toLocaleString()}</TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-800 dark:text-white/90">{pending > 0 ? pending.toLocaleString() : "—"}</TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="light" color={statusColor}>{po.status}</Badge>
+                      </TableCell>
+                      <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">—</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </div>
       )}
 
-      {showStockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowStockModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowEditModal(false); }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg mx-4 shadow-theme-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Edit Material</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <CloseIcon className="size-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Add Stock — {material.name}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Creates a new batch with full transaction details</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                <Input value={editName} onChange={e => setEditName(e.target.value)} />
               </div>
-              <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+                  <Input value={editUnit} onChange={e => setEditUnit(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                  <Input value={editCategory} onChange={e => setEditCategory(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                  <Input type="number" value={editMinStock} onChange={e => setEditMinStock(Number(e.target.value))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Cost (₦)</label>
+                  <Input type="number" value={editUnitCost} onChange={e => setEditUnitCost(Number(e.target.value))} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier</label>
+                <Select options={[{ value: "", label: "None" }, ...supplierOpts]} value={editSupplierId} onChange={setEditSupplierId} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <TextArea value={editNotes} onChange={setEditNotes} rows={2} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <Button variant="outline" size="sm" onClick={() => setShowEditModal(false)} disabled={submitting}>Cancel</Button>
+              <Button variant="primary" onClick={handleEditSave} disabled={submitting}>
+                {submitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReceiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowReceiveModal(false); }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Receive Stock — {material.name}</h3>
+              <button onClick={() => setShowReceiveModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <CloseIcon className="size-5" />
+              </button>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type *</label>
-                  <Select options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]} value={stockForm.locationType} onChange={(v) => setStockForm({ ...stockForm, locationType: v, locationId: "" })} />
+                  <Select
+                    options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]}
+                    value={recLocationType}
+                    onChange={v => { setRecLocationType(v); setRecLocationId(""); }}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location *</label>
                   <Select
-                    options={[{ value: "", label: "Select location" }, ...(stockForm.locationType === "factory" ? factories : depots).map((l) => ({ value: l._id, label: l.name }))]}
-                    value={stockForm.locationId}
-                    onChange={(v) => setStockForm({ ...stockForm, locationId: v })}
+                    options={[{ value: "", label: "Select location" }, ...recLocationOpts]}
+                    value={recLocationId}
+                    onChange={setRecLocationId}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity Received *</label>
-                  <Input type="number" placeholder="0" value={stockForm.receivedQuantity} onChange={(e) => setStockForm({ ...stockForm, receivedQuantity: Number(e.target.value) })} />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity *</label>
+                  <Input type="number" placeholder="0" value={recQty} onChange={e => setRecQty(Number(e.target.value))} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
-                  <Input placeholder={material.unit || "kg"} value={stockForm.unit} onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })} />
+                  <Input placeholder={material.unit} value={recUnit} onChange={e => setRecUnit(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Cost (₦) *</label>
-                  <Input type="number" placeholder="0" value={stockForm.unitPrice} onChange={(e) => setStockForm({ ...stockForm, unitPrice: Number(e.target.value) })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Count</label>
-                  <Input type="number" placeholder="0" value={stockForm.itemCount} onChange={(e) => setStockForm({ ...stockForm, itemCount: Number(e.target.value) })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Unit</label>
-                  <Input placeholder="e.g. rolls, bags" value={stockForm.itemUnit} onChange={(e) => setStockForm({ ...stockForm, itemUnit: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Batch / Delivery Ref</label>
-                  <Input placeholder="Auto-generated if empty" value={stockForm.batchNumber} onChange={(e) => setStockForm({ ...stockForm, batchNumber: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received Date</label>
-                  <Input type="date" value={stockForm.receivedDate} onChange={(e) => setStockForm({ ...stockForm, receivedDate: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expiry Date</label>
-                  <Input type="date" value={stockForm.expiryDate} onChange={(e) => setStockForm({ ...stockForm, expiryDate: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Purchase Order</label>
-                  <Select
-                    options={[{ value: "", label: "None" }, ...purchaseOrders.map((po) => ({ value: po._id, label: po.orderNumber }))]}
-                    value={stockForm.purchaseOrderId}
-                    onChange={(v) => setStockForm({ ...stockForm, purchaseOrderId: v })}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Cost (₦)</label>
+                  <Input type="number" placeholder="0" value={recUnitPrice} onChange={e => setRecUnitPrice(Number(e.target.value))} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quality Notes</label>
-                <TextArea placeholder="Quality check notes, condition on arrival, etc." value={stockForm.qualityNotes} onChange={(val) => setStockForm({ ...stockForm, qualityNotes: val })} rows={2} />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                <Input type="date" value={recDate} onChange={e => setRecDate(e.target.value)} />
               </div>
-              {stockForm.receivedQuantity > 0 && stockForm.unitPrice > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <TextArea placeholder="Quality check notes, condition on arrival..." value={recNotes} onChange={setRecNotes} rows={2} />
+              </div>
+              {recQty > 0 && recUnitPrice > 0 && (
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm flex justify-between">
                   <span className="text-gray-500 dark:text-gray-400">Total Cost</span>
-                  <span className="font-semibold text-gray-800 dark:text-white/90">₦{(stockForm.receivedQuantity * stockForm.unitPrice).toLocaleString()}</span>
+                  <span className="font-semibold text-gray-800 dark:text-white/90">₦{(recQty * recUnitPrice).toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <Button variant="outline" size="sm" onClick={() => setShowStockModal(false)} disabled={submitting}>Cancel</Button>
-                <Button variant="primary" onClick={handleAddStock} disabled={submitting || stockForm.receivedQuantity <= 0 || !stockForm.locationId}>{submitting ? "Saving..." : "Create Batch & Add Stock"}</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowReceiveModal(false)} disabled={submitting}>Cancel</Button>
+                <Button variant="primary" onClick={handleReceiveStock} disabled={submitting || recQty <= 0 || !recLocationId}>
+                  {submitting ? "Saving..." : "Receive Stock"}
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {showConsumeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowConsumeModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      {showUseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowUseModal(false); }}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Consume — {material.name}</h3>
-              <button onClick={() => setShowConsumeModal(false)} className="text-gray-400 hover:text-gray-600"><CloseIcon className="size-5" /></button>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Use Stock — {material.name}</h3>
+              <button onClick={() => setShowUseModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <CloseIcon className="size-5" />
+              </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
-                  <Select options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]} value={consumeLocationType} onChange={(v) => { setConsumeLocationType(v); setConsumeLocationId(""); setAllocations([]); }} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-                  <Select options={[{ value: "", label: "Select" }, ...consumeLocationOptions]} value={consumeLocationId} onChange={(v) => { setConsumeLocationId(v); setAllocations([]); }} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Purpose</label>
-                  <Select options={[{ value: "production", label: "Production" }, { value: "wastage", label: "Wastage" }, { value: "adjustment", label: "Adjustment" }, { value: "transfer", label: "Transfer" }, { value: "other", label: "Other" }]} value={consumePurpose} onChange={setConsumePurpose} />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity *</label>
+                <Input type="number" placeholder="0" value={useQty} onChange={e => setUseQty(Number(e.target.value))} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-                  <Input type="date" value={consumeDate} onChange={(e) => setConsumeDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-                  <Input placeholder="Optional..." value={consumeNotes} onChange={(e) => setConsumeNotes(e.target.value)} />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason</label>
+                <Select
+                  options={[
+                    { value: "consumption", label: "Production" },
+                    { value: "waste", label: "Wastage" },
+                    { value: "adjustment", label: "Adjustment" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  value={useReason}
+                  onChange={setUseReason}
+                />
               </div>
-
-              {consumeLocationId && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Batch Allocations</p>
-                    <Button type="button" size="sm" variant="outline" startIcon={<PlusIcon />} onClick={addAllocation}>Add</Button>
-                  </div>
-                  {allocations.length > 0 && (
-                    <div className="space-y-2">
-                      {allocations.map((alloc, i) => {
-                        const batch = batches.find((b) => b._id === alloc.batchId);
-                        const maxQty = alloc.batchId ? (availableBatches.find((b) => b._id === alloc.batchId)?.availableQuantity ?? 0) : 0;
-                        return (
-                          <div key={i} className="flex gap-2 items-end">
-                            <div className="flex-1">
-                              <select className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm" value={alloc.batchId} onChange={(e) => updateAllocation(i, "batchId", e.target.value)}>
-                                <option value="">Select batch</option>
-                                {availableBatches.map((b) => (
-                                  <option key={b._id} value={b._id} disabled={allocations.some((a, j) => j !== i && a.batchId === b._id)}>
-                                    {b.batchNumber} — {b.availableQuantity} {b.unit} @ ₦{b.unitPrice.toLocaleString()}/kg
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="w-28">
-                              <Input type="number" placeholder="Qty" value={alloc.quantity} onChange={(e) => updateAllocation(i, "quantity", Number(e.target.value))} />
-                            </div>
-                            <div className="w-24">
-                              <Input type="number" placeholder="Items" value={alloc.itemCount} onChange={(e) => updateAllocation(i, "itemCount", Number(e.target.value))} />
-                            </div>
-                            <div className="w-32 text-sm text-gray-500 dark:text-gray-400">
-                              {batch ? `₦${((Number(alloc.quantity) || 0) * batch.unitPrice).toLocaleString()}` : ""}
-                            </div>
-                            <button type="button" onClick={() => removeAllocation(i)} className="text-red-500 hover:text-red-700 p-1"><TrashBinIcon className="w-4 h-4" /></button>
-                          </div>
-                        );
-                      })}
-                      <div className="flex justify-end gap-6 text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <span>Total: <strong>{totalConsumeQty.toLocaleString()} {material.unit}</strong></span>
-                        <span>Cost: <strong>₦{totalConsumeCost.toLocaleString()}</strong></span>
-                      </div>
-                    </div>
-                  )}
-                  {allocations.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">Click "Add" to select batches to consume from.</p>
-                  )}
-                </>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <TextArea placeholder="Optional notes..." value={useNotes} onChange={setUseNotes} rows={2} />
+              </div>
+              {useQty > 0 && material.unitCost > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Estimated Cost</span>
+                  <span className="font-semibold text-gray-800 dark:text-white/90">₦{(useQty * material.unitCost).toLocaleString()}</span>
+                </div>
               )}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setShowConsumeModal(false)} disabled={submitting}>Cancel</Button>
-                <Button variant="primary" onClick={handleConsume} disabled={submitting || allocations.length === 0}>{submitting ? "Saving..." : "Record Consumption"}</Button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="outline" size="sm" onClick={() => setShowUseModal(false)} disabled={submitting}>Cancel</Button>
+                <Button variant="primary" onClick={handleUseStock} disabled={submitting || useQty <= 0}>
+                  {submitting ? "Saving..." : "Use Stock"}
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Edit Material</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400"><CloseIcon className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-3">
-              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Name *</label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Unit</label><Input value={editUnit} onChange={(e) => setEditUnit(e.target.value)} /></div>
-                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label><Input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Min Stock</label><Input type="number" value={editMinimumStock} onChange={(e) => setEditMinimumStock(Number(e.target.value))} /></div>
-                <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Unit Cost</label><Input type="number" value={editUnitCost} onChange={(e) => setEditUnitCost(Number(e.target.value))} /></div>
-              </div>
-              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Supplier</label><Select options={[{ value: "", label: "None" }, ...supplierOpts]} value={editSupplierId} onChange={setEditSupplierId} /></div>
-              <div><label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <Button variant="outline" size="sm" onClick={() => setShowEditModal(false)} disabled={submitting}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={handleEditSave} disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Delete Material"
-        message="Are you sure you want to delete this raw material? This action cannot be undone."
-      />
     </div>
   );
 }

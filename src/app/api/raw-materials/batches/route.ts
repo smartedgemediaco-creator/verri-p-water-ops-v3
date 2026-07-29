@@ -77,19 +77,7 @@ export async function POST(req: NextRequest) {
 
   const material = await RawMaterial.findById(body.rawMaterialId);
   if (material) {
-    const oldTotalBatchStock = material.totalBatchStock || 0;
-    const oldAverageCost = material.averageCost || 0;
-    const newTotalBatchStock = oldTotalBatchStock + receivedQty;
-    const newAverageCost = newTotalBatchStock > 0
-      ? ((oldTotalBatchStock * oldAverageCost) + (receivedQty * unitPrice)) / newTotalBatchStock
-      : unitPrice;
-
     material.currentStock += receivedQty;
-    material.totalReceived += receivedQty;
-    material.totalBatchStock = newTotalBatchStock;
-    material.batchCount += 1;
-    material.averageCost = newAverageCost;
-    material.lastReceivedDate = new Date();
     if (body.supplierId) material.supplierId = body.supplierId;
     await material.save();
 

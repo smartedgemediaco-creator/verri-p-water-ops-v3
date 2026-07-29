@@ -13,26 +13,11 @@ export async function GET(req: NextRequest) {
   const totalMaterials = materials.length;
   const lowStockCount = materials.filter((m) => m.currentStock < m.minimumStock).length;
   const outOfStockCount = materials.filter((m) => m.currentStock <= 0).length;
-  const totalStockValue = materials.reduce((s, m) => {
-    const stock = m.totalBatchStock ?? m.currentStock ?? 0;
-    const cost = m.averageCost ?? m.unitCost ?? 0;
-    return s + stock * cost;
-  }, 0);
+  const totalStockValue = materials.reduce((s, m) => s + m.currentStock * m.unitCost, 0);
 
   const batchAgg = await RawMaterialBatch.aggregate([
-    { $match: { status: { $in: ["received", "partially-received"] } } },
-    { $group: { _id: null, totalAvailable: { $sum: "$availableQuantity" }, totalConsumed: { $sum: "$consumedQuantity" }, totalBatches: { $sum: 1 } } },
+    { $group: { _id: null, totalReceived: { $sum: "$receivedQuantity" }, totalConsumed: { $sum: "$consumedQuantity" } } },
   ]);
-
-  const totalReceived = batchAgg[0]?.totalAvailable
-    ? await RawMaterialBatch.aggregate([
-        { $group: { _id: null, total: { $sum: "$receivedQuantity" } } },
-      ]).then((r: Array<{ total: number }>) => r[0]?.total ?? 0)
-    : materials.reduce((s, m) => s + (m.totalReceived ?? 0), 0);
-
-  const totalConsumed = await RawMaterialBatch.aggregate([
-    { $group: { _id: null, total: { $sum: "$consumedQuantity" } } },
-  ]).then((r: Array<{ total: number }>) => r[0]?.total ?? 0);
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -61,16 +46,7 @@ export async function GET(req: NextRequest) {
       $group: {
         _id: "$supplierId",
         materialCount: { $sum: 1 },
-        totalReceived: { $sum: { $ifNull: ["$totalReceived", 0] } },
-        totalConsumed: { $sum: { $ifNull: ["$totalConsumed", 0] } },
-        totalStockValue: {
-          $sum: {
-            $multiply: [
-              { $ifNull: ["$totalBatchStock", { $ifNull: ["$currentStock", 0] }] },
-              { $ifNull: ["$averageCost", { $ifNull: ["$unitCost", 0] }] },
-            ],
-          },
-        },
+        totalStockValue: { $sum: { $multiply: [{ $ifNull: ["$currentStock", 0] }, { $ifNull: ["$unitCost", 0] }] } },
       },
     },
     {
@@ -88,8 +64,6 @@ export async function GET(req: NextRequest) {
         supplierId: "$_id",
         supplierName: { $ifNull: ["$supplier.name", "Unassigned"] },
         materialCount: 1,
-        totalReceived: 1,
-        totalConsumed: 1,
         totalStockValue: 1,
       },
     },
@@ -101,8 +75,8 @@ export async function GET(req: NextRequest) {
     lowStockCount,
     outOfStockCount,
     totalStockValue,
-    totalReceived,
-    totalConsumed,
+    totalReceived: batchAgg[0]?.totalReceived ?? 0,
+    totalConsumed: batchAgg[0]?.totalConsumed ?? 0,
     pendingOrders,
     unpaidOrders,
     receivedThisMonth,

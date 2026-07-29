@@ -84,13 +84,7 @@ export async function POST(
 
     if (item.rawMaterialId) {
       await RawMaterial.findByIdAndUpdate(item.rawMaterialId, {
-        $inc: {
-          currentStock: receivedQty,
-          totalReceived: receivedQty,
-          totalBatchStock: receivedQty,
-          batchCount: 1,
-        },
-        $set: { lastReceivedDate: new Date() },
+        $inc: { currentStock: receivedQty },
       });
     }
   }

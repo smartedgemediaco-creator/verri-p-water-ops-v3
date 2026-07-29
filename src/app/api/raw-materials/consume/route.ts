@@ -98,8 +98,6 @@ export async function POST(req: NextRequest) {
   });
 
   material.currentStock -= totalQuantity;
-  material.totalConsumed += totalQuantity;
-  material.lastConsumedDate = new Date();
   await material.save();
 
   await logActivity({

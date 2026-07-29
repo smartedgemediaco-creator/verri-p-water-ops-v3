@@ -16,11 +16,8 @@ export async function GET(req: NextRequest) {
 
   if (similar) {
     const materials = await RawMaterial.find({
-      $or: [
-        { name: { $regex: similar, $options: "i" } },
-        { alternativeNames: { $regex: similar, $options: "i" } },
-      ],
-    }).select("name alternativeNames unit category currentStock supplierId").populate("supplierId", "name").lean();
+      name: { $regex: similar, $options: "i" },
+    }).select("name unit category currentStock supplierId").populate("supplierId", "name").lean();
     return NextResponse.json(materials);
   }
 
