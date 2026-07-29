@@ -649,7 +649,7 @@ export default function PurchaseOrdersPage() {
                         items[i] = toggleCustom(items[i]);
                         setForm({ ...form, items });
                       }}
-                      className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"}`}
+                      className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-500/20" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/20"}`}
                     >
                       {item.isCustom ? "Custom Item" : "Raw Material"}
                     </button>
@@ -789,7 +789,7 @@ export default function PurchaseOrdersPage() {
                           items[i] = toggleCustom(items[i]);
                           setEditForm({ ...editForm, items });
                         }}
-                        className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"}`}
+                        className={`text-[10px] font-medium px-2 py-1 rounded-full transition-colors cursor-pointer ${item.isCustom ? "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-500/20" : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/20"}`}
                       >
                         {item.isCustom ? "Custom Item" : "Raw Material"}
                       </button>
