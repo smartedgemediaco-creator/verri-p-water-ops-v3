@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   await connectDB();
   const body = await req.json();
   const allowedFields: Record<string, unknown> = {};
-  for (const key of ["name", "unit", "stockUnit", "conversionRate", "category", "minimumStock", "unitCost", "supplierId", "notes"]) {
+  for (const key of ["name", "alternativeNames", "unit", "stockUnit", "conversionRate", "category", "minimumStock", "unitCost", "supplierId", "notes"]) {
     if (key in body) allowedFields[key] = body[key];
   }
   const material = await RawMaterial.findByIdAndUpdate(id, allowedFields, { new: true });

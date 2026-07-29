@@ -56,6 +56,46 @@ export async function GET(req: NextRequest) {
     { $group: { _id: null, total: { $sum: "$amountPaid" } } },
   ]);
 
+  const supplierBreakdown = await RawMaterial.aggregate([
+    {
+      $group: {
+        _id: "$supplierId",
+        materialCount: { $sum: 1 },
+        totalReceived: { $sum: { $ifNull: ["$totalReceived", 0] } },
+        totalConsumed: { $sum: { $ifNull: ["$totalConsumed", 0] } },
+        totalStockValue: {
+          $sum: {
+            $multiply: [
+              { $ifNull: ["$totalBatchStock", { $ifNull: ["$currentStock", 0] }] },
+              { $ifNull: ["$averageCost", { $ifNull: ["$unitCost", 0] }] },
+            ],
+          },
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "suppliers",
+        localField: "_id",
+        foreignField: "_id",
+        as: "supplier",
+      },
+    },
+    { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 0,
+        supplierId: "$_id",
+        supplierName: { $ifNull: ["$supplier.name", "Unassigned"] },
+        materialCount: 1,
+        totalReceived: 1,
+        totalConsumed: 1,
+        totalStockValue: 1,
+      },
+    },
+    { $sort: { materialCount: -1 } },
+  ]);
+
   return NextResponse.json({
     totalMaterials,
     lowStockCount,
@@ -69,5 +109,6 @@ export async function GET(req: NextRequest) {
     totalOrderValue: totalOrderValue[0]?.total ?? 0,
     totalPaidValue: totalPaidValue[0]?.total ?? 0,
     totalUnpaidValue: (totalOrderValue[0]?.total ?? 0) - (totalPaidValue[0]?.total ?? 0),
+    supplierBreakdown,
   });
 }

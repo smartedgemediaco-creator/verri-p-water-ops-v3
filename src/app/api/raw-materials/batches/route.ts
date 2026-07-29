@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { RawMaterialBatch, RawMaterial } from "@/lib/models";
+import { RawMaterialBatch, RawMaterial, RawMaterialStockMovement } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { notifyLowStock } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const year = new Date().getFullYear();
   const count = await RawMaterialBatch.countDocuments();
-  const batchNumber = `BATCH-${year}-${String(count + 1).padStart(4, "0")}`;
+  const batchNumber = body.batchNumber || `BATCH-${year}-${String(count + 1).padStart(4, "0")}`;
 
   const batch = await RawMaterialBatch.create({
     rawMaterialId: body.rawMaterialId,
@@ -74,23 +75,47 @@ export async function POST(req: NextRequest) {
     createdBy: user.userId,
   });
 
-  await RawMaterial.findByIdAndUpdate(body.rawMaterialId, {
-    $inc: {
-      currentStock: receivedQty,
-      totalReceived: receivedQty,
-      totalBatchStock: receivedQty,
-      batchCount: 1,
-    },
-    $set: { lastReceivedDate: new Date() },
-  });
+  const material = await RawMaterial.findById(body.rawMaterialId);
+  if (material) {
+    const oldTotalBatchStock = material.totalBatchStock || 0;
+    const oldAverageCost = material.averageCost || 0;
+    const newTotalBatchStock = oldTotalBatchStock + receivedQty;
+    const newAverageCost = newTotalBatchStock > 0
+      ? ((oldTotalBatchStock * oldAverageCost) + (receivedQty * unitPrice)) / newTotalBatchStock
+      : unitPrice;
+
+    material.currentStock += receivedQty;
+    material.totalReceived += receivedQty;
+    material.totalBatchStock = newTotalBatchStock;
+    material.batchCount += 1;
+    material.averageCost = newAverageCost;
+    material.lastReceivedDate = new Date();
+    if (body.supplierId) material.supplierId = body.supplierId;
+    await material.save();
+
+    await RawMaterialStockMovement.create({
+      rawMaterialId: body.rawMaterialId,
+      type: "purchase",
+      quantity: receivedQty,
+      unit: body.unit || material.unit,
+      unitCost: unitPrice,
+      reference: `Batch ${batchNumber}`,
+      notes: body.qualityNotes || "",
+      performedBy: user.email || user.userId,
+    });
+
+    if (material.currentStock < material.minimumStock) {
+      notifyLowStock(material.name, material.currentStock, material.minimumStock).catch(() => {});
+    }
+  }
 
   await logActivity({
     action: "created",
-    "entity": "raw-material-batch",
+    entity: "raw-material-batch",
     entityId: batch._id.toString(),
     description: `Created batch ${batchNumber} — ${receivedQty} ${body.unit || "kg"} of material`,
     userId: user.userId,
-    metadata: { batchNumber, receivedQty, unitPrice },
+    metadata: { batchNumber, receivedQty, unitPrice, locationType: body.locationType, locationId: body.locationId },
   });
 
   return NextResponse.json(batch, { status: 201 });

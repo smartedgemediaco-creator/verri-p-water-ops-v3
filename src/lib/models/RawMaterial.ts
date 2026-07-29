@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IRawMaterial extends Document {
   name: string;
+  alternativeNames: string[];
   unit: string;
   stockUnit: string;
   conversionRate: number;
@@ -25,6 +26,7 @@ export interface IRawMaterial extends Document {
 const RawMaterialSchema = new Schema<IRawMaterial>(
   {
     name: { type: String, required: true },
+    alternativeNames: { type: [String], default: [] },
     unit: { type: String, required: true, default: "kg" },
     stockUnit: { type: String, default: "" },
     conversionRate: { type: Number, default: 1 },

@@ -1,14 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { RawMaterial } from "@/lib/models";
+import { RawMaterial, RawMaterialBatch } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
-export async function GET(_req: NextRequest) {
-  const user = getUserFromRequest(_req);
+export async function GET(req: NextRequest) {
+  const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await connectDB();
-  const materials = await RawMaterial.find().populate("supplierId", "name").sort({ name: 1 });
+
+  const { searchParams } = new URL(req.url);
+  const similar = searchParams.get("similar");
+  const locationType = searchParams.get("locationType");
+  const locationId = searchParams.get("locationId");
+
+  if (similar) {
+    const materials = await RawMaterial.find({
+      $or: [
+        { name: { $regex: similar, $options: "i" } },
+        { alternativeNames: { $regex: similar, $options: "i" } },
+      ],
+    }).select("name alternativeNames unit category currentStock supplierId").populate("supplierId", "name").lean();
+    return NextResponse.json(materials);
+  }
+
+  let filter: Record<string, unknown> = {};
+  if (locationType && locationId) {
+    const batchMaterialIds = await RawMaterialBatch.distinct("rawMaterialId", {
+      locationType,
+      locationId,
+    });
+    filter = { _id: { $in: batchMaterialIds } };
+  }
+
+  const materials = await RawMaterial.find(filter).populate("supplierId", "name").sort({ name: 1 });
   return NextResponse.json(materials);
 }
 

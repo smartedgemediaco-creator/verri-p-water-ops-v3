@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/dateFormat";
 import { showSuccess, showError } from "@/lib/toast";
 import { PlusIcon, CloseIcon, TrashBinIcon, PencilIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import TextArea from "@/components/form/input/TextArea";
 
 interface RawMaterial {
   _id: string; name: string; unit: string; stockUnit: string; conversionRate: number;
@@ -62,7 +63,21 @@ export default function RawMaterialDetailPage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showStockModal, setShowStockModal] = useState(false);
   const [showConsumeModal, setShowConsumeModal] = useState(false);
-  const [stockAmount, setStockAmount] = useState(0);
+  const [stockForm, setStockForm] = useState({
+    receivedQuantity: 0,
+    unit: "",
+    unitPrice: 0,
+    itemCount: 0,
+    itemUnit: "",
+    batchNumber: "",
+    locationType: "factory",
+    locationId: "",
+    receivedDate: new Date().toISOString().split("T")[0],
+    expiryDate: "",
+    qualityNotes: "",
+    purchaseOrderId: "",
+  });
+  const [purchaseOrders, setPurchaseOrders] = useState<{ _id: string; orderNumber: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [consumeLocationType, setConsumeLocationType] = useState("factory");
@@ -102,6 +117,7 @@ export default function RawMaterialDetailPage() {
     fetch("/api/factories").then((r) => r.json()).then((d) => setFactories(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/depots").then((r) => r.json()).then((d) => setDepots(Array.isArray(d) ? d : [])).catch(() => {});
     fetch("/api/suppliers").then((r) => r.json()).then((d: { _id: string; name: string }[]) => setSupplierOpts(Array.isArray(d) ? d.map((s) => ({ value: s._id, label: s.name })) : [])).catch(() => {});
+    fetch("/api/purchase-orders").then((r) => r.json()).then((d) => setPurchaseOrders(Array.isArray(d) ? d.filter((po: { status: string }) => ["sent", "confirmed", "partially-received"].includes(po.status)).map((po: { _id: string; orderNumber: string }) => ({ _id: po._id, orderNumber: po.orderNumber })) : [])).catch(() => {});
   }, [id]);
 
   const openEditModal = () => {
@@ -134,15 +150,35 @@ export default function RawMaterialDetailPage() {
   };
 
   const handleAddStock = async () => {
-    if (stockAmount <= 0) { showError("Enter a valid quantity"); return; }
+    if (stockForm.receivedQuantity <= 0) { showError("Enter a valid quantity"); return; }
+    if (!stockForm.locationId) { showError("Select a location"); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/raw-materials/${id}/stock`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ increment: stockAmount }),
+      const res = await fetch("/api/raw-materials/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rawMaterialId: id,
+          locationType: stockForm.locationType,
+          locationId: stockForm.locationId,
+          supplierId: material?.supplierId?._id || undefined,
+          receivedQuantity: stockForm.receivedQuantity,
+          unit: stockForm.unit || material?.unit || "kg",
+          unitPrice: stockForm.unitPrice,
+          itemCount: stockForm.itemCount,
+          itemUnit: stockForm.itemUnit,
+          batchNumber: stockForm.batchNumber || undefined,
+          purchaseOrderId: stockForm.purchaseOrderId || undefined,
+          receivedDate: stockForm.receivedDate,
+          expiryDate: stockForm.expiryDate || undefined,
+          qualityNotes: stockForm.qualityNotes,
+        }),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
-      showSuccess("Stock added"); setShowStockModal(false); setStockAmount(0); fetchData();
+      showSuccess("Stock added — batch created");
+      setShowStockModal(false);
+      setStockForm({ receivedQuantity: 0, unit: "", unitPrice: 0, itemCount: 0, itemUnit: "", batchNumber: "", locationType: "factory", locationId: "", receivedDate: new Date().toISOString().split("T")[0], expiryDate: "", qualityNotes: "", purchaseOrderId: "" });
+      fetchData();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
@@ -220,7 +256,7 @@ export default function RawMaterialDetailPage() {
           <Button variant="outline" size="sm" startIcon={<TrashBinIcon />} onClick={() => setDeleteTarget(id)} className="text-error-600 hover:text-error-700 dark:text-error-400">Delete</Button>
           {supplier?.phone && <Button variant="outline" size="sm" onClick={() => window.open(`tel:${supplier!.phone}`, "_self")}>Call Supplier</Button>}
           {supplier?.whatsapp && <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/${supplier!.whatsapp!.replace(/[^0-9]/g, "")}`, "_blank")}>WhatsApp</Button>}
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setStockAmount(0); setShowStockModal(true); }}>Add Stock</Button>
+          <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setStockForm({ receivedQuantity: 0, unit: material.unit, unitPrice: material.unitCost || 0, itemCount: 0, itemUnit: "", batchNumber: "", locationType: "factory", locationId: "", receivedDate: new Date().toISOString().split("T")[0], expiryDate: "", qualityNotes: "", purchaseOrderId: "" }); setShowStockModal(true); }}>Add Stock</Button>
           <Button variant="outline" size="sm" onClick={() => { setAllocations([]); setConsumeLocationId(""); setShowConsumeModal(true); }}>Consume</Button>
         </div>
       </div>
@@ -402,19 +438,88 @@ export default function RawMaterialDetailPage() {
 
       {showStockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowStockModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Add Stock</h3>
-              <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600"><CloseIcon className="size-5" /></button>
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Add Stock — {material.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Creates a new batch with full transaction details</p>
+              </div>
+              <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity to Add</label>
-                <Input type="number" placeholder="0" value={stockAmount} onChange={(e) => setStockAmount(Number(e.target.value))} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type *</label>
+                  <Select options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]} value={stockForm.locationType} onChange={(v) => setStockForm({ ...stockForm, locationType: v, locationId: "" })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location *</label>
+                  <Select
+                    options={[{ value: "", label: "Select location" }, ...(stockForm.locationType === "factory" ? factories : depots).map((l) => ({ value: l._id, label: l.name }))]}
+                    value={stockForm.locationId}
+                    onChange={(v) => setStockForm({ ...stockForm, locationId: v })}
+                  />
+                </div>
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity Received *</label>
+                  <Input type="number" placeholder="0" value={stockForm.receivedQuantity} onChange={(e) => setStockForm({ ...stockForm, receivedQuantity: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+                  <Input placeholder={material.unit || "kg"} value={stockForm.unit} onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Cost (₦) *</label>
+                  <Input type="number" placeholder="0" value={stockForm.unitPrice} onChange={(e) => setStockForm({ ...stockForm, unitPrice: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Count</label>
+                  <Input type="number" placeholder="0" value={stockForm.itemCount} onChange={(e) => setStockForm({ ...stockForm, itemCount: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Unit</label>
+                  <Input placeholder="e.g. rolls, bags" value={stockForm.itemUnit} onChange={(e) => setStockForm({ ...stockForm, itemUnit: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Batch / Delivery Ref</label>
+                  <Input placeholder="Auto-generated if empty" value={stockForm.batchNumber} onChange={(e) => setStockForm({ ...stockForm, batchNumber: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received Date</label>
+                  <Input type="date" value={stockForm.receivedDate} onChange={(e) => setStockForm({ ...stockForm, receivedDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expiry Date</label>
+                  <Input type="date" value={stockForm.expiryDate} onChange={(e) => setStockForm({ ...stockForm, expiryDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Purchase Order</label>
+                  <Select
+                    options={[{ value: "", label: "None" }, ...purchaseOrders.map((po) => ({ value: po._id, label: po.orderNumber }))]}
+                    value={stockForm.purchaseOrderId}
+                    onChange={(v) => setStockForm({ ...stockForm, purchaseOrderId: v })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quality Notes</label>
+                <TextArea placeholder="Quality check notes, condition on arrival, etc." value={stockForm.qualityNotes} onChange={(val) => setStockForm({ ...stockForm, qualityNotes: val })} rows={2} />
+              </div>
+              {stockForm.receivedQuantity > 0 && stockForm.unitPrice > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Total Cost</span>
+                  <span className="font-semibold text-gray-800 dark:text-white/90">₦{(stockForm.receivedQuantity * stockForm.unitPrice).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="outline" size="sm" onClick={() => setShowStockModal(false)} disabled={submitting}>Cancel</Button>
-                <Button variant="primary" onClick={handleAddStock} disabled={submitting || stockAmount <= 0}>{submitting ? "Saving..." : "Add Stock"}</Button>
+                <Button variant="primary" onClick={handleAddStock} disabled={submitting || stockForm.receivedQuantity <= 0 || !stockForm.locationId}>{submitting ? "Saving..." : "Create Batch & Add Stock"}</Button>
               </div>
             </div>
           </div>
