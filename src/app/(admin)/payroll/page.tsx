@@ -309,38 +309,6 @@ export default function PayrollPage() {
     } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
   };
 
-  // Per-row auto-fill: computes the same delta, then PATCHes the record so the row updates in place.
-  const autoFillRecord = async (record: PayrollRecord) => {
-    if (!record || !record.staffId || !record.month) return;
-    setAutoFilling(true);
-    try {
-      const amounts = await fetchAttendanceAmounts(record.staffId, record.month);
-      if (amounts.absence === 0 && amounts.lateness === 0 && amounts.halfDay === 0) {
-        showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
-        return;
-      }
-      const prevSync = record.attendanceSync ?? { absence: 0, lateness: 0, halfDay: 0 };
-      const manualAbsence = Math.max(0, (record.deductions?.absence ?? 0) - prevSync.absence);
-      const manualLateness = Math.max(0, (record.deductions?.lateness ?? 0) - prevSync.lateness);
-      const manualHalfDay = Math.max(0, (record.deductions?.halfDay ?? 0) - prevSync.halfDay);
-      const body = {
-        deductions: {
-          absence: manualAbsence + amounts.absence,
-          lateness: manualLateness + amounts.lateness,
-          halfDay: manualHalfDay + amounts.halfDay,
-          debt: record.deductions?.debt ?? 0,
-          punishment: record.deductions?.punishment ?? 0,
-          other: record.deductions?.other ?? 0,
-        },
-        attendanceSync: { ...amounts, syncedAt: new Date().toISOString() },
-      };
-      const res = await fetch(`/api/payroll/${record._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to auto-fill"); return; }
-      showSuccess(`Auto-filled ${record.staff?.name ?? "staff"} from attendance`);
-      fetchRecords();
-    } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
-  };
-
   const submitForm = async () => {
     setSubmitting(true);
     try {
@@ -648,10 +616,6 @@ export default function PayrollPage() {
                     </TableCell>
                     <TableCell className="py-3">
                       <div className="flex gap-1.5 items-center flex-wrap">
-                        <button onClick={() => autoFillRecord(record)} disabled={autoFilling}
-                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors">
-                          {record.attendanceSync?.syncedAt ? "Re-sync" : "Auto-fill"}
-                        </button>
                         {record.status !== "paid" && (
                           <button onClick={() => { setPayTarget(record); setPayAmount(String(record.netPay - record.paidAmount)); }}
                             className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 transition-colors">
@@ -727,7 +691,7 @@ export default function PayrollPage() {
                 {(autoFilled || editingRecord?.attendanceSync?.syncedAt) && (
                   <p className="text-[10px] text-gray-400 mt-2">
                     Attendance sync: Absence ₦{(formAttendanceSync.absence ?? 0).toLocaleString()} · Late ₦{(formAttendanceSync.lateness ?? 0).toLocaleString()} · Half-Day ₦{(formAttendanceSync.halfDay ?? 0).toLocaleString()}.
-                    Synced amounts never re-add — only new attendance changes update this record.
+                    Auto-fill never double-adds (delta-based) — every field stays editable and Net Pay recalculates automatically.
                   </p>
                 )}
               </div>
