@@ -43,6 +43,9 @@ interface Summary {
   totalBonus: number;
   totalNetPay: number;
   totalPaid: number;
+  totalDebt: number;
+  totalDebtSettled: number;
+  totalDebtOutstanding: number;
   pendingCount: number;
   paidCount: number;
   partialCount: number;
@@ -441,6 +444,16 @@ export default function PayrollPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Deductions</p>
           <AutoAmount value={`₦${(summary?.totalDeductions ?? 0).toLocaleString()}`} className="text-red-600 dark:text-red-400" />
           <p className="text-xs text-gray-400 mt-0.5">This month only</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
+          <div className="flex items-center justify-center w-10 h-10 bg-rose-100 rounded-lg dark:bg-rose-500/10 mb-3">
+            <DollarLineIcon className="text-rose-600 size-5 dark:text-rose-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Debt (This Month)</p>
+          <AutoAmount value={`₦${(summary?.totalDebtOutstanding ?? 0).toLocaleString()}`} className="text-rose-600 dark:text-rose-400" />
+          <p className="text-xs text-gray-400 mt-0.5">
+            ₦{(summary?.totalDebtSettled ?? 0).toLocaleString()} settled of ₦{(summary?.totalDebt ?? 0).toLocaleString()} · use the settle link on each record
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">

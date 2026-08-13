@@ -118,6 +118,16 @@ export async function GET(req: NextRequest) {
         totalBonus: { $sum: "$bonus" },
         totalNetPay: { $sum: "$netPay" },
         totalPaid: { $sum: "$paidAmount" },
+        totalDebt: { $sum: "$deductions.debt" },
+        totalDebtSettled: {
+          $sum: {
+            $reduce: {
+              input: "$debtSettlements",
+              initialValue: 0,
+              in: { $add: ["$$value", "$$this.amount"] },
+            },
+          },
+        },
         pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
         paidCount: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] } },
         partialCount: { $sum: { $cond: [{ $eq: ["$status", "partial"] }, 1, 0] } },
@@ -127,8 +137,10 @@ export async function GET(req: NextRequest) {
 
   const summary = summaryAgg[0] || {
     totalStaff: 0, totalBaseSalary: 0, totalDeductions: 0, totalBonus: 0,
-    totalNetPay: 0, totalPaid: 0, pendingCount: 0, paidCount: 0, partialCount: 0,
+    totalNetPay: 0, totalPaid: 0, totalDebt: 0, totalDebtSettled: 0,
+    pendingCount: 0, paidCount: 0, partialCount: 0,
   };
+  summary.totalDebtOutstanding = Math.max(0, (summary.totalDebt ?? 0) - (summary.totalDebtSettled ?? 0));
 
   // Per-month isolation: one entry per month (never cumulative)
   const monthAgg = await PayrollRecord.aggregate([
