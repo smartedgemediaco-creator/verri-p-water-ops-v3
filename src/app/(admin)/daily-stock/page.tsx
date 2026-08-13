@@ -31,12 +31,17 @@ interface DayRecord {
   totalSold: number;
   totalReturned: number;
   endStock: number;
-  debtors: number;
+  debtors: { name: string; amount: number }[];
   debts: number;
   debtStatus: string;
   cashDelivered: number;
   staffName: string;
   [key: string]: unknown;
+}
+
+interface DebtorEntry {
+  name: string;
+  amount: number;
 }
 
 interface ColumnDef {
@@ -61,13 +66,13 @@ const DEPOT_FIELDS = [
 ];
 
 const DEPOT_POST_ENDSTOCK = [
-  { key: "debtors", label: "Debtors", type: "number" as const },
+  { key: "debtors", label: "Debtors", type: "debtors" as const },
   { key: "debts", label: "Debts", type: "number" as const },
   { key: "debtStatus", label: "Debt Status", type: "select" as const },
   { key: "cashDelivered", label: "Cash Delivered", type: "number" as const },
 ];
 
-const DEBT_STATUS_OPTIONS = ["pending", "partial", "paid"];
+const DEBT_STATUS_OPTIONS = ["pending", "partial", "transfer"];
 
 export default function DailyStockPage() {
   const searchParams = useSearchParams();
@@ -102,6 +107,7 @@ export default function DailyStockPage() {
   const [showAddDay, setShowAddDay] = useState(false);
   const [adding, setAdding] = useState(false);
   const [page, setPage] = useState(1);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, unknown>>>({});
   const [savingBatch, setSavingBatch] = useState(false);
@@ -144,13 +150,17 @@ export default function DailyStockPage() {
 
   useEffect(() => { fetchRecords(); fetchColumns(); }, [fetchRecords, fetchColumns]);
   useEffect(() => { setPage(1); setPendingChanges({}); setHiddenCols([]); }, [selectedLocationId, locationType]);
+  useEffect(() => { setPage(1); setPendingChanges({}); }, [month]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const latestRecord = records.length > 0 ? records[0] : null;
   const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date);
+  const monthRecords = records.filter((r) => r.date.startsWith(month));
+  const latestMonthRecord = monthRecords.length > 0 ? monthRecords[0] : null;
 
   const saleKeys = columns.filter((c) => c.type === "sale").map((c) => c.key);
   const returnKeys = columns.filter((c) => c.type === "return").map((c) => c.key);
+  const shortageKeys = columns.filter((c) => c.type !== "sale" && c.type !== "return" && /^shortages?$/i.test(c.label.trim())).map((c) => c.key);
   const allSaleKeys = [...BUILTIN_SALE, ...saleKeys];
   const allReturnKeys = [...BUILTIN_RETURN, ...returnKeys];
 
@@ -158,17 +168,20 @@ export default function DailyStockPage() {
   const calcTotalReturned = (d: DayRecord) => allReturnKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
   const calcEndStock = (d: DayRecord) => (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) + calcTotalReturned(d) - calcTotalSold(d) - (Number(d.shortage) || 0) - (Number(d.wastage) || 0);
   const calcDepotEndStock = (d: DayRecord) =>
-    (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0) - (Number(d.factorySale) || 0) - (Number(d.bigTruck) || 0) - (Number(d.leakages) || 0);
+    (Number(d.startStock) || 0) + (Number(d.bagsProduced) || 0)
+    - (Number(d.factorySale) || 0) - (Number(d.bigTruck) || 0)
+    - (Number(d.leakages) || 0)
+    - shortageKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
 
-  const totalDays = records.length;
-  const totalProduced = records.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0);
-  const totalSold = records.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
-  const totalReturned = records.reduce((s, r) => allReturnKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
-  const currentEndStock = latestRecord ? (isFactory ? calcEndStock(latestRecord) : calcDepotEndStock(latestRecord)) : 0;
+  const totalDays = monthRecords.length;
+  const totalProduced = monthRecords.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0);
+  const totalSold = monthRecords.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
+  const totalReturned = monthRecords.reduce((s, r) => allReturnKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
+  const currentEndStock = latestMonthRecord ? (isFactory ? calcEndStock(latestMonthRecord) : calcDepotEndStock(latestMonthRecord)) : 0;
 
-  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(monthRecords.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const paginatedRecords = records.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paginatedRecords = monthRecords.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleChange = (id: string, field: string, rawValue: string) => {
     const isSelect = field === "debtStatus";
@@ -190,6 +203,29 @@ export default function DailyStockPage() {
       ...prev,
       [id]: { ...(prev[id] || {}), [field]: val },
     }));
+  };
+
+  const getDebtors = (d: DayRecord): DebtorEntry[] => (Array.isArray(d.debtors) ? d.debtors : []);
+
+  const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
+    const current = records.find((r) => r._id === id);
+    const next = updater(getDebtors(current ?? ({} as DayRecord)));
+    setRecords((prev) => prev.map((r) => (r._id === id ? { ...r, debtors: next } : r)));
+    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), debtors: next } }));
+  };
+
+  const handleDebtorChange = (id: string, index: number, field: "name" | "amount", value: string) => {
+    updateDebtors(id, (list) => list.map((d, i) =>
+      i === index ? { ...d, [field]: field === "amount" ? Number(value) || 0 : value } : d
+    ));
+  };
+
+  const handleDebtorAdd = (id: string) => {
+    updateDebtors(id, (list) => [...list, { name: "", amount: 0 }]);
+  };
+
+  const handleDebtorRemove = (id: string, index: number) => {
+    updateDebtors(id, (list) => list.filter((_, i) => i !== index));
   };
 
   const saveAll = async () => {
@@ -311,6 +347,11 @@ export default function DailyStockPage() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <PageBreadcrumb pageTitle={title} />
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
               + Add Column
@@ -319,9 +360,7 @@ export default function DailyStockPage() {
               − Remove Column
             </Button>
             <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => {
-              const tomorrow = new Date();
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              setAddDayDate(tomorrow.toISOString().slice(0, 10));
+              setAddDayDate(todayStr);
               setShowAddDay(true);
             }}>
               Add New Day
@@ -445,7 +484,7 @@ export default function DailyStockPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, records.length)} of {records.length}
+                  Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, monthRecords.length)} of {monthRecords.length}
                 </p>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}
@@ -684,7 +723,7 @@ export default function DailyStockPage() {
                       </td>
                       <td className="px-1.5 py-1.5 text-right font-bold text-brand-600 dark:text-brand-400">{calcDepotEndStock(d).toLocaleString()}</td>
                       {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
-                        <td key={f.key} className="px-1.5 py-1.5">
+                        <td key={f.key} className="px-1.5 py-1.5 align-top">
                           {f.type === "select" ? (
                             <select value={(d as unknown as Record<string, string>)[f.key] || "pending"}
                               onChange={(e) => handleChange(d._id, f.key, e.target.value)}
@@ -693,6 +732,25 @@ export default function DailyStockPage() {
                                 <option key={opt} value={opt}>{opt}</option>
                               ))}
                             </select>
+                          ) : f.type === "debtors" ? (
+                            <div className={`rounded border p-1.5 space-y-1 min-w-[150px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                              {getDebtors(d).map((debtor, di) => (
+                                <div key={di} className="flex items-center gap-1">
+                                  <input type="text" value={debtor.name}
+                                    onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
+                                    placeholder="Name"
+                                    className="w-20 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                  <input type="number" value={debtor.amount ?? 0}
+                                    onChange={(e) => handleDebtorChange(d._id, di, "amount", e.target.value)}
+                                    placeholder="₦"
+                                    className="w-16 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                  <button onClick={() => handleDebtorRemove(d._id, di)}
+                                    className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                                </div>
+                              ))}
+                              <button onClick={() => handleDebtorAdd(d._id)}
+                                className="text-[9px] text-brand-500 hover:text-brand-700">+ Add debtor</button>
+                            </div>
                           ) : (
                             <input type="number" value={(d as unknown as Record<string, number>)[f.key] ?? 0}
                               onChange={(e) => handleChange(d._id, f.key, e.target.value)}
@@ -727,7 +785,9 @@ export default function DailyStockPage() {
                   <td className="px-1.5 py-2 text-xs text-right text-brand-600 dark:text-brand-400">{paginatedRecords.reduce((s, r) => s + calcDepotEndStock(r), 0).toLocaleString()}</td>
                   {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                     <td key={f.key} className="px-1.5 py-2 text-xs text-right">
-                      {f.type === "select" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
+                      {f.type === "select" ? "" : f.type === "debtors"
+                        ? paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0).toLocaleString()
+                        : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
                   ))}
                   <td></td>

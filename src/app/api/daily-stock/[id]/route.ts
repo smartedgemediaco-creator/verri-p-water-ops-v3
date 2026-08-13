@@ -7,13 +7,23 @@ import { dailyStockDeletedEmail } from "@/lib/emailTemplates";
 
 const SKIP_KEYS = new Set(["date", "locationType", "locationId", "_id", "__v", "createdAt", "updatedAt"]);
 const STRING_FIELDS = new Set(["staffName", "debtStatus"]);
+const ARRAY_FIELDS = new Set(["debtors"]);
+const SHORTAGE_LABEL_RE = /^shortages?$/i;
 
-function calcEndStock(record: Record<string, unknown>) {
+function calcEndStock(record: Record<string, unknown>, shortageKeys: string[] = []) {
+  const shortageTotal = shortageKeys.reduce((sum, k) => sum + (Number(record[k]) || 0), 0);
   return (Number(record.startStock) || 0)
     + (Number(record.bagsProduced) || 0)
     - (Number(record.factorySale) || 0)
     - (Number(record.bigTruck) || 0)
-    - (Number(record.leakages) || 0);
+    - (Number(record.leakages) || 0)
+    - shortageTotal;
+}
+
+async function getDepotShortageKeys(locationType: string, locationId: string): Promise<string[]> {
+  if (locationType !== "depot") return [];
+  const columns = await DailyStockColumn.find({ locationType, locationId, type: "custom" }).lean();
+  return columns.filter((c) => SHORTAGE_LABEL_RE.test(c.label.trim())).map((c) => c.key);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,14 +38,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   for (const [key, val] of Object.entries(body)) {
     if (SKIP_KEYS.has(key)) continue;
-    if (STRING_FIELDS.has(key)) {
+    if (ARRAY_FIELDS.has(key)) {
+      (record as unknown as Record<string, unknown>)[key] = Array.isArray(val)
+        ? (val as { name?: unknown; amount?: unknown }[]).map((d) => ({ name: String(d?.name ?? "").trim(), amount: Number(d?.amount) || 0 }))
+        : [];
+    } else if (STRING_FIELDS.has(key)) {
       (record as unknown as Record<string, string>)[key] = String(val ?? "");
     } else {
       (record as unknown as Record<string, number>)[key] = Number(val) || 0;
     }
   }
 
-  record.endStock = calcEndStock(record.toObject());
+  const shortageKeys = await getDepotShortageKeys(record.locationType, record.locationId);
+  record.endStock = calcEndStock(record.toObject(), shortageKeys);
 
   await record.save();
   return NextResponse.json(record);

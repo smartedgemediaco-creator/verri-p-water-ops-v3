@@ -22,9 +22,9 @@ export interface IDailyStock extends Document {
   totalReturned: number;
   endStock: number;
   staffName: string;
-  debtors: number;
+  debtors: { name: string; amount: number }[];
   debts: number;
-  debtStatus: "pending" | "partial" | "paid";
+  debtStatus: "pending" | "partial" | "transfer" | "paid";
   cashDelivered: number;
   createdAt: Date;
   updatedAt: Date;
@@ -53,9 +53,10 @@ const DailyStockSchema = new Schema<IDailyStock>(
     totalReturned: { type: Number, default: 0 },
     endStock: { type: Number, default: 0 },
     staffName: { type: String, default: "" },
-    debtors: { type: Number, default: 0 },
+    // Array of { name, amount } — Mixed so legacy numeric "debtors" values don't break on read.
+    debtors: { type: Schema.Types.Mixed, default: [] },
     debts: { type: Number, default: 0 },
-    debtStatus: { type: String, enum: ["pending", "partial", "paid"], default: "pending" },
+    debtStatus: { type: String, enum: ["pending", "partial", "transfer", "paid"], default: "pending" },
     cashDelivered: { type: Number, default: 0 },
   },
   { timestamps: true }
