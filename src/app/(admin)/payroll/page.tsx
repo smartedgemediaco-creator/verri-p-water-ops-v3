@@ -541,7 +541,7 @@ export default function PayrollPage() {
             {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay · this month only
           </p>
           <p className="text-[11px] text-gray-400 mt-0.5">
-            Bonus / Debt = this month · Prev Bonus / Prev Debt / Prev Pay = last month only (company policy: one month back).
+            Bonus / Debt = this month · Prev Debt / Prev Pay = last month only (company policy: one month back).
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -553,7 +553,6 @@ export default function PayrollPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Base Salary</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Deductions</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bonus</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Bonus</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Debt</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Pay</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Debt (Month)</TableCell>
@@ -565,11 +564,11 @@ export default function PayrollPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={12}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>Loading...</TableCell>
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={12}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               records.map((record) => {
@@ -609,20 +608,6 @@ export default function PayrollPage() {
                       </div>
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
-                    <TableCell className="py-3">
-                      {(() => {
-                        const prevBonus = record.previousMonth?.bonus ?? 0;
-                        const prevLabel = record.previousMonth?.month ? monthLabel(record.previousMonth.month) : "";
-                        return prevBonus > 0 ? (
-                          <div className="text-theme-sm text-success-600 dark:text-success-400">
-                            ₦{prevBonus.toLocaleString()}
-                            {prevLabel && (
-                              <div className="text-[10px] text-gray-400 mt-0.5">{prevLabel}</div>
-                            )}
-                          </div>
-                        ) : "—";
-                      })()}
-                    </TableCell>
                     <TableCell className="py-3">
                       {(() => {
                         const prevDebt = record.previousMonth?.debt ?? 0;
