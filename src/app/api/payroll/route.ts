@@ -63,6 +63,34 @@ export async function GET(req: NextRequest) {
 
   const enriched = await Promise.all(records.map(enrichRecord));
 
+  // Brought forward: sums of deductions/debts/bonuses from months BEFORE the selected month.
+  // Kept separate so the current month's salary/deductions/bonus stay scoped to the month.
+  if (month) {
+    const staffIds = [...new Set(enriched.map((r) => r.staffId))];
+    if (staffIds.length > 0) {
+      const prevAgg = await PayrollRecord.aggregate([
+        { $match: { staffId: { $in: staffIds }, month: { $lt: month } } },
+        {
+          $group: {
+            _id: "$staffId",
+            deductions: {
+              $sum: { $add: ["$deductions.absence", "$deductions.lateness", "$deductions.halfDay", "$deductions.debt", "$deductions.punishment", "$deductions.other"] },
+            },
+            debt: { $sum: "$deductions.debt" },
+            bonus: { $sum: "$bonus" },
+          },
+        },
+      ]);
+      const bfMap = new Map(prevAgg.map((x) => [x._id.toString(), x]));
+      for (const r of enriched) {
+        const bf = bfMap.get(r.staffId.toString());
+        r.broughtForward = bf
+          ? { deductions: bf.deductions ?? 0, debt: bf.debt ?? 0, bonus: bf.bonus ?? 0, total: (bf.deductions ?? 0) + (bf.bonus ?? 0) }
+          : { deductions: 0, debt: 0, bonus: 0, total: 0 };
+      }
+    }
+  }
+
   // Compute summary stats for the given month (or all time)
   const summaryMatch: any = {};
   if (month) summaryMatch.month = month;
@@ -94,12 +122,30 @@ export async function GET(req: NextRequest) {
     totalNetPay: 0, totalPaid: 0, pendingCount: 0, paidCount: 0, partialCount: 0,
   };
 
+  // Per-month isolation: one entry per month (never cumulative)
+  const monthAgg = await PayrollRecord.aggregate([
+    { $group: {
+      _id: "$month",
+      count: { $sum: 1 },
+      totalBaseSalary: { $sum: "$baseSalary" },
+      totalDeductions: { $sum: { $add: ["$deductions.absence", "$deductions.lateness", "$deductions.halfDay", "$deductions.debt", "$deductions.punishment", "$deductions.other"] } },
+      totalBonus: { $sum: "$bonus" },
+      totalNetPay: { $sum: "$netPay" },
+      totalPaid: { $sum: "$paidAmount" },
+      pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+      paidCount: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] } },
+      partialCount: { $sum: { $cond: [{ $eq: ["$status", "partial"] }, 1, 0] } },
+    } },
+    { $sort: { _id: -1 } },
+  ]);
+
   // Get distinct months for filter dropdown
   const months = await PayrollRecord.distinct("month").sort().lean();
 
   return NextResponse.json({
     records: enriched,
     summary,
+    monthSummary: monthAgg,
     months,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   });

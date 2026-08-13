@@ -20,6 +20,7 @@ import BusinessAdviceCard from "@/components/business/BusinessAdviceCard";
 import ProductionForm from "@/components/charts/ProductionForm";
 import RecordCostForm from "@/components/charts/RecordCostForm";
 import AutoAmount from "@/components/ui/AutoAmount";
+import LiveClock from "@/components/ui/LiveClock";
 import { TrendingUpIcon, TrendingDownIcon, MinusIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -231,18 +232,21 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-title-md font-bold text-gray-800 dark:text-white">
-          {entityName ? `${entityName} — Dashboard` : "Verri P Water Inc"}
-        </h1>
-        <p className="text-theme-sm text-gray-500">
-          {user?.name ? `Welcome, ${user.name} — ` : ""}
-          {isFactoryManager
-            ? "Factory Operations Command Center"
-            : isDepotManager
-            ? "Depot Operations Command Center"
-            : "Dashboard — Factory, Depot & Distribution Overview"}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-title-md font-bold text-gray-800 dark:text-white">
+            {entityName ? `${entityName} — Dashboard` : "Verri P Water Inc"}
+          </h1>
+          <p className="text-theme-sm text-gray-500">
+            {user?.name ? `Welcome, ${user.name} — ` : ""}
+            {isFactoryManager
+              ? "Factory Operations Command Center"
+              : isDepotManager
+              ? "Depot Operations Command Center"
+              : "Dashboard — Factory, Depot & Distribution Overview"}
+          </p>
+        </div>
+        <LiveClock showDate showTime />
       </div>
 
       {/* Top summary row */}

@@ -33,20 +33,19 @@ export async function GET(req: NextRequest) {
     .sort({ name: 1 })
     .lean();
 
-  const monthStart = new Date(`${month}-01T00:00:00.000Z`);
-  const monthEnd = new Date(monthStart);
-  monthEnd.setMonth(monthEnd.getMonth() + 1);
-  monthEnd.setMilliseconds(-1);
+  const [year, monthNum] = month.split("-").map(Number);
+  const monthStart = new Date(Date.UTC(year, monthNum - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, monthNum, 1));
 
   const attendanceRecords = await Attendance.find({
     staffId: { $in: staffIds },
-    date: { $gte: monthStart, $lte: monthEnd },
+    date: { $gte: monthStart, $lt: monthEnd },
   }).lean();
 
-  const totalDaysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const totalDaysInMonth = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
   let workingDays = 0;
   for (let d = 1; d <= totalDaysInMonth; d++) {
-    const day = new Date(monthStart.getFullYear(), monthStart.getMonth(), d);
+    const day = new Date(year, monthNum - 1, d);
     const dow = day.getDay();
     if (dow !== 0 && dow !== 6) workingDays++;
   }

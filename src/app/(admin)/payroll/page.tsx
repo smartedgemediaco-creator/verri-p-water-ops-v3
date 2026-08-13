@@ -31,10 +31,25 @@ interface PayrollRecord {
   role?: string;
   department?: string;
   locationName?: string;
+  broughtForward?: { deductions: number; debt: number; bonus: number; total: number };
+  attendanceSync?: { absence: number; lateness: number; halfDay: number; syncedAt?: string };
 }
 
 interface Summary {
   totalStaff: number;
+  totalBaseSalary: number;
+  totalDeductions: number;
+  totalBonus: number;
+  totalNetPay: number;
+  totalPaid: number;
+  pendingCount: number;
+  paidCount: number;
+  partialCount: number;
+}
+
+interface MonthSummary {
+  _id: string;
+  count: number;
   totalBaseSalary: number;
   totalDeductions: number;
   totalBonus: number;
@@ -65,6 +80,14 @@ const MONTHS = [
   { value: "2026-11", label: "November 2026" },
   { value: "2026-12", label: "December 2026" },
 ];
+
+function monthLabel(value: string) {
+  const found = MONTHS.find((m) => m.value === value);
+  if (found) return found.label;
+  const [y, m] = value.split("-").map(Number);
+  if (!y || !m || m < 1 || m > 12) return value;
+  return `${new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-US", { month: "long", timeZone: "UTC" })} ${y}`;
+}
 
 function AdjustField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [adjust, setAdjust] = useState("");
@@ -128,6 +151,7 @@ export default function PayrollPage() {
   const [records, setRecords] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [monthSummary, setMonthSummary] = useState<MonthSummary[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -152,6 +176,8 @@ export default function PayrollPage() {
   const [formPaidAmount, setFormPaidAmount] = useState("0");
   const [formNotes, setFormNotes] = useState("");
   const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
+  const [formAttendanceSync, setFormAttendanceSync] = useState<{ absence: number; lateness: number; halfDay: number }>({ absence: 0, lateness: 0, halfDay: 0 });
   const [submitting, setSubmitting] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -167,7 +193,7 @@ export default function PayrollPage() {
     if (filterStatus) params.set("status", filterStatus);
     fetch(`/api/payroll?${params}`)
       .then((r) => r.json())
-      .then((data) => { setRecords(data.records ?? []); setSummary(data.summary ?? null); })
+      .then((data) => { setRecords(data.records ?? []); setSummary(data.summary ?? null); setMonthSummary(data.monthSummary ?? []); })
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   }, [selectedMonth, filterStatus]);
@@ -190,6 +216,8 @@ export default function PayrollPage() {
     setFormBaseSalary("");
     setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
     setFormBonus("0"); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
+    setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
+    setAutoFilled(false);
     setShowForm(true);
   };
 
@@ -208,6 +236,12 @@ export default function PayrollPage() {
     setFormStatus(record.status);
     setFormPaidAmount(String(record.paidAmount ?? 0));
     setFormNotes(record.notes ?? "");
+    setFormAttendanceSync({
+      absence: record.attendanceSync?.absence ?? 0,
+      lateness: record.attendanceSync?.lateness ?? 0,
+      halfDay: record.attendanceSync?.halfDay ?? 0,
+    });
+    setAutoFilled(Boolean(record.attendanceSync?.syncedAt));
     setShowForm(true);
   };
 
@@ -256,17 +290,27 @@ export default function PayrollPage() {
           showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
           return;
         }
-        setFormAbsence(String(totalAbsenceAmount));
-        setFormLateness(String(totalLateAmount));
-        setFormHalfDay(String(totalHalfDayAmount));
-        showSuccess(`Auto-filled: Absence ₦${totalAbsenceAmount.toLocaleString()}, Late ₦${totalLateAmount.toLocaleString()}, Half-Day ₦${totalHalfDayAmount.toLocaleString()}`);
+        // Only apply the DELTA on top of what was already synced, so a deduction is never added twice.
+        const prevSync = formAttendanceSync;
+        const manualAbsence = Math.max(0, (Number(formAbsence) || 0) - prevSync.absence);
+        const manualLateness = Math.max(0, (Number(formLateness) || 0) - prevSync.lateness);
+        const manualHalfDay = Math.max(0, (Number(formHalfDay) || 0) - prevSync.halfDay);
+        const newAbsence = manualAbsence + totalAbsenceAmount;
+        const newLateness = manualLateness + totalLateAmount;
+        const newHalfDay = manualHalfDay + totalHalfDayAmount;
+        setFormAbsence(String(newAbsence));
+        setFormLateness(String(newLateness));
+        setFormHalfDay(String(newHalfDay));
+        setFormAttendanceSync({ absence: totalAbsenceAmount, lateness: totalLateAmount, halfDay: totalHalfDayAmount });
+        setAutoFilled(true);
+        showSuccess(`Auto-filled from attendance: Absence ₦${totalAbsenceAmount.toLocaleString()}, Late ₦${totalLateAmount.toLocaleString()}, Half-Day ₦${totalHalfDayAmount.toLocaleString()}. Attendance deductions apply once.`);
     } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
   };
 
   const submitForm = async () => {
     setSubmitting(true);
     try {
-      const body = {
+      const body: Record<string, unknown> = {
         staffId: formStaffId, month: formMonth, baseSalary: Number(formBaseSalary),
         deductions: {
           absence: Number(formAbsence) || 0, lateness: Number(formLateness) || 0,
@@ -274,6 +318,9 @@ export default function PayrollPage() {
         },
         bonus: Number(formBonus) || 0, status: formStatus, paidAmount: Number(formPaidAmount) || 0, notes: formNotes,
       };
+      if (autoFilled) {
+        body.attendanceSync = { ...formAttendanceSync, syncedAt: new Date().toISOString() };
+      }
       const url = editingRecord ? `/api/payroll/${editingRecord._id}` : "/api/payroll";
       const res = await fetch(url, { method: editingRecord ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to save"); return; }
@@ -306,8 +353,6 @@ export default function PayrollPage() {
     } catch { showError("Network error"); } finally { setPaying(false); }
   };
 
-  const totalDeductions = records.reduce((sum, r) => sum + (r.deductions?.absence ?? 0) + (r.deductions?.lateness ?? 0) + (r.deductions?.halfDay ?? 0) + (r.deductions?.debt ?? 0) + (r.deductions?.punishment ?? 0) + (r.deductions?.other ?? 0), 0);
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -327,17 +372,17 @@ export default function PayrollPage() {
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <DollarLineIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Payables</p>
-          <AutoAmount value={`₦${((summary?.totalBaseSalary ?? 0) + (summary?.totalBonus ?? 0) - (summary?.totalPaid ?? 0) - (summary?.totalDeductions ?? 0)).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">After deductions & payments</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding</p>
+          <AutoAmount value={`₦${((summary?.totalNetPay ?? 0) - (summary?.totalPaid ?? 0)).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
+          <p className="text-xs text-gray-400 mt-0.5">This month&apos;s net pay not yet paid</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Net Pay</p>
-          <AutoAmount value={`₦${(summary?.totalBaseSalary ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
-          <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff</p>
+          <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff · this month only</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
@@ -352,7 +397,8 @@ export default function PayrollPage() {
             <BoxIconLine className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Deductions</p>
-          <AutoAmount value={`₦${totalDeductions.toLocaleString()}`} className="text-red-600 dark:text-red-400" />
+          <AutoAmount value={`₦${(summary?.totalDeductions ?? 0).toLocaleString()}`} className="text-red-600 dark:text-red-400" />
+          <p className="text-xs text-gray-400 mt-0.5">This month only</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
@@ -371,6 +417,50 @@ export default function PayrollPage() {
         </div>
       </div>
 
+      {monthSummary.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Months</h3>
+            <p className="text-xs text-gray-400">Each card is isolated to its own month — tap to view</p>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {monthSummary.map((ms) => {
+              const selected = ms._id === selectedMonth;
+              const paid = ms.totalPaid ?? 0;
+              const net = ms.totalNetPay ?? 0;
+              const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
+              return (
+                <button
+                  key={ms._id}
+                  onClick={() => { setFilterStatus(""); setSelectedMonth(ms._id); }}
+                  className={`min-w-[190px] shrink-0 text-left rounded-xl p-4 border transition-all ${
+                    selected
+                      ? "bg-brand-50 dark:bg-brand-500/10 border-brand-300 dark:border-brand-500/40 ring-2 ring-brand-500/20"
+                      : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-500/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className={`text-sm font-semibold ${selected ? "text-brand-700 dark:text-brand-300" : "text-gray-800 dark:text-white/90"}`}>
+                      {monthLabel(ms._id)}
+                    </p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${selected ? "bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300" : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"}`}>
+                      {ms.count} rec{ms.count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <p className={`mt-2 text-lg font-bold ${selected ? "text-brand-700 dark:text-brand-300" : "text-gray-800 dark:text-white/90"}`}>
+                    ₦{(paid ?? 0).toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-gray-400">paid to date · of ₦{(net ?? 0).toLocaleString()} net</p>
+                  <div className="mt-2 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                    <div className={`h-full rounded-full ${net > 0 && paid >= net ? "bg-success-500" : "bg-brand-500"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Select options={MONTHS} value={selectedMonth} onChange={setSelectedMonth} placeholder="Select Month" />
@@ -387,10 +477,10 @@ export default function PayrollPage() {
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-            Salary Records — {MONTHS.find((m) => m.value === selectedMonth)?.label ?? selectedMonth}
+            Salary Records — {monthLabel(selectedMonth)}
           </h3>
           <p className="text-xs text-gray-400 mt-1">
-            {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay
+            {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay · this month only
           </p>
         </div>
         <Table>
@@ -401,6 +491,9 @@ export default function PayrollPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Base Salary</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Deductions</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bonus</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Brought Fwd</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Debt</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Debt (Month)</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Net Pay</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
@@ -409,11 +502,11 @@ export default function PayrollPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>Loading...</TableCell>
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               records.map((record) => {
@@ -444,9 +537,54 @@ export default function PayrollPage() {
                             {record.deductions?.other ? `Other: ₦${record.deductions.other.toLocaleString()}` : ""}
                           </div>
                         )}
+                        {record.attendanceSync?.syncedAt && (
+                          <span className="inline-flex items-center mt-1 text-[10px] font-medium text-brand-600 dark:text-brand-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 mr-1" />
+                            Synced from attendance
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell className="py-3">
+                      {(() => {
+                        const bf = record.broughtForward;
+                        const bfTotal = bf?.total ?? 0;
+                        const bfDed = bf?.deductions ?? 0;
+                        const bfDebt = bf?.debt ?? 0;
+                        const bfBonus = bf?.bonus ?? 0;
+                        return bfTotal > 0 ? (
+                          <div className="text-theme-sm text-gray-600 dark:text-gray-300">
+                            ₦{bfTotal.toLocaleString()}
+                            <div className="text-[10px] text-gray-400 mt-0.5">
+                              {bfDed > 0 ? `Deductions: ₦${bfDed.toLocaleString()} ` : ""}
+                              {bfDebt > 0 ? `Debt: ₦${bfDebt.toLocaleString()} ` : ""}
+                              {bfBonus > 0 ? `Bonus: ₦${bfBonus.toLocaleString()}` : ""}
+                            </div>
+                          </div>
+                        ) : "—";
+                      })()}
+                    </TableCell>
+                    <TableCell className="py-3">
+                      {(() => {
+                        const prevDebt = record.broughtForward?.debt ?? 0;
+                        return prevDebt > 0 ? (
+                          <span className="text-theme-sm font-medium text-red-600 dark:text-red-400">
+                            ₦{prevDebt.toLocaleString()}
+                          </span>
+                        ) : "—";
+                      })()}
+                    </TableCell>
+                    <TableCell className="py-3">
+                      {(() => {
+                        const monthDebt = record.deductions?.debt ?? 0;
+                        return monthDebt > 0 ? (
+                          <span className="text-theme-sm font-medium text-red-600 dark:text-red-400">
+                            ₦{monthDebt.toLocaleString()}
+                          </span>
+                        ) : "—";
+                      })()}
+                    </TableCell>
                     <TableCell className="py-3 text-theme-sm font-semibold text-gray-800 dark:text-white/90">₦{record.netPay.toLocaleString()}</TableCell>
                     <TableCell className="py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
@@ -529,6 +667,12 @@ export default function PayrollPage() {
                   <AdjustField label="Punishment" value={formPunishment} onChange={setFormPunishment} />
                   <AdjustField label="Other" value={formOther} onChange={setFormOther} />
                 </div>
+                {(autoFilled || editingRecord?.attendanceSync?.syncedAt) && (
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    Attendance sync: Absence ₦{(formAttendanceSync.absence ?? 0).toLocaleString()} · Late ₦{(formAttendanceSync.lateness ?? 0).toLocaleString()} · Half-Day ₦{(formAttendanceSync.halfDay ?? 0).toLocaleString()}.
+                    Synced amounts never re-add — only new attendance changes update this record.
+                  </p>
+                )}
               </div>
 
               <div>

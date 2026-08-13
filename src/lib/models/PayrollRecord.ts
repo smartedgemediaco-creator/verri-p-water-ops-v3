@@ -12,6 +12,12 @@ export interface IPayrollRecord extends Document {
     punishment: number;
     other: number;
   };
+  attendanceSync: {
+    absence: number;
+    lateness: number;
+    halfDay: number;
+    syncedAt?: Date;
+  };
   bonus: number;
   netPay: number;
   status: "pending" | "paid" | "partial";
@@ -35,6 +41,12 @@ const PayrollRecordSchema = new Schema<IPayrollRecord>(
       debt: { type: Number, default: 0, min: 0 },
       punishment: { type: Number, default: 0, min: 0 },
       other: { type: Number, default: 0, min: 0 },
+    },
+    attendanceSync: {
+      absence: { type: Number, default: 0, min: 0 },
+      lateness: { type: Number, default: 0, min: 0 },
+      halfDay: { type: Number, default: 0, min: 0 },
+      syncedAt: { type: Date },
     },
     bonus: { type: Number, default: 0, min: 0 },
     netPay: { type: Number, required: true },
