@@ -31,7 +31,7 @@ interface PayrollRecord {
   role?: string;
   department?: string;
   locationName?: string;
-  previousMonth?: { debt: number; netPay: number; month: string; status: string };
+  previousMonth?: { debt: number; netPay: number; bonus: number; month: string; status: string };
   attendanceSync?: { absence: number; lateness: number; halfDay: number; syncedAt?: string };
 }
 
@@ -260,50 +260,84 @@ export default function PayrollPage() {
     if (found) setFormBaseSalary(String(found.salary));
   };
 
+  const fetchAttendanceAmounts = async (staffId: string, month: string) => {
+    const [factories, depots] = await Promise.all([
+      fetch("/api/factories").then((r) => r.json()),
+      fetch("/api/depots").then((r) => r.json()),
+    ]);
+    const locations: { type: string; id: string }[] = [];
+    if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
+    if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
+
+    let totalLateAmount = 0;
+    let totalAbsenceAmount = 0;
+    let totalHalfDayAmount = 0;
+    for (const loc of locations) {
+      const res = await fetch(`/api/attendance/summary?month=${month}&locationType=${loc.type}&locationId=${loc.id}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === staffId);
+      if (staffSummary) {
+        totalLateAmount += staffSummary.totalLateAmount || 0;
+        totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
+        totalHalfDayAmount += staffSummary.totalHalfDayAmount || 0;
+      }
+    }
+    return { absence: totalAbsenceAmount, lateness: totalLateAmount, halfDay: totalHalfDayAmount };
+  };
+
   const autoFillFromAttendance = async () => {
     if (!formStaffId || !formMonth) { showError("Select staff and month first"); return; }
     setAutoFilling(true);
     try {
-      const [factories, depots] = await Promise.all([
-        fetch("/api/factories").then((r) => r.json()),
-        fetch("/api/depots").then((r) => r.json()),
-      ]);
-      const locations: { type: string; id: string }[] = [];
-      if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
-      if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
+      const amounts = await fetchAttendanceAmounts(formStaffId, formMonth);
+      if (amounts.absence === 0 && amounts.lateness === 0 && amounts.halfDay === 0) {
+        showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
+        return;
+      }
+      // Only apply the DELTA on top of what was already synced, so a deduction is never added twice.
+      const prevSync = formAttendanceSync;
+      const manualAbsence = Math.max(0, (Number(formAbsence) || 0) - prevSync.absence);
+      const manualLateness = Math.max(0, (Number(formLateness) || 0) - prevSync.lateness);
+      const manualHalfDay = Math.max(0, (Number(formHalfDay) || 0) - prevSync.halfDay);
+      setFormAbsence(String(manualAbsence + amounts.absence));
+      setFormLateness(String(manualLateness + amounts.lateness));
+      setFormHalfDay(String(manualHalfDay + amounts.halfDay));
+      setFormAttendanceSync({ absence: amounts.absence, lateness: amounts.lateness, halfDay: amounts.halfDay });
+      setAutoFilled(true);
+      showSuccess(`Auto-filled from attendance: Absence ₦${amounts.absence.toLocaleString()}, Late ₦${amounts.lateness.toLocaleString()}, Half-Day ₦${amounts.halfDay.toLocaleString()}. Attendance deductions apply once.`);
+    } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
+  };
 
-      let totalLateAmount = 0;
-      let totalAbsenceAmount = 0;
-      let totalHalfDayAmount = 0;
-      for (const loc of locations) {
-        const res = await fetch(`/api/attendance/summary?month=${formMonth}&locationType=${loc.type}&locationId=${loc.id}`);
-        if (!res.ok) continue;
-        const data = await res.json();
-        const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === formStaffId);
-          if (staffSummary) {
-            totalLateAmount += staffSummary.totalLateAmount || 0;
-            totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
-            totalHalfDayAmount += staffSummary.totalHalfDayAmount || 0;
-          }
-        }
-        if (totalAbsenceAmount === 0 && totalLateAmount === 0 && totalHalfDayAmount === 0) {
-          showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
-          return;
-        }
-        // Only apply the DELTA on top of what was already synced, so a deduction is never added twice.
-        const prevSync = formAttendanceSync;
-        const manualAbsence = Math.max(0, (Number(formAbsence) || 0) - prevSync.absence);
-        const manualLateness = Math.max(0, (Number(formLateness) || 0) - prevSync.lateness);
-        const manualHalfDay = Math.max(0, (Number(formHalfDay) || 0) - prevSync.halfDay);
-        const newAbsence = manualAbsence + totalAbsenceAmount;
-        const newLateness = manualLateness + totalLateAmount;
-        const newHalfDay = manualHalfDay + totalHalfDayAmount;
-        setFormAbsence(String(newAbsence));
-        setFormLateness(String(newLateness));
-        setFormHalfDay(String(newHalfDay));
-        setFormAttendanceSync({ absence: totalAbsenceAmount, lateness: totalLateAmount, halfDay: totalHalfDayAmount });
-        setAutoFilled(true);
-        showSuccess(`Auto-filled from attendance: Absence ₦${totalAbsenceAmount.toLocaleString()}, Late ₦${totalLateAmount.toLocaleString()}, Half-Day ₦${totalHalfDayAmount.toLocaleString()}. Attendance deductions apply once.`);
+  // Per-row auto-fill: computes the same delta, then PATCHes the record so the row updates in place.
+  const autoFillRecord = async (record: PayrollRecord) => {
+    if (!record || !record.staffId || !record.month) return;
+    setAutoFilling(true);
+    try {
+      const amounts = await fetchAttendanceAmounts(record.staffId, record.month);
+      if (amounts.absence === 0 && amounts.lateness === 0 && amounts.halfDay === 0) {
+        showError("No fine amounts recorded for this staff. Set ₦ amounts on the Attendance page first.");
+        return;
+      }
+      const prevSync = record.attendanceSync ?? { absence: 0, lateness: 0, halfDay: 0 };
+      const manualAbsence = Math.max(0, (record.deductions?.absence ?? 0) - prevSync.absence);
+      const manualLateness = Math.max(0, (record.deductions?.lateness ?? 0) - prevSync.lateness);
+      const manualHalfDay = Math.max(0, (record.deductions?.halfDay ?? 0) - prevSync.halfDay);
+      const body = {
+        deductions: {
+          absence: manualAbsence + amounts.absence,
+          lateness: manualLateness + amounts.lateness,
+          halfDay: manualHalfDay + amounts.halfDay,
+          debt: record.deductions?.debt ?? 0,
+          punishment: record.deductions?.punishment ?? 0,
+          other: record.deductions?.other ?? 0,
+        },
+        attendanceSync: { ...amounts, syncedAt: new Date().toISOString() },
+      };
+      const res = await fetch(`/api/payroll/${record._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to auto-fill"); return; }
+      showSuccess(`Auto-filled ${record.staff?.name ?? "staff"} from attendance`);
+      fetchRecords();
     } catch { showError("Failed to auto-fill"); } finally { setAutoFilling(false); }
   };
 
@@ -483,10 +517,11 @@ export default function PayrollPage() {
             {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay · this month only
           </p>
           <p className="text-[11px] text-gray-400 mt-0.5">
-            Prev Debt = the staff&apos;s debt owed from the previous month · Prev Pay = last month&apos;s net pay · both look one month back only (company policy).
+            Bonus / Debt = this month · Prev Bonus / Prev Debt / Prev Pay = last month only (company policy: one month back).
           </p>
         </div>
-        <Table>
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Staff</TableCell>
@@ -494,6 +529,7 @@ export default function PayrollPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Base Salary</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Deductions</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bonus</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Bonus</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Debt</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Pay</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Debt (Month)</TableCell>
@@ -505,11 +541,11 @@ export default function PayrollPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>Loading...</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={12}>Loading...</TableCell>
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={11}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
+                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={12}>No salary records for this month. Click &quot;New Salary Record&quot; to create one.</TableCell>
               </TableRow>
             ) : (
               records.map((record) => {
@@ -549,6 +585,20 @@ export default function PayrollPage() {
                       </div>
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell className="py-3">
+                      {(() => {
+                        const prevBonus = record.previousMonth?.bonus ?? 0;
+                        const prevLabel = record.previousMonth?.month ? monthLabel(record.previousMonth.month) : "";
+                        return prevBonus > 0 ? (
+                          <div className="text-theme-sm text-success-600 dark:text-success-400">
+                            ₦{prevBonus.toLocaleString()}
+                            {prevLabel && (
+                              <div className="text-[10px] text-gray-400 mt-0.5">{prevLabel}</div>
+                            )}
+                          </div>
+                        ) : "—";
+                      })()}
+                    </TableCell>
                     <TableCell className="py-3">
                       {(() => {
                         const prevDebt = record.previousMonth?.debt ?? 0;
@@ -598,6 +648,10 @@ export default function PayrollPage() {
                     </TableCell>
                     <TableCell className="py-3">
                       <div className="flex gap-1.5 items-center flex-wrap">
+                        <button onClick={() => autoFillRecord(record)} disabled={autoFilling}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors">
+                          {record.attendanceSync?.syncedAt ? "Re-sync" : "Auto-fill"}
+                        </button>
                         {record.status !== "paid" && (
                           <button onClick={() => { setPayTarget(record); setPayAmount(String(record.netPay - record.paidAmount)); }}
                             className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 transition-colors">
@@ -622,6 +676,7 @@ export default function PayrollPage() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Create/Edit Modal */}

@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
         staffId: { $in: staffIds },
         month: prevMonth,
       })
-        .select("staffId status deductions.debt netPay")
+        .select("staffId status deductions.debt netPay bonus")
         .lean();
       const prevMap = new Map(prevRecords.map((r) => [r.staffId.toString(), r]));
       for (const r of enriched) {
@@ -90,10 +90,11 @@ export async function GET(req: NextRequest) {
           ? {
               debt: prev.deductions?.debt ?? 0,
               netPay: prev.netPay ?? 0,
+              bonus: prev.bonus ?? 0,
               month: prevMonth,
               status: prev.status ?? "",
             }
-          : { debt: 0, netPay: 0, month: prevMonth, status: "" };
+          : { debt: 0, netPay: 0, bonus: 0, month: prevMonth, status: "" };
       }
     }
   }
