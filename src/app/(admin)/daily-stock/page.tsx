@@ -31,7 +31,7 @@ interface DayRecord {
   totalSold: number;
   totalReturned: number;
   endStock: number;
-  debtors: { name: string; amount: number; status?: string }[];
+  debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
   debts: number;
   debtStatus: string;
   cashDelivered: number;
@@ -42,7 +42,17 @@ interface DayRecord {
 interface DebtorEntry {
   name: string;
   amount: number;
-  status: string;
+  settlements?: { amount: number; date?: string; note?: string }[];
+}
+
+interface SettleTarget {
+  recordId: string;
+  date: string;
+  index: number;
+  name: string;
+  amount: number;
+  settled: number;
+  remaining: number;
 }
 
 interface ColumnDef {
@@ -68,10 +78,10 @@ const DEPOT_FIELDS = [
 
 const DEPOT_POST_ENDSTOCK = [
   { key: "debtors", label: "Debtors", type: "debtors" as const },
+  { key: "debtAmounts", label: "Amount", type: "debtAmounts" as const },
+  { key: "debtStatuses", label: "Status", type: "debtStatuses" as const },
   { key: "cashDelivered", label: "Cash Delivered", type: "number" as const },
 ];
-
-const DEBT_STATUS_OPTIONS = ["pending", "partial", "transfer"];
 
 export default function DailyStockPage() {
   const searchParams = useSearchParams();
@@ -111,6 +121,11 @@ export default function DailyStockPage() {
   const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, unknown>>>({});
   const [savingBatch, setSavingBatch] = useState(false);
   const dirtyCount = Object.keys(pendingChanges).length;
+
+  const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNote, setSettleNote] = useState("");
+  const [settling, setSettling] = useState(false);
 
   const [showAddCol, setShowAddCol] = useState(false);
   const [newColLabel, setNewColLabel] = useState("");
@@ -210,7 +225,13 @@ export default function DailyStockPage() {
   };
 
   const getDebtors = (d: DayRecord): DebtorEntry[] =>
-    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, status: x.status || "pending" }));
+    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
+
+  const debtSettledTotal = (debtor: DebtorEntry) =>
+    (Array.isArray(debtor.settlements) ? debtor.settlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+  const debtRemaining = (debtor: DebtorEntry) =>
+    Math.max(0, (Number(debtor.amount) || 0) - debtSettledTotal(debtor));
 
   const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
     const current = records.find((r) => r._id === id);
@@ -219,24 +240,65 @@ export default function DailyStockPage() {
     setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), debtors: next } }));
   };
 
-  const handleDebtorChange = (id: string, index: number, field: "name" | "amount" | "status", value: string) => {
+  const handleDebtorChange = (id: string, index: number, field: "name" | "amount", value: string) => {
     updateDebtors(id, (list) => list.map((d, i) =>
       i === index ? { ...d, [field]: field === "amount" ? Number(value) || 0 : value } : d
     ));
   };
 
   const handleDebtorAdd = (id: string) => {
-    updateDebtors(id, (list) => [...list, { name: "", amount: 0, status: "pending" }]);
+    updateDebtors(id, (list) => [...list, { name: "", amount: 0, settlements: [] }]);
   };
 
   const handleDebtorRemove = (id: string, index: number) => {
     updateDebtors(id, (list) => list.filter((_, i) => i !== index));
   };
 
-  const handleDebtorSettle = (id: string, index: number) => {
-    updateDebtors(id, (list) => list.map((d, i) =>
-      i === index ? { ...d, status: d.status === "settled" ? "pending" : "settled" } : d
-    ));
+  const openSettle = (record: DayRecord, index: number) => {
+    const debtor = getDebtors(record)[index];
+    if (!debtor) return;
+    const settled = debtSettledTotal(debtor);
+    const remaining = debtRemaining(debtor);
+    setSettleTarget({ recordId: record._id, date: record.date, index, name: debtor.name || "", amount: Number(debtor.amount) || 0, settled, remaining });
+    setSettleAmount(remaining > 0 ? String(remaining) : "");
+    setSettleNote("");
+  };
+
+  const doSettle = async () => {
+    if (!settleTarget) return;
+    const amount = Number(settleAmount) || 0;
+    if (amount <= 0) { showError("Enter a valid amount"); return; }
+    if (amount > settleTarget.remaining) { showError("Amount exceeds outstanding balance"); return; }
+    setSettling(true);
+    try {
+      const record = records.find((r) => r._id === settleTarget.recordId);
+      const nextDebtors = getDebtors(record ?? ({} as DayRecord)).map((d, i) =>
+        i === settleTarget.index
+          ? { ...d, settlements: [...(Array.isArray(d.settlements) ? d.settlements : []), { amount, date: new Date().toISOString(), note: settleNote }] }
+          : d
+      );
+      const res = await fetch(`/api/daily-stock/${settleTarget.recordId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ debtors: nextDebtors }),
+      });
+      if (!res.ok) { showError("Failed to record settlement"); return; }
+      const updated = await res.json();
+      setRecords((prev) => prev.map((r) => r._id === settleTarget.recordId ? { ...r, ...updated } : r));
+      setPendingChanges((prev) => {
+        const next = { ...prev };
+        if (next[settleTarget.recordId]) {
+          const rest = { ...next[settleTarget.recordId] };
+          delete rest.debtors;
+          next[settleTarget.recordId] = rest;
+        }
+        return next;
+      });
+      showSuccess("Settlement recorded");
+      setSettleTarget(null);
+      setSettleAmount("");
+      setSettleNote("");
+    } catch { showError("Network error"); } finally { setSettling(false); }
   };
 
   const saveAll = async () => {
@@ -631,6 +693,7 @@ export default function DailyStockPage() {
   const visibleCustomCols = columns.filter((c) => !hiddenCols.includes(c.key));
   const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
   const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
+  const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
   const depotHeaders = [
     "Date",
     ...DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => f.label),
@@ -735,47 +798,54 @@ export default function DailyStockPage() {
                       <td className="px-1.5 py-1.5 text-right font-bold text-brand-600 dark:text-brand-400">{calcDepotEndStock(d).toLocaleString()}</td>
                       {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                         <td key={f.key} className="px-1.5 py-1.5 align-top">
-                          {f.type === "debtors" ? (
-                            <div className={`rounded border p-1.5 space-y-1.5 min-w-[270px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {f.type === "debtors" || f.type === "debtAmounts" || f.type === "debtStatuses" ? (
+                            <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
                               {getDebtors(d).map((debtor, di) => (
-                                <div key={di} className={`space-y-0.5 ${debtor.status === "settled" ? "opacity-75" : ""}`}>
-                                  <div className="flex items-center gap-1">
-                                    <input type="text" value={debtor.name}
-                                      onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
-                                      placeholder="Name"
-                                      className="w-24 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                <div key={di}>
+                                  {f.type === "debtors" && (
+                                    <div className="flex items-center gap-1">
+                                      <input type="text" value={debtor.name}
+                                        onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
+                                        placeholder="Name"
+                                        className="flex-1 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                      <button onClick={() => handleDebtorRemove(d._id, di)}
+                                        className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                                    </div>
+                                  )}
+                                  {f.type === "debtAmounts" && (
                                     <input type="number" value={debtor.amount ?? 0}
                                       onChange={(e) => handleDebtorChange(d._id, di, "amount", e.target.value)}
                                       placeholder="₦"
-                                      className="w-16 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
-                                    {debtor.status === "settled" ? (
-                                      <span className="px-1.5 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap">✓ Settled</span>
-                                    ) : (
-                                      <select value={debtor.status}
-                                        onChange={(e) => handleDebtorChange(d._id, di, "status", e.target.value)}
-                                        className="w-20 px-1 py-1 text-[10px] border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600">
-                                        {DEBT_STATUS_OPTIONS.map((opt) => (
-                                          <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                      </select>
-                                    )}
-                                    <button onClick={() => handleDebtorRemove(d._id, di)}
-                                      className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
-                                  </div>
-                                  {debtor.name.trim() ? (
-                                    <button onClick={() => handleDebtorSettle(d._id, di)}
-                                      className="text-[9px] font-medium text-brand-500 hover:text-brand-700 pl-0.5">
-                                      {debtor.status === "settled" ? "undo settled" : "settled"}
-                                    </button>
-                                  ) : null}
+                                      className="w-full px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                  )}
+                                  {f.type === "debtStatuses" && (
+                                    <div className="flex items-center gap-1 justify-between">
+                                      {debtor.name.trim() && Number(debtor.amount) > 0 && debtRemaining(debtor) <= 0 ? (
+                                        <span className="flex-1 px-1 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap text-center">✓ Settled</span>
+                                      ) : (
+                                        <>
+                                          <span className="text-[10px] text-gray-600 dark:text-gray-400 whitespace-nowrap">Left ₦{debtRemaining(debtor).toLocaleString()}</span>
+                                          <button onClick={() => openSettle(d, di)}
+                                            className="text-[9px] font-medium text-brand-500 hover:text-brand-700 whitespace-nowrap">settle</button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
-                              <button onClick={() => handleDebtorAdd(d._id)}
-                                className="text-[9px] text-brand-500 hover:text-brand-700">+ Add debtor</button>
-                              {getDebtors(d).length > 0 && (
+                              {f.type === "debtors" && (
+                                <button onClick={() => handleDebtorAdd(d._id)}
+                                  className="text-[9px] text-brand-500 hover:text-brand-700">+ Add debtor</button>
+                              )}
+                              {f.type === "debtAmounts" && (
                                 <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
                                   <span>Total</span>
                                   <span>₦{getDebtors(d).reduce((a, dd) => a + (Number(dd.amount) || 0), 0).toLocaleString()}</span>
+                                </div>
+                              )}
+                              {f.type === "debtStatuses" && (
+                                <div className="border-t border-gray-200 dark:border-gray-600 pt-1 text-[9px] text-gray-400">
+                                  {getDebtors(d).filter((dd) => debtRemaining(dd) > 0).length} unsettled
                                 </div>
                               )}
                             </div>
@@ -814,7 +884,11 @@ export default function DailyStockPage() {
                   {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                     <td key={f.key} className="px-1.5 py-2 text-xs text-right">
                       {f.type === "debtors"
-                        ? `${debtorCount} · ₦${debtorTotal.toLocaleString()}`
+                        ? `${debtorCount}`
+                        : f.type === "debtAmounts"
+                        ? `₦${debtorTotal.toLocaleString()}`
+                        : f.type === "debtStatuses"
+                        ? `${unsettledCount} unsettled`
                         : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
                   ))}
@@ -946,6 +1020,8 @@ export default function DailyStockPage() {
                 { key: "bigTruck", label: "Bags Sold (Ordinary)" },
                 { key: "leakages", label: "Leakages" },
                 { key: "debtors", label: "Debtors" },
+                { key: "debtAmounts", label: "Amount" },
+                { key: "debtStatuses", label: "Status" },
                 { key: "cashDelivered", label: "Cash Delivered" },
               ].map((item) => {
                 const hidden = hiddenCols.includes(item.key);
@@ -963,6 +1039,52 @@ export default function DailyStockPage() {
             </div>
             <div className="flex justify-end pt-2">
               <Button variant="outline" size="sm" onClick={() => setShowRemoveCol(false)}>Done</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {settleTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSettleTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Settle Debt</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Debtor:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{settleTarget.name || "—"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Date:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{settleTarget.date}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Debt:</span>
+                <span className="font-medium text-red-600">₦{settleTarget.amount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Settled So Far:</span>
+                <span className="font-medium text-success-600">₦{settleTarget.settled.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Outstanding:</span>
+                <span className="font-bold text-red-600">₦{settleTarget.remaining.toLocaleString()}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Settled (₦)</label>
+              <input type="number" value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder="0"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note (optional)</label>
+              <input type="text" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} placeholder="e.g. cash payment"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={doSettle} disabled={settling || !settleAmount || Number(settleAmount) <= 0}>
+                {settling ? "Saving..." : "Record Settlement"}
+              </Button>
+              <Button variant="outline" onClick={() => setSettleTarget(null)}>Cancel</Button>
             </div>
           </div>
         </div>

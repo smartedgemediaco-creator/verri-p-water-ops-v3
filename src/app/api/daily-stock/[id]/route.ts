@@ -40,7 +40,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (SKIP_KEYS.has(key)) continue;
     if (ARRAY_FIELDS.has(key)) {
       (record as unknown as Record<string, unknown>)[key] = Array.isArray(val)
-        ? (val as { name?: unknown; amount?: unknown; status?: unknown }[]).map((d) => ({ name: String(d?.name ?? "").trim(), amount: Number(d?.amount) || 0, status: String(d?.status ?? "").trim() || "pending" }))
+        ? (val as { name?: unknown; amount?: unknown; settlements?: { amount?: unknown; date?: unknown; note?: unknown }[] }[]).map((d) => ({
+            name: String(d?.name ?? "").trim(),
+            amount: Number(d?.amount) || 0,
+            settlements: Array.isArray(d?.settlements)
+              ? (d.settlements as { amount?: unknown; date?: unknown; note?: unknown }[]).map((s) => ({
+                  amount: Number(s?.amount) || 0,
+                  date: s?.date ? String(s.date) : new Date().toISOString(),
+                  note: s?.note ? String(s.note) : "",
+                }))
+              : [],
+          }))
         : [];
     } else if (STRING_FIELDS.has(key)) {
       (record as unknown as Record<string, string>)[key] = String(val ?? "");
