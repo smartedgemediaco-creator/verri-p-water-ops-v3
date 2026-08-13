@@ -31,7 +31,7 @@ interface PayrollRecord {
   role?: string;
   department?: string;
   locationName?: string;
-  broughtForward?: { deductions: number; debt: number; bonus: number; total: number };
+  previousMonth?: { debt: number; netPay: number; month: string; status: string };
   attendanceSync?: { absence: number; lateness: number; halfDay: number; syncedAt?: string };
 }
 
@@ -482,6 +482,9 @@ export default function PayrollPage() {
           <p className="text-xs text-gray-400 mt-1">
             {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay · this month only
           </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Prev Debt = the staff&apos;s debt owed from the previous month · Prev Pay = last month&apos;s net pay · both look one month back only (company policy).
+          </p>
         </div>
         <Table>
           <TableHeader>
@@ -491,8 +494,8 @@ export default function PayrollPage() {
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Base Salary</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Deductions</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Bonus</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Brought Fwd</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Debt</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prev Pay</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Debt (Month)</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Net Pay</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
@@ -548,30 +551,29 @@ export default function PayrollPage() {
                     <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
                     <TableCell className="py-3">
                       {(() => {
-                        const bf = record.broughtForward;
-                        const bfTotal = bf?.total ?? 0;
-                        const bfDed = bf?.deductions ?? 0;
-                        const bfDebt = bf?.debt ?? 0;
-                        const bfBonus = bf?.bonus ?? 0;
-                        return bfTotal > 0 ? (
-                          <div className="text-theme-sm text-gray-600 dark:text-gray-300">
-                            ₦{bfTotal.toLocaleString()}
-                            <div className="text-[10px] text-gray-400 mt-0.5">
-                              {bfDed > 0 ? `Deductions: ₦${bfDed.toLocaleString()} ` : ""}
-                              {bfDebt > 0 ? `Debt: ₦${bfDebt.toLocaleString()} ` : ""}
-                              {bfBonus > 0 ? `Bonus: ₦${bfBonus.toLocaleString()}` : ""}
-                            </div>
+                        const prevDebt = record.previousMonth?.debt ?? 0;
+                        const prevLabel = record.previousMonth?.month ? monthLabel(record.previousMonth.month) : "";
+                        return prevDebt > 0 ? (
+                          <div className="text-theme-sm font-medium text-red-600 dark:text-red-400">
+                            ₦{prevDebt.toLocaleString()}
+                            {prevLabel && (
+                              <div className="text-[10px] font-normal text-gray-400 mt-0.5">owed from {prevLabel}</div>
+                            )}
                           </div>
                         ) : "—";
                       })()}
                     </TableCell>
                     <TableCell className="py-3">
                       {(() => {
-                        const prevDebt = record.broughtForward?.debt ?? 0;
-                        return prevDebt > 0 ? (
-                          <span className="text-theme-sm font-medium text-red-600 dark:text-red-400">
-                            ₦{prevDebt.toLocaleString()}
-                          </span>
+                        const prevPay = record.previousMonth?.netPay ?? 0;
+                        const prevLabel = record.previousMonth?.month ? monthLabel(record.previousMonth.month) : "";
+                        return prevPay > 0 ? (
+                          <div className="text-theme-sm text-gray-600 dark:text-gray-300">
+                            ₦{prevPay.toLocaleString()}
+                            {prevLabel && (
+                              <div className="text-[10px] text-gray-400 mt-0.5">{prevLabel}</div>
+                            )}
+                          </div>
                         ) : "—";
                       })()}
                     </TableCell>

@@ -5,6 +5,15 @@ import { PayrollRecord, Staff, StaffAssignment, Factory, Depot, Truck } from "@/
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
+// Company policy: brought-forward debt looks ONE month back only.
+// Returns the "YYYY-MM" immediately before the given month, or "" if invalid.
+function previousMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return "";
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 async function enrichRecord(record: any) {
   if (!record) return record;
   const staff = await Staff.findById(record.staffId).select("name phone email salary employmentType").lean();
@@ -63,30 +72,28 @@ export async function GET(req: NextRequest) {
 
   const enriched = await Promise.all(records.map(enrichRecord));
 
-  // Brought forward: sums of deductions/debts/bonuses from months BEFORE the selected month.
-  // Kept separate so the current month's salary/deductions/bonus stay scoped to the month.
+  // Previous-month data = the staff's own debt & net pay from the immediately previous month (company policy: one month back).
   if (month) {
     const staffIds = [...new Set(enriched.map((r) => r.staffId))];
-    if (staffIds.length > 0) {
-      const prevAgg = await PayrollRecord.aggregate([
-        { $match: { staffId: { $in: staffIds }, month: { $lt: month } } },
-        {
-          $group: {
-            _id: "$staffId",
-            deductions: {
-              $sum: { $add: ["$deductions.absence", "$deductions.lateness", "$deductions.halfDay", "$deductions.debt", "$deductions.punishment", "$deductions.other"] },
-            },
-            debt: { $sum: "$deductions.debt" },
-            bonus: { $sum: "$bonus" },
-          },
-        },
-      ]);
-      const bfMap = new Map(prevAgg.map((x) => [x._id.toString(), x]));
+    const prevMonth = previousMonth(month);
+    if (staffIds.length > 0 && prevMonth) {
+      const prevRecords = await PayrollRecord.find({
+        staffId: { $in: staffIds },
+        month: prevMonth,
+      })
+        .select("staffId status deductions.debt netPay")
+        .lean();
+      const prevMap = new Map(prevRecords.map((r) => [r.staffId.toString(), r]));
       for (const r of enriched) {
-        const bf = bfMap.get(r.staffId.toString());
-        r.broughtForward = bf
-          ? { deductions: bf.deductions ?? 0, debt: bf.debt ?? 0, bonus: bf.bonus ?? 0, total: (bf.deductions ?? 0) + (bf.bonus ?? 0) }
-          : { deductions: 0, debt: 0, bonus: 0, total: 0 };
+        const prev = prevMap.get(r.staffId.toString());
+        r.previousMonth = prev
+          ? {
+              debt: prev.deductions?.debt ?? 0,
+              netPay: prev.netPay ?? 0,
+              month: prevMonth,
+              status: prev.status ?? "",
+            }
+          : { debt: 0, netPay: 0, month: prevMonth, status: "" };
       }
     }
   }
