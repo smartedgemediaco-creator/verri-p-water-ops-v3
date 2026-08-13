@@ -37,7 +37,7 @@ interface Insights {
 }
 interface PayrollItem {
   _id: string; month: string; baseSalary: number;
-  deductions: { absence: number; lateness: number; debt: number; punishment: number; other: number };
+  deductions: { absence: number; lateness: number; halfDay: number; debt: number; punishment: number; other: number };
   bonus: number; netPay: number; status: string; paidAmount: number; paidDate?: string;
 }
 
