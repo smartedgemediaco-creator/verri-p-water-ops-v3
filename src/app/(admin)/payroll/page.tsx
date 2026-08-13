@@ -364,11 +364,14 @@ export default function PayrollPage() {
     } catch { showError("Network error"); } finally { setPaying(false); }
   };
 
+  const monthTotalDed = (record: PayrollRecord) =>
+    (record.deductions?.absence ?? 0) + (record.deductions?.lateness ?? 0) + (record.deductions?.halfDay ?? 0) + (record.deductions?.debt ?? 0) + (record.deductions?.punishment ?? 0) + (record.deductions?.other ?? 0);
+
   const debtSettledTotal = (record: PayrollRecord) =>
     (record.debtSettlements ?? []).reduce((sum, s) => sum + (s.amount ?? 0), 0);
 
   const debtOutstanding = (record: PayrollRecord) =>
-    Math.max(0, (record.deductions?.debt ?? 0) - debtSettledTotal(record));
+    Math.max(0, monthTotalDed(record) - debtSettledTotal(record));
 
   const openSettle = (record: PayrollRecord) => {
     setSettleTarget(record);
@@ -571,7 +574,7 @@ export default function PayrollPage() {
             ) : (
               records.map((record) => {
                 const badge = STATUS_BADGES[record.status] ?? STATUS_BADGES.pending;
-                const totalDed = (record.deductions?.absence ?? 0) + (record.deductions?.lateness ?? 0) + (record.deductions?.halfDay ?? 0) + (record.deductions?.debt ?? 0) + (record.deductions?.punishment ?? 0) + (record.deductions?.other ?? 0);
+                const totalDed = monthTotalDed(record);
                 return (
                   <TableRow key={record._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                     <TableCell className="py-3">
@@ -650,7 +653,7 @@ export default function PayrollPage() {
                     </TableCell>
                     <TableCell className="py-3">
                       {(() => {
-                        const monthDebt = record.deductions?.debt ?? 0;
+                        const monthDebt = totalDed;
                         if (monthDebt <= 0) return "—";
                         const settled = debtSettledTotal(record);
                         const outstanding = Math.max(0, monthDebt - settled);
@@ -861,7 +864,7 @@ export default function PayrollPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Debt:</span>
-                <span className="font-medium text-red-600">₦{(settleTarget.deductions?.debt ?? 0).toLocaleString()}</span>
+                <span className="font-medium text-red-600">₦{monthTotalDed(settleTarget).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Settled So Far:</span>

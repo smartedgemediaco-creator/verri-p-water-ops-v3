@@ -510,7 +510,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
             </TableHeader>
             <TableBody>
               {payrollRecords.map((rec) => {
-                const totalDed = (rec.deductions?.absence ?? 0) + (rec.deductions?.lateness ?? 0) + (rec.deductions?.debt ?? 0) + (rec.deductions?.punishment ?? 0) + (rec.deductions?.other ?? 0);
+                const totalDed = (rec.deductions?.absence ?? 0) + (rec.deductions?.lateness ?? 0) + (rec.deductions?.halfDay ?? 0) + (rec.deductions?.debt ?? 0) + (rec.deductions?.punishment ?? 0) + (rec.deductions?.other ?? 0);
                 return (
                   <TableRow key={rec._id}>
                     <TableCell className="text-sm font-medium text-gray-800 dark:text-white/90">{rec.month}</TableCell>

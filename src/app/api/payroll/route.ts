@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         const prev = prevMap.get(r.staffId.toString());
         r.previousMonth = prev
           ? {
-              debt: Math.max(0, (prev.deductions?.debt ?? 0) - (prev.debtSettlements ?? []).reduce((s: number, x: any) => s + (x.amount ?? 0), 0)),
+              debt: Math.max(0, ((prev.deductions?.absence ?? 0) + (prev.deductions?.lateness ?? 0) + (prev.deductions?.halfDay ?? 0) + (prev.deductions?.debt ?? 0) + (prev.deductions?.punishment ?? 0) + (prev.deductions?.other ?? 0)) - (prev.debtSettlements ?? []).reduce((s: number, x: any) => s + (x.amount ?? 0), 0)),
               netPay: prev.netPay ?? 0,
               bonus: prev.bonus ?? 0,
               month: prevMonth,
@@ -118,7 +118,11 @@ export async function GET(req: NextRequest) {
         totalBonus: { $sum: "$bonus" },
         totalNetPay: { $sum: "$netPay" },
         totalPaid: { $sum: "$paidAmount" },
-        totalDebt: { $sum: "$deductions.debt" },
+        totalDebt: {
+          $sum: {
+            $add: ["$deductions.absence", "$deductions.lateness", "$deductions.halfDay", "$deductions.debt", "$deductions.punishment", "$deductions.other"],
+          },
+        },
         totalDebtSettled: {
           $sum: {
             $reduce: {
