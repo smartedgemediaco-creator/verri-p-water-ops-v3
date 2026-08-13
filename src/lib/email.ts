@@ -24,10 +24,12 @@ export async function sendEmail({
   to,
   subject,
   html,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: string | Buffer }[];
 }): Promise<{ success: boolean; error?: string }> {
   if (!SMTP_USER || !SMTP_PASS) {
     console.warn("[email] SMTP not configured — skipping email send", { to, subject });
@@ -35,7 +37,7 @@ export async function sendEmail({
   }
   try {
     const t = getTransporter();
-    await t.sendMail({ from: EMAIL_FROM, to, subject, html });
+    await t.sendMail({ from: EMAIL_FROM, to, subject, html, attachments });
     return { success: true };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";

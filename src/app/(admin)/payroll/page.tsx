@@ -267,32 +267,26 @@ export default function PayrollPage() {
     setFormStaffId(staffId);
     const found = staffList.find((s) => s._id === staffId);
     if (found) setFormBaseSalary(String(found.salary));
+    // Reset deductions so amounts from the previous staff never carry over.
+    setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0");
+    setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
+    setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
+    setAutoFilled(false);
   };
 
   const fetchAttendanceAmounts = async (staffId: string, month: string) => {
-    const [factories, depots] = await Promise.all([
-      fetch("/api/factories").then((r) => r.json()),
-      fetch("/api/depots").then((r) => r.json()),
-    ]);
-    const locations: { type: string; id: string }[] = [];
-    if (Array.isArray(factories)) factories.forEach((f: { _id: string }) => locations.push({ type: "factory", id: f._id }));
-    if (Array.isArray(depots)) depots.forEach((d: { _id: string }) => locations.push({ type: "depot", id: d._id }));
-
-    let totalLateAmount = 0;
-    let totalAbsenceAmount = 0;
-    let totalHalfDayAmount = 0;
-    for (const loc of locations) {
-      const res = await fetch(`/api/attendance/summary?month=${month}&locationType=${loc.type}&locationId=${loc.id}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === staffId);
-      if (staffSummary) {
-        totalLateAmount += staffSummary.totalLateAmount || 0;
-        totalAbsenceAmount += staffSummary.totalAbsenceAmount || 0;
-        totalHalfDayAmount += staffSummary.totalHalfDayAmount || 0;
-      }
-    }
-    return { absence: totalAbsenceAmount, lateness: totalLateAmount, halfDay: totalHalfDayAmount };
+    // Single summary call without a location filter so staff assigned to
+    // multiple factories/depots are never double-counted.
+    const res = await fetch(`/api/attendance/summary?month=${month}`);
+    if (!res.ok) return { absence: 0, lateness: 0, halfDay: 0 };
+    const data = await res.json();
+    const staffSummary = (data.summary || []).find((s: { staffId: string }) => s.staffId === staffId);
+    if (!staffSummary) return { absence: 0, lateness: 0, halfDay: 0 };
+    return {
+      absence: staffSummary.totalAbsenceAmount || 0,
+      lateness: staffSummary.totalLateAmount || 0,
+      halfDay: staffSummary.totalHalfDayAmount || 0,
+    };
   };
 
   const autoFillFromAttendance = async () => {
@@ -719,7 +713,14 @@ export default function PayrollPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month</label>
-                <Select options={MONTHS} value={formMonth} onChange={setFormMonth} />
+                <Select options={MONTHS} value={formMonth} onChange={(m) => {
+                  setFormMonth(m);
+                  // Reset deductions so previous month's amounts never carry over.
+                  setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0");
+                  setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
+                  setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
+                  setAutoFilled(false);
+                }} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Salary (₦)</label>

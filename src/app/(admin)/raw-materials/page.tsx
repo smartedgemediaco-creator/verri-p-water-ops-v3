@@ -10,7 +10,8 @@ import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import AutoAmount from "@/components/ui/AutoAmount";
-import { PlusIcon, CloseIcon, ArrowDownIcon } from "@/icons";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { PlusIcon, CloseIcon, ArrowDownIcon, PencilIcon, TrashBinIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { formatDate } from "@/lib/dateFormat";
 
@@ -182,6 +183,13 @@ export default function RawMaterialsPage() {
   const [showMovementModal, setShowMovementModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit / delete targets
+  const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: "material" | "batch"; id: string; label: string } | null>(null);
+  const [usageDeleteTarget, setUsageDeleteTarget] = useState<UsageRecord | null>(null);
+  const [usageDeleteStep, setUsageDeleteStep] = useState(0);
+
   // Add material form
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("");
@@ -322,6 +330,14 @@ export default function RawMaterialsPage() {
   const resetAddForm = () => {
     setName(""); setUnit(""); setCategory("chemical");
     setMinimumStock(0); setUnitCost(0); setNotes("");
+    setEditingMaterial(null);
+  };
+
+  const openEditMaterial = (m: RawMaterial) => {
+    setEditingMaterial(m);
+    setName(m.name); setUnit(m.unit || ""); setCategory(m.category || "other");
+    setMinimumStock(m.minimumStock || 0); setUnitCost(m.unitCost || 0); setNotes(m.notes || "");
+    setShowAddModal(true);
   };
 
   const handleAddMaterial = async (e: React.FormEvent) => {
@@ -329,13 +345,15 @@ export default function RawMaterialsPage() {
     if (!name.trim()) { showError("Name is required"); return; }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/raw-materials", {
-        method: "POST",
+      const payload = { name: name.trim(), unit, category, minimumStock, unitCost, notes };
+      const url = editingMaterial ? `/api/raw-materials/${editingMaterial._id}` : "/api/raw-materials";
+      const res = await fetch(url, {
+        method: editingMaterial ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), unit, category, minimumStock, unitCost, notes }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Operation failed"); return; }
-      showSuccess("Material added");
+      showSuccess(editingMaterial ? "Material updated" : "Material added");
       setShowAddModal(false); resetAddForm();
       fetchMaterials(); fetchStats();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
@@ -350,6 +368,29 @@ export default function RawMaterialsPage() {
     setRecLocationType("factory"); setRecLocationId("");
     setRecDate(new Date().toISOString().split("T")[0]);
     setRecOrderNotes(""); setRecQualityNotes("");
+    setEditingBatch(null);
+  };
+
+  const openEditBatch = (b: Batch) => {
+    resetBatchForm();
+    setEditingBatch(b);
+    setBatchMaterialId(b.rawMaterialId._id);
+    setBatchSupplierMode(b.supplierId ? "existing" : "other");
+    setBatchSupplierId(b.supplierId?._id ?? "");
+    setBatchSupplierName(b.supplierName || "");
+    setRecQty(b.receivedQuantity ?? 0);
+    setRecUnit(b.unit || "");
+    setRecItemCount(b.itemCount || 0);
+    setRecItemUnit(b.itemUnit || "");
+    setRecUnitPrice(b.unitPrice || 0);
+    setRecPaid(b.paidAmount || 0);
+    setRecOwed(b.amountOwed || 0);
+    setRecLocationType(b.locationType || "factory");
+    setRecLocationId(typeof b.locationId === "object" ? b.locationId._id : b.locationId);
+    setRecDate(b.receivedDate ? b.receivedDate.slice(0, 10) : new Date().toISOString().split("T")[0]);
+    setRecOrderNotes(b.orderNotes || "");
+    setRecQualityNotes(b.qualityNotes || "");
+    setShowBatchModal(true);
   };
 
   const openBatchModal = (preselect?: RawMaterial) => {
@@ -411,30 +452,33 @@ export default function RawMaterialsPage() {
       const conversionNote = recItemCount > 0 && recItemUnit
         ? `${recQty} ${recUnit} ≈ ${recItemCount} ${recItemUnit}`
         : "";
-      const res = await fetch("/api/raw-materials/batches", {
-        method: "POST",
+      const payload: Record<string, unknown> = {
+        locationType: recLocationType,
+        locationId: recLocationId,
+        receivedQuantity: recQty,
+        unit: recUnit,
+        itemCount: recItemCount,
+        itemUnit: recItemUnit,
+        conversionNote,
+        unitPrice: recUnitPrice || undefined,
+        paidAmount: recPaid || undefined,
+        amountOwed: recOwed || undefined,
+        supplierId: batchSupplierMode === "existing" ? batchSupplierId || undefined : undefined,
+        supplierName: batchSupplierMode === "other" ? batchSupplierName.trim() : "",
+        receivedDate: recDate,
+        orderNotes: recOrderNotes,
+        qualityNotes: recQualityNotes,
+      };
+      const url = editingBatch ? `/api/raw-materials/batches/${editingBatch._id}` : "/api/raw-materials/batches";
+      const res = await fetch(url, {
+        method: editingBatch ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawMaterialId: materialId,
-          locationType: recLocationType,
-          locationId: recLocationId,
-          receivedQuantity: recQty,
-          unit: recUnit,
-          itemCount: recItemCount,
-          itemUnit: recItemUnit,
-          conversionNote,
-          unitPrice: recUnitPrice || undefined,
-          paidAmount: recPaid || undefined,
-          amountOwed: recOwed || undefined,
-          supplierId: batchSupplierMode === "existing" ? batchSupplierId || undefined : undefined,
-          supplierName: batchSupplierMode === "other" ? batchSupplierName.trim() : "",
-          receivedDate: recDate,
-          orderNotes: recOrderNotes,
-          qualityNotes: recQualityNotes,
-        }),
+        body: JSON.stringify(editingBatch ? payload : { ...payload, rawMaterialId: materialId }),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to record stock"); return; }
-      showSuccess(`Stock added — ${recQty} ${recUnit}${conversionNote ? ` (${conversionNote})` : ""}`);
+      showSuccess(editingBatch
+        ? `Batch ${editingBatch.batchNumber} updated`
+        : `Stock added — ${recQty} ${recUnit}${conversionNote ? ` (${conversionNote})` : ""}`);
       setShowBatchModal(false);
       refreshAll();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
@@ -502,6 +546,32 @@ export default function RawMaterialsPage() {
       const data = await res.json();
       setMovements(Array.isArray(data) ? data : []);
     } catch { setMovements([]); } finally { setMovementLoading(false); }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(
+      deleteTarget.kind === "batch"
+        ? `/api/raw-materials/batches/${deleteTarget.id}`
+        : `/api/raw-materials/${deleteTarget.id}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed to delete" })); showError(err.error || "Failed to delete"); return; }
+    showSuccess("Deleted");
+    setDeleteTarget(null);
+    refreshAll();
+  };
+
+  const doDeleteUsage = async () => {
+    if (!usageDeleteTarget) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/raw-materials/usage/${usageDeleteTarget._id}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed to delete" })); showError(err.error || "Failed to delete"); return; }
+      showSuccess("Usage record deleted");
+      setUsageDeleteTarget(null); setUsageDeleteStep(0);
+      fetchUsage(); fetchStats();
+    } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
 
   // Derived
@@ -698,6 +768,12 @@ export default function RawMaterialsPage() {
                             <button onClick={() => openUseModal(m)} disabled={m.currentStock <= 0} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 transition-colors">
                               <ArrowDownIcon className="w-3.5 h-3.5 mr-1" /> Use Stock
                             </button>
+                            <button onClick={() => openEditMaterial(m)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
+                              <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
+                            </button>
+                            <button onClick={() => setDeleteTarget({ kind: "material", id: m._id, label: m.name })} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                              <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                            </button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -827,6 +903,12 @@ export default function RawMaterialsPage() {
                             <button onClick={() => openBatchHistory(b)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors">
                               History
                             </button>
+                            <button onClick={() => openEditBatch(b)} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 transition-colors">
+                              <PencilIcon className="w-3.5 h-3.5 mr-1" /> Edit
+                            </button>
+                            <button onClick={() => setDeleteTarget({ kind: "batch", id: b._id, label: b.batchNumber })} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                              <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                            </button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -868,11 +950,12 @@ export default function RawMaterialsPage() {
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Qty</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Cost</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Notes</TableCell>
+                  <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {usage.length === 0 ? (
-                  <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={7}>
+                  <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>
                     No usage records yet. Use stock from a batch to start tracking consumption.
                   </TableCell></TableRow>
                 ) : (
@@ -900,6 +983,11 @@ export default function RawMaterialsPage() {
                       <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">{(u.totalQuantity ?? 0).toLocaleString()}</TableCell>
                       <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">₦{(u.totalCost ?? 0).toLocaleString()}</TableCell>
                       <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{u.notes || "—"}</TableCell>
+                      <TableCell className="py-3">
+                        <button onClick={() => { setUsageDeleteTarget(u); setUsageDeleteStep(1); }} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors">
+                          <TrashBinIcon className="w-3.5 h-3.5 mr-1" /> Delete
+                        </button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -914,7 +1002,7 @@ export default function RawMaterialsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowAddModal(false); resetAddForm(); } }}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Add Material</h3>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{editingMaterial ? "Edit Material" : "Add Material"}</h3>
               <button onClick={() => { setShowAddModal(false); resetAddForm(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
             </div>
             <form onSubmit={handleAddMaterial} className="p-6 space-y-4">
@@ -951,7 +1039,7 @@ export default function RawMaterialsPage() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" size="sm" onClick={() => { setShowAddModal(false); resetAddForm(); }} disabled={submitting}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Saving..." : "Add Material"}</Button>
+                <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Saving..." : editingMaterial ? "Save Changes" : "Add Material"}</Button>
               </div>
             </form>
           </div>
@@ -963,46 +1051,55 @@ export default function RawMaterialsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowBatchModal(false); } }}>
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Add Stock / New Batch</h3>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{editingBatch ? `Edit Batch — ${editingBatch.batchNumber}` : "Add Stock / New Batch"}</h3>
               <button onClick={() => { if (!submitting) setShowBatchModal(false); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
             </div>
             <form onSubmit={handleNewBatch} className="p-6 space-y-5">
               {/* Material */}
               <div>
-                <div className="flex gap-2 mb-3">
-                  <button type="button" onClick={() => setBatchMaterialMode("existing")}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                    Existing Material
-                  </button>
-                  <button type="button" onClick={() => setBatchMaterialMode("new")}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "new" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                    New Material
-                  </button>
-                </div>
-                {batchMaterialMode === "existing" ? (
-                  <Select options={materialOptions} placeholder="Select material..." value={batchMaterialId} onChange={setBatchMaterialId} />
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material Name *</label>
-                      <Input placeholder="e.g. 50 micron film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                      <Input list="category-options-new" placeholder="e.g. packaging" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
-                      <datalist id="category-options-new">
-                        {CATEGORIES.map((c) => <option key={c.value} value={c.value} />)}
-                      </datalist>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit *</label>
-                      <Input placeholder="e.g. kg, rolls, litres" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                      <Input type="number" placeholder="0" value={newMinStock} onChange={(e) => setNewMinStock(Number(e.target.value))} />
-                    </div>
+                {editingBatch ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material (fixed — cannot change on edit)</label>
+                    <Input value={editingBatch.rawMaterialId.name} disabled />
                   </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2 mb-3">
+                      <button type="button" onClick={() => setBatchMaterialMode("existing")}
+                        className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                        Existing Material
+                      </button>
+                      <button type="button" onClick={() => setBatchMaterialMode("new")}
+                        className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "new" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                        New Material
+                      </button>
+                    </div>
+                    {batchMaterialMode === "existing" ? (
+                      <Select options={materialOptions} placeholder="Select material..." value={batchMaterialId} onChange={setBatchMaterialId} />
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material Name *</label>
+                          <Input placeholder="e.g. 50 micron film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                          <Input list="category-options-new" placeholder="e.g. packaging" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+                          <datalist id="category-options-new">
+                            {CATEGORIES.map((c) => <option key={c.value} value={c.value} />)}
+                          </datalist>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit *</label>
+                          <Input placeholder="e.g. kg, rolls, litres" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                          <Input type="number" placeholder="0" value={newMinStock} onChange={(e) => setNewMinStock(Number(e.target.value))} />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1106,7 +1203,7 @@ export default function RawMaterialsPage() {
               <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="outline" size="sm" onClick={() => setShowBatchModal(false)} disabled={submitting}>Cancel</Button>
                 <Button type="submit" variant="primary" disabled={submitting}>
-                  {submitting ? "Saving..." : "Add to Stock"}
+                  {submitting ? "Saving..." : editingBatch ? "Save Changes" : "Add to Stock"}
                 </Button>
               </div>
             </form>
@@ -1229,6 +1326,43 @@ export default function RawMaterialsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Material / Batch */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title={deleteTarget?.kind === "batch" ? "Delete Batch" : "Delete Material"}
+        message={deleteTarget
+          ? deleteTarget.kind === "batch"
+            ? `This will permanently delete batch ${deleteTarget.label} and remove its remaining stock. Batches that have been consumed cannot be deleted. This cannot be undone.`
+            : `This will permanently delete material "${deleteTarget.label}". Materials that have batches cannot be deleted. This cannot be undone.`
+          : ""}
+        confirmLabel="Delete"
+        variant="danger"
+      />
+
+      {/* Usage delete — first warning */}
+      <ConfirmDialog
+        isOpen={usageDeleteStep === 1 && usageDeleteTarget !== null}
+        onClose={() => { setUsageDeleteTarget(null); setUsageDeleteStep(0); }}
+        onConfirm={() => setUsageDeleteStep(2)}
+        title="Delete usage record?"
+        message={`This permanently removes the usage row for ${usageDeleteTarget?.rawMaterialId?.name ?? "this material"} (${(usageDeleteTarget?.totalQuantity ?? 0).toLocaleString()} used). It will NOT restore stock to the batch or material. A daily backup is emailed for safety.`}
+        confirmLabel="Continue"
+        variant="danger"
+      />
+
+      {/* Usage delete — final confirmation */}
+      <ConfirmDialog
+        isOpen={usageDeleteStep === 2 && usageDeleteTarget !== null}
+        onClose={() => { setUsageDeleteTarget(null); setUsageDeleteStep(0); }}
+        onConfirm={doDeleteUsage}
+        title="Are you absolutely sure?"
+        message={`Deleting this usage record (${usageDeleteTarget?.purpose ?? "consumption"} on ${usageDeleteTarget?.date ? formatDate(usageDeleteTarget.date) : ""}) cannot be undone and stock will NOT be restored. This affects the raw materials usage analysis.`}
+        confirmLabel="Yes, delete permanently"
+        variant="danger"
+      />
     </div>
   );
 }
