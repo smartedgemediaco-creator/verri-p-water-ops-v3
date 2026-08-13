@@ -31,7 +31,7 @@ interface DayRecord {
   totalSold: number;
   totalReturned: number;
   endStock: number;
-  debtors: { name: string; amount: number }[];
+  debtors: { name: string; amount: number; status?: string }[];
   debts: number;
   debtStatus: string;
   cashDelivered: number;
@@ -42,6 +42,7 @@ interface DayRecord {
 interface DebtorEntry {
   name: string;
   amount: number;
+  status: string;
 }
 
 interface ColumnDef {
@@ -67,8 +68,6 @@ const DEPOT_FIELDS = [
 
 const DEPOT_POST_ENDSTOCK = [
   { key: "debtors", label: "Debtors", type: "debtors" as const },
-  { key: "debts", label: "Debts", type: "number" as const },
-  { key: "debtStatus", label: "Debt Status", type: "select" as const },
   { key: "cashDelivered", label: "Cash Delivered", type: "number" as const },
 ];
 
@@ -152,7 +151,12 @@ export default function DailyStockPage() {
   useEffect(() => { setPage(1); setPendingChanges({}); setHiddenCols([]); }, [selectedLocationId, locationType]);
   useEffect(() => { setPage(1); setPendingChanges({}); }, [month]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = (() => {
+    const d = new Date();
+    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  })();
   const latestRecord = records.length > 0 ? records[0] : null;
   const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date);
   const monthRecords = records.filter((r) => r.date.startsWith(month));
@@ -205,7 +209,8 @@ export default function DailyStockPage() {
     }));
   };
 
-  const getDebtors = (d: DayRecord): DebtorEntry[] => (Array.isArray(d.debtors) ? d.debtors : []);
+  const getDebtors = (d: DayRecord): DebtorEntry[] =>
+    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, status: x.status || "pending" }));
 
   const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
     const current = records.find((r) => r._id === id);
@@ -214,18 +219,24 @@ export default function DailyStockPage() {
     setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), debtors: next } }));
   };
 
-  const handleDebtorChange = (id: string, index: number, field: "name" | "amount", value: string) => {
+  const handleDebtorChange = (id: string, index: number, field: "name" | "amount" | "status", value: string) => {
     updateDebtors(id, (list) => list.map((d, i) =>
       i === index ? { ...d, [field]: field === "amount" ? Number(value) || 0 : value } : d
     ));
   };
 
   const handleDebtorAdd = (id: string) => {
-    updateDebtors(id, (list) => [...list, { name: "", amount: 0 }]);
+    updateDebtors(id, (list) => [...list, { name: "", amount: 0, status: "pending" }]);
   };
 
   const handleDebtorRemove = (id: string, index: number) => {
     updateDebtors(id, (list) => list.filter((_, i) => i !== index));
+  };
+
+  const handleDebtorSettle = (id: string, index: number) => {
+    updateDebtors(id, (list) => list.map((d, i) =>
+      i === index ? { ...d, status: d.status === "settled" ? "pending" : "settled" } : d
+    ));
   };
 
   const saveAll = async () => {
@@ -618,6 +629,8 @@ export default function DailyStockPage() {
 
   // ---- DEPOT VIEW (new columns) ----
   const visibleCustomCols = columns.filter((c) => !hiddenCols.includes(c.key));
+  const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
+  const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const depotHeaders = [
     "Date",
     ...DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => f.label),
@@ -640,9 +653,7 @@ export default function DailyStockPage() {
             − Remove Column
           </Button>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            setAddDayDate(tomorrow.toISOString().slice(0, 10));
+            setAddDayDate(todayStr);
             setShowAddDay(true);
           }}>
             Add New Day
@@ -724,32 +735,49 @@ export default function DailyStockPage() {
                       <td className="px-1.5 py-1.5 text-right font-bold text-brand-600 dark:text-brand-400">{calcDepotEndStock(d).toLocaleString()}</td>
                       {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                         <td key={f.key} className="px-1.5 py-1.5 align-top">
-                          {f.type === "select" ? (
-                            <select value={(d as unknown as Record<string, string>)[f.key] || "pending"}
-                              onChange={(e) => handleChange(d._id, f.key, e.target.value)}
-                              className={`${cls(d._id, f.key)} text-left`}>
-                              {DEBT_STATUS_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                          ) : f.type === "debtors" ? (
-                            <div className={`rounded border p-1.5 space-y-1 min-w-[150px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {f.type === "debtors" ? (
+                            <div className={`rounded border p-1.5 space-y-1.5 min-w-[270px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
                               {getDebtors(d).map((debtor, di) => (
-                                <div key={di} className="flex items-center gap-1">
-                                  <input type="text" value={debtor.name}
-                                    onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
-                                    placeholder="Name"
-                                    className="w-20 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
-                                  <input type="number" value={debtor.amount ?? 0}
-                                    onChange={(e) => handleDebtorChange(d._id, di, "amount", e.target.value)}
-                                    placeholder="₦"
-                                    className="w-16 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
-                                  <button onClick={() => handleDebtorRemove(d._id, di)}
-                                    className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                                <div key={di} className={`space-y-0.5 ${debtor.status === "settled" ? "opacity-75" : ""}`}>
+                                  <div className="flex items-center gap-1">
+                                    <input type="text" value={debtor.name}
+                                      onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
+                                      placeholder="Name"
+                                      className="w-24 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                    <input type="number" value={debtor.amount ?? 0}
+                                      onChange={(e) => handleDebtorChange(d._id, di, "amount", e.target.value)}
+                                      placeholder="₦"
+                                      className="w-16 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                                    {debtor.status === "settled" ? (
+                                      <span className="px-1.5 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap">✓ Settled</span>
+                                    ) : (
+                                      <select value={debtor.status}
+                                        onChange={(e) => handleDebtorChange(d._id, di, "status", e.target.value)}
+                                        className="w-20 px-1 py-1 text-[10px] border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600">
+                                        {DEBT_STATUS_OPTIONS.map((opt) => (
+                                          <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                    <button onClick={() => handleDebtorRemove(d._id, di)}
+                                      className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                                  </div>
+                                  {debtor.name.trim() ? (
+                                    <button onClick={() => handleDebtorSettle(d._id, di)}
+                                      className="text-[9px] font-medium text-brand-500 hover:text-brand-700 pl-0.5">
+                                      {debtor.status === "settled" ? "undo settled" : "settled"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               ))}
                               <button onClick={() => handleDebtorAdd(d._id)}
                                 className="text-[9px] text-brand-500 hover:text-brand-700">+ Add debtor</button>
+                              {getDebtors(d).length > 0 && (
+                                <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
+                                  <span>Total</span>
+                                  <span>₦{getDebtors(d).reduce((a, dd) => a + (Number(dd.amount) || 0), 0).toLocaleString()}</span>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <input type="number" value={(d as unknown as Record<string, number>)[f.key] ?? 0}
@@ -785,8 +813,8 @@ export default function DailyStockPage() {
                   <td className="px-1.5 py-2 text-xs text-right text-brand-600 dark:text-brand-400">{paginatedRecords.reduce((s, r) => s + calcDepotEndStock(r), 0).toLocaleString()}</td>
                   {DEPOT_POST_ENDSTOCK.filter((f) => !hiddenCols.includes(f.key)).map((f) => (
                     <td key={f.key} className="px-1.5 py-2 text-xs text-right">
-                      {f.type === "select" ? "" : f.type === "debtors"
-                        ? paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0).toLocaleString()
+                      {f.type === "debtors"
+                        ? `${debtorCount} · ₦${debtorTotal.toLocaleString()}`
                         : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
                   ))}
@@ -918,8 +946,6 @@ export default function DailyStockPage() {
                 { key: "bigTruck", label: "Bags Sold (Ordinary)" },
                 { key: "leakages", label: "Leakages" },
                 { key: "debtors", label: "Debtors" },
-                { key: "debts", label: "Debts" },
-                { key: "debtStatus", label: "Debt Status" },
                 { key: "cashDelivered", label: "Cash Delivered" },
               ].map((item) => {
                 const hidden = hiddenCols.includes(item.key);

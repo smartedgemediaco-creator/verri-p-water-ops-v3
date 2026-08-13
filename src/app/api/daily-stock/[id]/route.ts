@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (SKIP_KEYS.has(key)) continue;
     if (ARRAY_FIELDS.has(key)) {
       (record as unknown as Record<string, unknown>)[key] = Array.isArray(val)
-        ? (val as { name?: unknown; amount?: unknown }[]).map((d) => ({ name: String(d?.name ?? "").trim(), amount: Number(d?.amount) || 0 }))
+        ? (val as { name?: unknown; amount?: unknown; status?: unknown }[]).map((d) => ({ name: String(d?.name ?? "").trim(), amount: Number(d?.amount) || 0, status: String(d?.status ?? "").trim() || "pending" }))
         : [];
     } else if (STRING_FIELDS.has(key)) {
       (record as unknown as Record<string, string>)[key] = String(val ?? "");
