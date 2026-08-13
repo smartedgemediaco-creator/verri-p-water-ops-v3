@@ -21,6 +21,7 @@ interface PayrollRecord {
   month: string;
   baseSalary: number;
   deductions: { absence: number; lateness: number; halfDay: number; debt: number; punishment: number; other: number };
+  debtSettlements?: { amount: number; date?: string; note?: string }[];
   bonus: number;
   netPay: number;
   status: "pending" | "paid" | "partial";
@@ -185,6 +186,11 @@ export default function PayrollPage() {
   const [payTarget, setPayTarget] = useState<PayrollRecord | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
+
+  const [settleTarget, setSettleTarget] = useState<PayrollRecord | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNote, setSettleNote] = useState("");
+  const [settling, setSettling] = useState(false);
 
   const fetchRecords = useCallback(() => {
     setLoading(true);
@@ -353,6 +359,40 @@ export default function PayrollPage() {
       if (!res.ok) { showError("Failed to record payment"); return; }
       showSuccess("Payment recorded"); setPayTarget(null); setPayAmount(""); fetchRecords();
     } catch { showError("Network error"); } finally { setPaying(false); }
+  };
+
+  const debtSettledTotal = (record: PayrollRecord) =>
+    (record.debtSettlements ?? []).reduce((sum, s) => sum + (s.amount ?? 0), 0);
+
+  const debtOutstanding = (record: PayrollRecord) =>
+    Math.max(0, (record.deductions?.debt ?? 0) - debtSettledTotal(record));
+
+  const openSettle = (record: PayrollRecord) => {
+    setSettleTarget(record);
+    setSettleAmount("");
+    setSettleNote("");
+  };
+
+  const doSettle = async () => {
+    if (!settleTarget) return;
+    const amount = Number(settleAmount) || 0;
+    const outstanding = debtOutstanding(settleTarget);
+    if (amount <= 0) { showError("Enter the amount settled"); return; }
+    if (amount > outstanding) { showError(`Settled amount cannot exceed the outstanding debt of ₦${outstanding.toLocaleString()}`); return; }
+    setSettling(true);
+    try {
+      const updated = {
+        debtSettlements: [...(settleTarget.debtSettlements ?? []), { amount, date: new Date().toISOString(), note: settleNote }],
+      };
+      const res = await fetch(`/api/payroll/${settleTarget._id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed to record settlement"); return; }
+      showSuccess(`₦${amount.toLocaleString()} settled against debt for ${settleTarget.staff?.name ?? "staff"}`);
+      setSettleTarget(null); setSettleAmount(""); setSettleNote("");
+      fetchRecords();
+    } catch { showError("Network error"); } finally { setSettling(false); }
   };
 
   return (
@@ -598,11 +638,24 @@ export default function PayrollPage() {
                     <TableCell className="py-3">
                       {(() => {
                         const monthDebt = record.deductions?.debt ?? 0;
-                        return monthDebt > 0 ? (
-                          <span className="text-theme-sm font-medium text-red-600 dark:text-red-400">
-                            ₦{monthDebt.toLocaleString()}
-                          </span>
-                        ) : "—";
+                        if (monthDebt <= 0) return "—";
+                        const settled = debtSettledTotal(record);
+                        const outstanding = Math.max(0, monthDebt - settled);
+                        return (
+                          <div>
+                            <span className="text-theme-sm font-medium text-red-600 dark:text-red-400">
+                              ₦{monthDebt.toLocaleString()}
+                            </span>
+                            <div className="text-[10px] text-gray-400 mt-0.5">
+                              {settled > 0 ? `₦${settled.toLocaleString()} settled · ` : ""}
+                              ₦{outstanding.toLocaleString()} left
+                            </div>
+                            <button onClick={() => openSettle(record)}
+                              className="text-[10px] font-medium text-brand-600 dark:text-brand-400 hover:underline">
+                              settle
+                            </button>
+                          </div>
+                        );
                       })()}
                     </TableCell>
                     <TableCell className="py-3 text-theme-sm font-semibold text-gray-800 dark:text-white/90">₦{record.netPay.toLocaleString()}</TableCell>
@@ -774,6 +827,51 @@ export default function PayrollPage() {
                 {paying ? "Processing..." : "Record Payment"}
               </Button>
               <Button variant="outline" onClick={() => setPayTarget(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settle Debt Modal */}
+      {settleTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSettleTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Settle Debt</h3>
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Staff:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{settleTarget.staff?.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Month:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{monthLabel(settleTarget.month)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Debt:</span>
+                <span className="font-medium text-red-600">₦{(settleTarget.deductions?.debt ?? 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Settled So Far:</span>
+                <span className="font-medium text-success-600">₦{debtSettledTotal(settleTarget).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Outstanding:</span>
+                <span className="font-bold text-red-600">₦{debtOutstanding(settleTarget).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Settled (₦)</label>
+              <InputField type="number" id="settleAmount" value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder="0" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note (optional)</label>
+              <InputField type="text" id="settleNote" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} placeholder="e.g. cash payment" />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={doSettle} disabled={settling || !settleAmount || Number(settleAmount) <= 0}>
+                {settling ? "Saving..." : "Record Settlement"}
+              </Button>
+              <Button variant="outline" onClick={() => setSettleTarget(null)}>Cancel</Button>
             </div>
           </div>
         </div>

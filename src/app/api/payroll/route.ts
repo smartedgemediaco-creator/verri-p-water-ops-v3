@@ -81,14 +81,14 @@ export async function GET(req: NextRequest) {
         staffId: { $in: staffIds },
         month: prevMonth,
       })
-        .select("staffId status deductions.debt netPay bonus")
+        .select("staffId status deductions.debt netPay bonus debtSettlements")
         .lean();
       const prevMap = new Map(prevRecords.map((r) => [r.staffId.toString(), r]));
       for (const r of enriched) {
         const prev = prevMap.get(r.staffId.toString());
         r.previousMonth = prev
           ? {
-              debt: prev.deductions?.debt ?? 0,
+              debt: Math.max(0, (prev.deductions?.debt ?? 0) - (prev.debtSettlements ?? []).reduce((s: number, x: any) => s + (x.amount ?? 0), 0)),
               netPay: prev.netPay ?? 0,
               bonus: prev.bonus ?? 0,
               month: prevMonth,
