@@ -15,14 +15,17 @@ export async function GET(
 
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type");
+  const batchId = searchParams.get("batchId");
   const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
 
   const filter: Record<string, unknown> = { rawMaterialId: id };
   if (type) filter.type = type;
+  if (batchId) filter.batchId = batchId;
 
   const movements = await RawMaterialStockMovement.find(filter)
     .sort({ createdAt: -1 })
     .limit(limit)
+    .populate("batchId", "batchNumber")
     .lean();
 
   return NextResponse.json(movements);

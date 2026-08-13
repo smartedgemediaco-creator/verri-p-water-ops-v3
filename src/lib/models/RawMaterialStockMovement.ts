@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IRawMaterialStockMovement extends Document {
   rawMaterialId: Types.ObjectId;
+  batchId?: Types.ObjectId;
   type: "purchase" | "consumption" | "adjustment" | "waste" | "return" | "correction";
   quantity: number;
   unit: string;
@@ -17,6 +18,7 @@ export interface IRawMaterialStockMovement extends Document {
 const RawMaterialStockMovementSchema = new Schema<IRawMaterialStockMovement>(
   {
     rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial", required: true, index: true },
+    batchId: { type: Schema.Types.ObjectId, ref: "RawMaterialBatch", default: null, index: true },
     type: {
       type: String,
       enum: ["purchase", "consumption", "adjustment", "waste", "return", "correction"],

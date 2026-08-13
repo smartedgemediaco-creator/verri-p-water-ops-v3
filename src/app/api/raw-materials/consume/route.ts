@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
 
     await RawMaterialStockMovement.create({
       rawMaterialId: body.rawMaterialId,
+      batchId: batch._id,
       type: body.purpose === "wastage" ? "waste" : "consumption",
       quantity: -qty,
       unit: batch.unit,

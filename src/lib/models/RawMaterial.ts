@@ -19,7 +19,6 @@ const RawMaterialSchema = new Schema<IRawMaterial>(
     unit: { type: String, required: true, default: "kg" },
     category: {
       type: String,
-      enum: ["chemical", "packaging", "filter", "label", "other"],
       default: "other",
     },
     currentStock: { type: Number, default: 0 },

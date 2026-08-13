@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { RawMaterial, RawMaterialStockMovement } from "@/lib/models";
+import { RawMaterial, RawMaterialBatch, RawMaterialStockMovement, RawMaterialConsumption } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyLowStock } from "@/lib/notifications";
@@ -32,16 +32,65 @@ export async function POST(
       );
     }
 
+    const batchId = body.batchId;
+    let unitCost = material.unitCost || 0;
+    let unit = material.unit;
+    let batchRef = "";
+    const movementType =
+      body.type === "waste" || body.type === "wastage" ? "waste" :
+      body.type === "adjustment" ? "adjustment" :
+      "consumption";
+
+    if (batchId) {
+      const batch = await RawMaterialBatch.findById(batchId);
+      if (!batch) return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+      if (batch.rawMaterialId.toString() !== id) {
+        return NextResponse.json({ error: "Batch does not belong to this material" }, { status: 400 });
+      }
+      if (quantity > batch.availableQuantity) {
+        return NextResponse.json(
+          { error: `Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQuantity} ${batch.unit}` },
+          { status: 400 }
+        );
+      }
+      batch.availableQuantity -= quantity;
+      batch.consumedQuantity += quantity;
+      if (batch.availableQuantity <= 0) batch.status = "consumed";
+      await batch.save();
+
+      unitCost = batch.unitPrice || unitCost;
+      unit = batch.unit || unit;
+      batchRef = batch.batchNumber;
+
+      if (body.locationType && body.locationId) {
+        const purpose =
+          body.purpose || (body.type === "consumption" ? "production" : body.type) || "production";
+        await RawMaterialConsumption.create({
+          rawMaterialId: id,
+          locationType: body.locationType,
+          locationId: body.locationId,
+          date: body.date ? new Date(body.date) : new Date(),
+          purpose,
+          allocations: [{ batchId, quantity, unitCost: batch.unitPrice, itemCount: 0 }],
+          totalQuantity: quantity,
+          totalCost: quantity * (batch.unitPrice || 0),
+          notes: body.notes || "",
+          createdBy: user.userId,
+        });
+      }
+    }
+
     material.currentStock -= quantity;
     await material.save();
 
     await RawMaterialStockMovement.create({
       rawMaterialId: id,
-      type: body.type || "consumption",
+      batchId: batchId || undefined,
+      type: movementType,
       quantity: -quantity,
-      unit: material.unit,
-      unitCost: material.unitCost,
-      reference: body.reference || "Manual consumption",
+      unit,
+      unitCost,
+      reference: batchRef ? `${body.type || "consumption"} — batch ${batchRef}` : body.reference || "Manual consumption",
       referenceId: body.referenceId || undefined,
       notes: body.notes || "",
       performedBy: user.email || user.userId,
@@ -51,9 +100,9 @@ export async function POST(
       action: "updated",
       entity: "raw-material",
       entityId: id,
-      description: `Consumed ${quantity} ${material.unit} of "${material.name}" (now ${material.currentStock})`,
+      description: `Consumed ${quantity} ${unit} of "${material.name}" (now ${material.currentStock})${batchRef ? ` from batch ${batchRef}` : ""}`,
       userId: user.userId,
-      metadata: { quantity, newStock: material.currentStock, type: body.type || "consumption" },
+      metadata: { quantity, newStock: material.currentStock, type: movementType, batchId },
     });
 
     if (material.currentStock < material.minimumStock) {
