@@ -46,6 +46,8 @@ const DailyStockSchema = new Schema<IDailyStock>(
     returnedSmallTruck2: { type: Number, default: 0 },
     depot: { type: Number, default: 0 },
     tricycle: { type: Number, default: 0 },
+    // container for arbitrary custom columns (dynamic per-location)
+    custom: { type: Map, of: Number, default: {} },
     shortage: { type: Number, default: 0 },
     wastage: { type: Number, default: 0 },
     leakages: { type: Number, default: 0 },

@@ -34,7 +34,14 @@ export async function GET(req: NextRequest) {
     filter.locationId = location.locationId;
   }
   const records = await DailyStock.find(filter).sort({ date: -1 }).lean();
-  return NextResponse.json(records);
+  // flatten custom map/object into top-level fields so UI can read custom column keys
+  const out = records.map((r) => {
+    if (r && (r as any).custom && typeof (r as any).custom === "object") {
+      try { return Object.assign({}, r, (r as any).custom); } catch { /* ignore */ }
+    }
+    return r;
+  });
+  return NextResponse.json(out);
 }
 
 export async function POST(req: NextRequest) {
@@ -50,7 +57,18 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json({ error: "A record for this date already exists at this location" }, { status: 409 });
 
   const endStock = calcEndStock(body);
-  const record = await DailyStock.create({ ...body, endStock });
+  // separate static fields from arbitrary custom columns
+  const STATIC_KEYS = new Set([
+    "date","locationType","locationId","startStock","bagsProduced","factorySale","bigTruck","returnedBigTruck","smallTruck1","returnedSmallTruck1","smallTruck2","returnedSmallTruck2","depot","tricycle","shortage","wastage","leakages","totalSold","totalReturned","endStock","staffName","debtors","debts","debtStatus","cashDelivered"
+  ]);
+  const staticData: Record<string, unknown> = {};
+  const customData: Record<string, number> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (STATIC_KEYS.has(k)) staticData[k] = v;
+    else if (k === "date" || k === "locationType" || k === "locationId") staticData[k] = v;
+    else customData[k] = Number(v) || 0;
+  }
+  const record = await DailyStock.create({ ...staticData, custom: customData, endStock });
 
   const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
   if (notifyEmail) {

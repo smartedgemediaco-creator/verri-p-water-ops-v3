@@ -38,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   for (const [key, val] of Object.entries(body)) {
     if (SKIP_KEYS.has(key)) continue;
+    // If field is an array or string typed field, or if it exists on the document schema, write to root.
     if (ARRAY_FIELDS.has(key)) {
       (record as unknown as Record<string, unknown>)[key] = Array.isArray(val)
         ? (val as { name?: unknown; amount?: unknown; settlements?: { amount?: unknown; date?: unknown; note?: unknown }[] }[]).map((d) => ({
@@ -55,15 +56,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } else if (STRING_FIELDS.has(key)) {
       (record as unknown as Record<string, string>)[key] = String(val ?? "");
     } else {
-      (record as unknown as Record<string, number>)[key] = Number(val) || 0;
+      // if key is an existing schema path, write to root; otherwise treat as a custom column and store in `custom` map
+      const rootObj = record.toObject();
+      if (Object.prototype.hasOwnProperty.call(rootObj, key)) {
+        (record as unknown as Record<string, number>)[key] = Number(val) || 0;
+      } else {
+        // ensure custom map exists
+        if (!(record as any).custom) (record as any).custom = {};
+        // if custom is a Map, use set; otherwise treat as plain object
+        if (typeof (record as any).custom.set === "function") {
+          (record as any).custom.set(key, Number(val) || 0);
+        } else {
+          (record as any).custom[key] = Number(val) || 0;
+        }
+      }
     }
   }
 
   const shortageKeys = await getDepotShortageKeys(record.locationType, record.locationId);
-  record.endStock = calcEndStock(record.toObject(), shortageKeys);
+  // flatten custom into an object copy for endStock calculation
+  const obj = record.toObject();
+  if (obj.custom && typeof obj.custom === "object") Object.assign(obj, obj.custom as Record<string, unknown>);
+  record.endStock = calcEndStock(obj, shortageKeys);
 
   await record.save();
-  return NextResponse.json(record);
+  // return flattened object so client sees custom keys at top-level
+  const out = record.toObject();
+  if (out.custom && typeof out.custom === "object") Object.assign(out, out.custom as Record<string, unknown>);
+  return NextResponse.json(out);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
