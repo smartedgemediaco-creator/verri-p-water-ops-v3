@@ -261,7 +261,7 @@ export default function PayrollPage() {
     const base = Number(formBaseSalary) || 0;
     const bonus = Number(formBonus) || 0;
     const deductions = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
-    return base + bonus - deductions - formPrevDebt;
+    return Math.round(base + bonus - deductions - formPrevDebt);
   };
 
   const totalDeductionsForm = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
@@ -281,7 +281,7 @@ export default function PayrollPage() {
       const pd = prevRec.deductions ?? {};
       const prevDeductions = (pd.absence ?? 0) + (pd.lateness ?? 0) + (pd.halfDay ?? 0) + (pd.debt ?? 0) + (pd.punishment ?? 0) + (pd.other ?? 0);
       const prevSettled = (prevRec.debtSettlements ?? []).reduce((sum: number, s: { amount?: number }) => sum + (s.amount ?? 0), 0);
-      setFormPrevDebt(Math.max(0, prevDeductions - prevSettled));
+      setFormPrevDebt(Math.round(Math.max(0, prevDeductions - prevSettled)));
     } catch { setFormPrevDebt(0); }
   };
 

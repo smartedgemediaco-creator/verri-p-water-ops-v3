@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         const prev = prevMap.get(r.staffId.toString());
         r.previousMonth = prev
           ? {
-              debt: Math.max(0, ((prev.deductions?.absence ?? 0) + (prev.deductions?.lateness ?? 0) + (prev.deductions?.halfDay ?? 0) + (prev.deductions?.debt ?? 0) + (prev.deductions?.punishment ?? 0) + (prev.deductions?.other ?? 0)) - (prev.debtSettlements ?? []).reduce((s: number, x: any) => s + (x.amount ?? 0), 0)),
+              debt: Math.round(Math.max(0, ((prev.deductions?.absence ?? 0) + (prev.deductions?.lateness ?? 0) + (prev.deductions?.halfDay ?? 0) + (prev.deductions?.debt ?? 0) + (prev.deductions?.punishment ?? 0) + (prev.deductions?.other ?? 0)) - (prev.debtSettlements ?? []).reduce((s: number, x: any) => s + (x.amount ?? 0), 0))),
               netPay: prev.netPay ?? 0,
               bonus: prev.bonus ?? 0,
               month: prevMonth,
@@ -215,8 +215,8 @@ export async function POST(req: NextRequest) {
         prevDebt = Math.max(0, prevDeductions - prevSettled);
       }
     }
-    body.previousDebt = prevDebt;
-    body.netPay = (body.baseSalary || 0) + (body.bonus || 0) - totalDeductions - prevDebt;
+    body.previousDebt = Math.round(prevDebt);
+    body.netPay = Math.round((body.baseSalary || 0) + (body.bonus || 0) - totalDeductions - prevDebt);
 
     body.createdBy = user.userId;
 

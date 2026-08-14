@@ -44,7 +44,7 @@ export async function PATCH(
       const bonus = body.bonus ?? existing.bonus;
       const prevDebt = body.previousDebt ?? existing.previousDebt ?? 0;
       const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.halfDay || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
-      body.netPay = base + bonus - totalDeductions - prevDebt;
+      body.netPay = Math.round(base + bonus - totalDeductions - prevDebt);
     }
 
     const updated = await PayrollRecord.findByIdAndUpdate(id, body, { new: true });
