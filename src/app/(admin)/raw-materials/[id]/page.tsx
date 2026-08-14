@@ -21,6 +21,17 @@ interface RawMaterial {
   currentStock: number; minimumStock: number; unitCost: number;
   supplierId: { _id: string; name: string; phone?: string } | null;
   notes: string;
+  secondaryUnit?: string;
+  units?: string[];
+}
+
+interface Batch {
+  _id: string; batchNumber: string;
+  rawMaterialId: { _id: string; name: string; unit: string };
+  receivedQuantity: number; availableQuantity: number;
+  unit: string; unitPrice: number;
+  itemUnit?: string; itemCount?: number; itemConsumed?: number;
+  status: string; createdAt: string;
 }
 
 interface StockMovement {
@@ -90,6 +101,11 @@ export default function RawMaterialDetailPage() {
   const [useQty, setUseQty] = useState(0);
   const [useReason, setUseReason] = useState("consumption");
   const [useNotes, setUseNotes] = useState("");
+  const [useBatchId, setUseBatchId] = useState("");
+  const [useMode, setUseMode] = useState<"primary" | "secondary">("primary");
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [editSecondaryUnit, setEditSecondaryUnit] = useState("");
+  const [editUnitsText, setEditUnitsText] = useState("");
 
   const fetchData = () => {
     setLoading(true);
@@ -97,10 +113,12 @@ export default function RawMaterialDetailPage() {
       fetch(`/api/raw-materials/${id}`).then(r => r.json()),
       fetch(`/api/raw-materials/${id}/movements?limit=50`).then(r => r.json()),
       fetch("/api/purchase-orders").then(r => r.json()),
-    ]).then(([mat, mvts, pos]) => {
+      fetch(`/api/raw-materials/batches?rawMaterialId=${id}`).then(r => r.json()),
+    ]).then(([mat, mvts, pos, bts]) => {
       setMaterial(mat);
       setMovements(Array.isArray(mvts) ? mvts : []);
       setPurchaseOrders(Array.isArray(pos) ? pos : []);
+      setBatches(Array.isArray(bts) ? bts : []);
     }).finally(() => setLoading(false));
   };
 
@@ -126,6 +144,8 @@ export default function RawMaterialDetailPage() {
     setEditUnitCost(material.unitCost);
     setEditSupplierId(material.supplierId?._id ?? "");
     setEditNotes(material.notes || "");
+    setEditSecondaryUnit(material.secondaryUnit || "");
+    setEditUnitsText(Array.isArray(material.units) && material.units.length ? material.units.join(", ") : "");
     setShowEditModal(true);
   };
 
@@ -144,6 +164,8 @@ export default function RawMaterialDetailPage() {
           unitCost: editUnitCost,
           supplierId: editSupplierId || undefined,
           notes: editNotes,
+          secondaryUnit: editSecondaryUnit || undefined,
+          units: editUnitsText.split(",").map(s => s.trim()).filter(Boolean),
         }),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to update"); return; }
@@ -183,21 +205,46 @@ export default function RawMaterialDetailPage() {
 
   const handleUseStock = async () => {
     if (useQty <= 0) { showError("Enter a valid quantity"); return; }
+    if (!useBatchId) { showError("Select which batch to take from"); return; }
+    const batch = batches.find(b => b._id === useBatchId);
+    if (!batch) { showError("Select a valid batch"); return; }
+    const remainingItems = Math.max(0, (batch.itemCount ?? 0) - (batch.itemConsumed ?? 0));
+    const convertedQty = useMode === "secondary"
+      ? (useQty * (batch.receivedQuantity || 0)) / (batch.itemCount || 1)
+      : useQty;
+    if (useMode === "secondary") {
+      if (useQty > remainingItems) {
+        showError(`Insufficient ${batch.itemUnit || "items"} in batch ${batch.batchNumber}. Available: ${remainingItems.toLocaleString()} ${batch.itemUnit || "items"}`);
+        return;
+      }
+      if (convertedQty > batch.availableQuantity) {
+        showError(`Conversion exceeds batch remaining (${(batch.availableQuantity ?? 0).toLocaleString()} ${batch.unit})`);
+        return;
+      }
+    } else if (useQty > batch.availableQuantity) {
+      showError(`Insufficient stock in batch ${batch.batchNumber}. Available: ${(batch.availableQuantity ?? 0).toLocaleString()} ${batch.unit}`);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/raw-materials/${id}/consume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          quantity: useQty,
+          batchId: useBatchId,
+          quantity: convertedQty,
+          itemQuantity: useMode === "secondary" ? useQty : undefined,
           type: useReason,
+          purpose: useReason === "consumption" ? "production" : useReason,
           notes: useNotes || undefined,
         }),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to record consumption"); return; }
-      showSuccess("Stock consumed");
+      showSuccess(useMode === "secondary"
+        ? `Used ${useQty.toLocaleString()} ${batch.itemUnit} (${convertedQty.toLocaleString()} ${batch.unit}) from ${batch.batchNumber}`
+        : `Used ${useQty.toLocaleString()} ${batch.unit} from ${batch.batchNumber}`);
       setShowUseModal(false);
-      setUseQty(0); setUseNotes(""); setUseReason("consumption");
+      setUseQty(0); setUseNotes(""); setUseReason("consumption"); setUseBatchId(""); setUseMode("primary");
       fetchData();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
@@ -212,6 +259,14 @@ export default function RawMaterialDetailPage() {
   const isLow = material.minimumStock > 0 && material.currentStock < material.minimumStock;
   const isOut = material.currentStock <= 0;
   const supplier = material.supplierId;
+
+  const availableBatches = batches.filter(b => b.availableQuantity > 0);
+  const selectedBatch = availableBatches.find(b => b._id === useBatchId);
+  const useRemainingKg = selectedBatch?.availableQuantity ?? 0;
+  const useRemainingItems = selectedBatch ? Math.max(0, (selectedBatch.itemCount ?? 0) - (selectedBatch.itemConsumed ?? 0)) : 0;
+  const useConvertedQty = selectedBatch && useMode === "secondary"
+    ? (useQty * (selectedBatch.receivedQuantity || 0)) / (selectedBatch.itemCount || 1)
+    : useQty;
 
   const recLocationOpts = recLocationType === "factory"
     ? factories.map(f => ({ value: f._id, label: f.name }))
@@ -229,7 +284,7 @@ export default function RawMaterialDetailPage() {
           <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => { setRecQty(0); setRecUnit(material.unit); setRecUnitPrice(material.unitCost); setRecLocationId(""); setRecNotes(""); setRecDate(new Date().toISOString().split("T")[0]); setShowReceiveModal(true); }}>
             Receive Stock
           </Button>
-          <Button variant="outline" size="sm" startIcon={<ArrowDownIcon />} onClick={() => { setUseQty(0); setUseReason("consumption"); setUseNotes(""); setShowUseModal(true); }}>
+          <Button variant="outline" size="sm" startIcon={<ArrowDownIcon />} onClick={() => { setUseQty(0); setUseReason("consumption"); setUseNotes(""); setUseBatchId(""); setUseMode("primary"); setShowUseModal(true); }}>
             Use Stock
           </Button>
         </div>
@@ -437,6 +492,17 @@ export default function RawMaterialDetailPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Unit</label>
+                  <Input placeholder="e.g. rolls" value={editSecondaryUnit} onChange={e => setEditSecondaryUnit(e.target.value)} />
+                  <p className="text-[11px] text-gray-400 mt-1">Optional. Item-level tracking unit, e.g. rolls, packs.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Other Units (comma-separated)</label>
+                  <Input placeholder="e.g. rolls, packs" value={editUnitsText} onChange={e => setEditUnitsText(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
                   <Input type="number" value={editMinStock} onChange={e => setEditMinStock(Number(e.target.value))} />
                 </div>
@@ -533,7 +599,7 @@ export default function RawMaterialDetailPage() {
 
       {showUseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) setShowUseModal(false); }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Use Stock — {material.name}</h3>
               <button onClick={() => setShowUseModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -542,15 +608,55 @@ export default function RawMaterialDetailPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Batch</label>
+                <Select
+                  options={availableBatches.map((b) => ({
+                    value: b._id,
+                    label: `${b.batchNumber} — ${(b.availableQuantity ?? 0).toLocaleString()} ${b.unit}${b.itemUnit && (b.itemCount ?? 0) > 0 ? ` · ${Math.max(0, (b.itemCount ?? 0) - (b.itemConsumed ?? 0)).toLocaleString()} ${b.itemUnit} left` : ""}`,
+                  }))}
+                  value={useBatchId}
+                  onChange={(v) => { setUseBatchId(v); setUseMode("primary"); }}
+                />
+                {availableBatches.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No batches with available stock. Receive stock first.</p>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity *</label>
+                  {selectedBatch && selectedBatch.itemUnit && (selectedBatch.itemCount ?? 0) > 0 && (
+                    <div className="flex gap-1 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs">
+                      <button type="button" onClick={() => setUseMode("primary")}
+                        className={`px-2 py-1 rounded-md font-medium transition-colors ${useMode === "primary" ? "bg-white dark:bg-gray-700 text-brand-700 dark:text-brand-300 shadow-sm" : "text-gray-500"}`}>
+                        {selectedBatch.unit}
+                      </button>
+                      <button type="button" onClick={() => setUseMode("secondary")}
+                        className={`px-2 py-1 rounded-md font-medium transition-colors ${useMode === "secondary" ? "bg-white dark:bg-gray-700 text-brand-700 dark:text-brand-300 shadow-sm" : "text-gray-500"}`}>
+                        {selectedBatch.itemUnit}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <Input type="number" placeholder="0" value={useQty} onChange={e => setUseQty(Number(e.target.value))} />
+                {useMode === "secondary" && selectedBatch && !selectedBatch.itemUnit && (
+                  <p className="text-xs text-amber-600 mt-1">This batch has no item conversion — only {selectedBatch.unit} is available.</p>
+                )}
+                {useQty > 0 && (
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 mt-2 text-xs text-gray-600 dark:text-gray-300">
+                    {selectedBatch && useMode === "secondary"
+                      ? <>Uses <strong>{useQty.toLocaleString()} {selectedBatch.itemUnit}</strong> = <strong>{useConvertedQty.toLocaleString()} {selectedBatch.unit}</strong> · Remaining: {Math.max(0, useRemainingKg - useConvertedQty).toLocaleString()} {selectedBatch.unit} / {Math.max(0, useRemainingItems - useQty).toLocaleString()} {selectedBatch.itemUnit}</>
+                      : selectedBatch
+                        ? <>Will use <strong>{useQty.toLocaleString()} {selectedBatch.unit}</strong> · Remaining after: {Math.max(0, useRemainingKg - useQty).toLocaleString()} {selectedBatch.unit}</>
+                        : "Select a batch to preview."}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason</label>
                 <Select
                   options={[
                     { value: "consumption", label: "Production" },
-                    { value: "waste", label: "Wastage" },
+                    { value: "wastage", label: "Wastage" },
                     { value: "adjustment", label: "Adjustment" },
                     { value: "other", label: "Other" },
                   ]}
@@ -562,15 +668,9 @@ export default function RawMaterialDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                 <TextArea placeholder="Optional notes..." value={useNotes} onChange={setUseNotes} rows={2} />
               </div>
-              {useQty > 0 && material.unitCost > 0 && (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Estimated Cost</span>
-                  <span className="font-semibold text-gray-800 dark:text-white/90">₦{(useQty * material.unitCost).toLocaleString()}</span>
-                </div>
-              )}
               <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="outline" size="sm" onClick={() => setShowUseModal(false)} disabled={submitting}>Cancel</Button>
-                <Button variant="primary" onClick={handleUseStock} disabled={submitting || useQty <= 0}>
+                <Button variant="primary" onClick={handleUseStock} disabled={submitting || useQty <= 0 || !useBatchId}>
                   {submitting ? "Saving..." : "Use Stock"}
                 </Button>
               </div>

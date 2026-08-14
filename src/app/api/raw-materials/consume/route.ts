@@ -4,6 +4,7 @@ import { RawMaterialConsumption, RawMaterialBatch, RawMaterial, RawMaterialStock
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyLowStock } from "@/lib/notifications";
+import { itemToPrimaryQty, recomputeMaterialStock } from "@/lib/rawMaterialStock";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,8 +19,8 @@ export async function POST(req: NextRequest) {
 
   const allocations = body.allocations as Array<{
     batchId: string;
-    quantity: number;
-    itemCount?: number;
+    quantity?: number;
+    itemQuantity?: number;
   }>;
 
   if (!Array.isArray(allocations) || allocations.length === 0) {
@@ -34,48 +35,67 @@ export async function POST(req: NextRequest) {
     quantity: number;
     unitCost: number;
     itemCount: number;
+    itemUnit: string;
   }> = [];
   let totalQuantity = 0;
   let totalCost = 0;
 
   for (const alloc of allocations) {
-    const qty = Number(alloc.quantity);
-    if (!qty || qty <= 0) {
-      return NextResponse.json({ error: `Invalid quantity for batch ${alloc.batchId}` }, { status: 400 });
-    }
-
     const batch = await RawMaterialBatch.findById(alloc.batchId);
     if (!batch) {
       return NextResponse.json({ error: `Batch ${alloc.batchId} not found` }, { status: 400 });
     }
-    if (qty > batch.availableQuantity) {
+
+    const itemQty = Number(alloc.itemQuantity) || 0;
+    const primaryQty =
+      itemQty > 0
+        ? itemToPrimaryQty(batch, itemQty)
+        : Number(alloc.quantity) || 0;
+
+    if (!primaryQty || primaryQty <= 0) {
+      return NextResponse.json(
+        { error: `Invalid quantity for batch ${batch.batchNumber}. Provide a primary quantity or an item count (${batch.itemUnit || "items"}).` },
+        { status: 400 }
+      );
+    }
+    if (itemQty > 0 && itemQty > (batch.itemCount || 0) - (batch.itemConsumed || 0)) {
+      return NextResponse.json(
+        { error: `Insufficient ${batch.itemUnit || "items"} in batch ${batch.batchNumber}. Available: ${(batch.itemCount || 0) - (batch.itemConsumed || 0)} ${batch.itemUnit || "items"}` },
+        { status: 400 }
+      );
+    }
+    if (primaryQty > batch.availableQuantity) {
       return NextResponse.json(
         { error: `Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQuantity} ${batch.unit}` },
         { status: 400 }
       );
     }
 
-    batch.availableQuantity -= qty;
-    batch.consumedQuantity += qty;
+    batch.availableQuantity -= primaryQty;
+    batch.consumedQuantity += primaryQty;
+    if (itemQty > 0) batch.itemConsumed = (batch.itemConsumed || 0) + itemQty;
     if (batch.availableQuantity <= 0) batch.status = "consumed";
     await batch.save();
 
     processedAllocations.push({
       batchId: alloc.batchId,
-      quantity: qty,
+      quantity: primaryQty,
       unitCost: batch.unitPrice,
-      itemCount: Number(alloc.itemCount) || 0,
+      itemCount: itemQty,
+      itemUnit: itemQty > 0 ? batch.itemUnit : "",
     });
 
-    totalQuantity += qty;
-    totalCost += qty * batch.unitPrice;
+    totalQuantity += primaryQty;
+    totalCost += primaryQty * batch.unitPrice;
 
     await RawMaterialStockMovement.create({
       rawMaterialId: body.rawMaterialId,
       batchId: batch._id,
       type: body.purpose === "wastage" ? "waste" : "consumption",
-      quantity: -qty,
+      quantity: -primaryQty,
       unit: batch.unit,
+      itemQuantity: itemQty > 0 ? -itemQty : 0,
+      itemUnit: itemQty > 0 ? batch.itemUnit : "",
       unitCost: batch.unitPrice,
       reference: `${body.purpose || "consumption"} — batch ${batch.batchNumber}`,
       notes: body.notes || "",
@@ -98,20 +118,19 @@ export async function POST(req: NextRequest) {
     createdBy: user.userId,
   });
 
-  material.currentStock -= totalQuantity;
-  await material.save();
+  const currentStock = await recomputeMaterialStock(material._id);
 
   await logActivity({
     action: "updated",
     entity: "raw-material",
     entityId: body.rawMaterialId,
-    description: `Consumed ${totalQuantity} ${material.unit} of "${material.name}" (${processedAllocations.length} batches) — now ${material.currentStock} ${material.unit}`,
+    description: `Consumed ${totalQuantity} ${material.unit} of "${material.name}" (${processedAllocations.length} batches) — now ${currentStock} ${material.unit}`,
     userId: user.userId,
     metadata: { totalQuantity, totalCost, purpose: body.purpose, batchCount: processedAllocations.length },
   });
 
-  if (material.currentStock < material.minimumStock) {
-    notifyLowStock(material.name, material.currentStock, material.minimumStock).catch(() => {});
+  if (currentStock < material.minimumStock) {
+    notifyLowStock(material.name, currentStock, material.minimumStock).catch(() => {});
   }
 
   return NextResponse.json(consumption, { status: 201 });

@@ -4,6 +4,7 @@ import { RawMaterial, RawMaterialBatch } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyLowStock } from "@/lib/notifications";
+import { sanitizeCustomFields } from "@/lib/rawMaterialStock";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = getUserFromRequest(_req);
@@ -25,6 +26,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   for (const key of ["name", "unit", "category", "minimumStock", "unitCost", "supplierId", "notes"]) {
     if (key in body) allowedFields[key] = body[key];
   }
+  if ("secondaryUnit" in body) allowedFields.secondaryUnit = body.secondaryUnit ?? "";
+  if ("units" in body) {
+    allowedFields.units = Array.isArray(body.units)
+      ? body.units.filter((u: unknown) => typeof u === "string" && u.trim())
+      : [];
+  }
+  if ("customFields" in body) allowedFields.customFields = sanitizeCustomFields(body.customFields);
   const material = await RawMaterial.findByIdAndUpdate(id, allowedFields, { new: true });
   if (!material) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await logActivity({

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { PurchaseOrder, RawMaterialBatch, RawMaterial, SupplierLedger, Supplier } from "@/lib/models";
+import { PurchaseOrder, RawMaterialBatch, SupplierLedger, Supplier } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { recomputeMaterialStock } from "@/lib/rawMaterialStock";
 
 export async function POST(
   req: NextRequest,
@@ -54,6 +55,9 @@ export async function POST(
       return NextResponse.json({ error: "PO has no delivery location set" }, { status: 400 });
     }
 
+    const itemCount = Number(delivery.unitCount) || Number(delivery.itemCount) || 0;
+    const itemUnit = item.itemUnit || "";
+
     const batch = await RawMaterialBatch.create({
       rawMaterialId: item.rawMaterialId,
       supplierId: order.supplierId || null,
@@ -64,8 +68,13 @@ export async function POST(
       orderedQuantity: item.quantity,
       receivedQuantity: receivedQty,
       unit: item.unit || "kg",
-      itemCount: Number(delivery.unitCount) || Number(delivery.itemCount) || 0,
-      itemUnit: item.itemUnit || "",
+      itemCount,
+      itemUnit,
+      itemConsumed: 0,
+      conversion:
+        itemCount > 0 && itemUnit
+          ? { primaryQty: receivedQty, primaryUnit: item.unit || "kg", secondaryQty: itemCount, secondaryUnit: itemUnit }
+          : null,
       unitPrice: item.unitPrice,
       totalCost: receivedQty * item.unitPrice,
       status: "received",
@@ -83,9 +92,7 @@ export async function POST(
     item.batchIds.push(batch._id);
 
     if (item.rawMaterialId) {
-      await RawMaterial.findByIdAndUpdate(item.rawMaterialId, {
-        $inc: { currentStock: receivedQty },
-      });
+      await recomputeMaterialStock(item.rawMaterialId);
     }
   }
 

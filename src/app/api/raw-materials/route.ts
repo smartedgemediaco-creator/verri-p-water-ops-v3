@@ -3,6 +3,7 @@ import connectDB from "@/lib/db";
 import { RawMaterial, RawMaterialBatch } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { sanitizeCustomFields } from "@/lib/rawMaterialStock";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -39,7 +40,18 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await connectDB();
   const body = await req.json();
-  const material = await RawMaterial.create(body);
+  const material = await RawMaterial.create({
+    name: body.name,
+    unit: body.unit || "kg",
+    secondaryUnit: body.secondaryUnit || "",
+    units: Array.isArray(body.units) ? body.units.filter((u: unknown) => typeof u === "string" && u.trim()) : [],
+    category: body.category || "other",
+    minimumStock: Number(body.minimumStock) || 0,
+    unitCost: Number(body.unitCost) || 0,
+    supplierId: body.supplierId || null,
+    notes: body.notes || "",
+    customFields: sanitizeCustomFields(body.customFields),
+  });
   await logActivity({
     action: "created",
     entity: "raw-material",

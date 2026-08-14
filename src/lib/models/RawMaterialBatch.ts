@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
+export interface IRawMaterialBatchConversion {
+  primaryQty: number;
+  primaryUnit: string;
+  secondaryQty: number;
+  secondaryUnit: string;
+}
+
 export interface IRawMaterialBatch extends Document {
   rawMaterialId: Types.ObjectId;
   supplierId?: Types.ObjectId;
@@ -13,6 +20,8 @@ export interface IRawMaterialBatch extends Document {
   unit: string;
   itemCount: number;
   itemUnit: string;
+  itemConsumed: number;
+  conversion?: IRawMaterialBatchConversion;
   conversionNote: string;
   unitPrice: number;
   totalCost: number;
@@ -31,6 +40,16 @@ export interface IRawMaterialBatch extends Document {
   updatedAt: Date;
 }
 
+const ConversionSchema = new Schema<IRawMaterialBatchConversion>(
+  {
+    primaryQty: { type: Number, default: 0, min: 0 },
+    primaryUnit: { type: String, default: "" },
+    secondaryQty: { type: Number, default: 0, min: 0 },
+    secondaryUnit: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const RawMaterialBatchSchema = new Schema<IRawMaterialBatch>(
   {
     rawMaterialId: { type: Schema.Types.ObjectId, ref: "RawMaterial", required: true, index: true },
@@ -45,6 +64,8 @@ const RawMaterialBatchSchema = new Schema<IRawMaterialBatch>(
     unit: { type: String, default: "kg" },
     itemCount: { type: Number, default: 0, min: 0 },
     itemUnit: { type: String, default: "" },
+    itemConsumed: { type: Number, default: 0, min: 0 },
+    conversion: { type: ConversionSchema, default: null },
     conversionNote: { type: String, default: "" },
     unitPrice: { type: Number, required: true, min: 0 },
     totalCost: { type: Number, default: 0 },

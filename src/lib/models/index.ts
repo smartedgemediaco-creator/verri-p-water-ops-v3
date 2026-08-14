@@ -35,7 +35,7 @@ export type { IStaff } from "./Staff";
 export { Supplier } from "./Supplier";
 export type { ISupplier } from "./Supplier";
 export { RawMaterial } from "./RawMaterial";
-export type { IRawMaterial } from "./RawMaterial";
+export type { IRawMaterial, ICustomFieldDef } from "./RawMaterial";
 export { ServiceRecord } from "./ServiceRecord";
 export type { IServiceRecord } from "./ServiceRecord";
 export { ScheduledOperation } from "./ScheduledOperation";
@@ -104,7 +104,7 @@ export type { ICommissionedStaffRecord, IPaymentEntry, IDebtorEntry } from "./Co
 export { RawMaterialStockMovement } from "./RawMaterialStockMovement";
 export type { IRawMaterialStockMovement } from "./RawMaterialStockMovement";
 export { RawMaterialBatch } from "./RawMaterialBatch";
-export type { IRawMaterialBatch } from "./RawMaterialBatch";
+export type { IRawMaterialBatch, IRawMaterialBatchConversion } from "./RawMaterialBatch";
 export { RawMaterialConsumption } from "./RawMaterialConsumption";
 export type { IRawMaterialConsumption, IConsumptionAllocation } from "./RawMaterialConsumption";
 export { SupplierLedger } from "./SupplierLedger";

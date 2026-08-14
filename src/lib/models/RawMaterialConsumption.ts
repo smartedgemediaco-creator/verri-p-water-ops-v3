@@ -5,6 +5,7 @@ export interface IConsumptionAllocation {
   quantity: number;
   unitCost: number;
   itemCount: number;
+  itemUnit: string;
 }
 
 export interface IRawMaterialConsumption extends Document {
@@ -30,6 +31,7 @@ const ConsumptionAllocationSchema = new Schema<IConsumptionAllocation>(
     quantity: { type: Number, required: true, min: 0 },
     unitCost: { type: Number, required: true, min: 0 },
     itemCount: { type: Number, default: 0, min: 0 },
+    itemUnit: { type: String, default: "" },
   },
   { _id: false }
 );

@@ -4,6 +4,7 @@ import { RawMaterialBatch, RawMaterial, RawMaterialStockMovement } from "@/lib/m
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 import { notifyLowStock } from "@/lib/notifications";
+import { recomputeMaterialStock } from "@/lib/rawMaterialStock";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -85,6 +86,18 @@ export async function POST(req: NextRequest) {
   const count = await RawMaterialBatch.countDocuments();
   const batchNumber = body.batchNumber || `BATCH-${year}-${String(count + 1).padStart(4, "0")}`;
 
+  const unit = body.unit || "kg";
+  const itemUnit = body.itemUnit || "";
+  const conversion =
+    itemCount > 0 && itemUnit
+      ? {
+          primaryQty: receivedQty,
+          primaryUnit: unit,
+          secondaryQty: itemCount,
+          secondaryUnit: itemUnit,
+        }
+      : null;
+
   const batch = await RawMaterialBatch.create({
     rawMaterialId: body.rawMaterialId,
     supplierId: body.supplierId || null,
@@ -95,9 +108,11 @@ export async function POST(req: NextRequest) {
     locationId: body.locationId,
     orderedQuantity: Number(body.orderedQuantity) || receivedQty,
     receivedQuantity: receivedQty,
-    unit: body.unit || "kg",
+    unit,
     itemCount,
-    itemUnit: body.itemUnit || "",
+    itemUnit,
+    itemConsumed: 0,
+    conversion,
     conversionNote: body.conversionNote || "",
     unitPrice,
     totalCost,
@@ -116,25 +131,35 @@ export async function POST(req: NextRequest) {
 
   const material = await RawMaterial.findById(body.rawMaterialId);
   if (material) {
-    material.currentStock += receivedQty;
     if (body.supplierId) material.supplierId = body.supplierId;
     if (unitPrice > 0) material.unitCost = unitPrice;
+    if (body.unit && material.units && !material.units.includes(body.unit)) {
+      material.units = [...material.units, body.unit];
+    }
+    if (itemUnit && material.units && !material.units.includes(itemUnit)) {
+      material.units = [...material.units, itemUnit];
+    }
     await material.save();
+
+    await recomputeMaterialStock(body.rawMaterialId);
 
     await RawMaterialStockMovement.create({
       rawMaterialId: body.rawMaterialId,
       batchId: batch._id,
       type: "purchase",
       quantity: receivedQty,
-      unit: body.unit || material.unit,
+      unit,
+      itemQuantity: itemCount,
+      itemUnit,
       unitCost: unitPrice,
       reference: `Batch ${batchNumber}`,
       notes: [body.conversionNote, body.qualityNotes || body.orderNotes].filter(Boolean).join(" — ") || "",
       performedBy: user.email || user.userId,
     });
 
-    if (material.currentStock < material.minimumStock) {
-      notifyLowStock(material.name, material.currentStock, material.minimumStock).catch(() => {});
+    const stock = await RawMaterial.findById(body.rawMaterialId).select("currentStock minimumStock name");
+    if (stock && stock.currentStock < stock.minimumStock) {
+      notifyLowStock(stock.name, stock.currentStock, stock.minimumStock).catch(() => {});
     }
   }
 

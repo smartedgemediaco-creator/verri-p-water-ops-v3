@@ -6,6 +6,8 @@ export interface IRawMaterialStockMovement extends Document {
   type: "purchase" | "consumption" | "adjustment" | "waste" | "return" | "correction";
   quantity: number;
   unit: string;
+  itemQuantity: number;
+  itemUnit: string;
   unitCost: number;
   reference: string;
   referenceId?: Types.ObjectId;
@@ -26,6 +28,8 @@ const RawMaterialStockMovementSchema = new Schema<IRawMaterialStockMovement>(
     },
     quantity: { type: Number, required: true },
     unit: { type: String, default: "" },
+    itemQuantity: { type: Number, default: 0 },
+    itemUnit: { type: String, default: "" },
     unitCost: { type: Number, default: 0 },
     reference: { type: String, default: "" },
     referenceId: { type: Schema.Types.ObjectId },

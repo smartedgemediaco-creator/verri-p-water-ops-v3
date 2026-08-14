@@ -14,17 +14,28 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, CloseIcon, ArrowDownIcon, PencilIcon, TrashBinIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { formatDate } from "@/lib/dateFormat";
+import { evaluateFormula, isValidFormula, BATCH_FORMULA_TOKENS } from "@/lib/formula";
 
 interface RawMaterial {
   _id: string;
   name: string;
   unit: string;
+  secondaryUnit?: string;
+  units?: string[];
   category: string;
   currentStock: number;
   minimumStock: number;
   unitCost: number;
   supplierId: { _id: string; name: string } | null;
   notes: string;
+  customFields?: CustomField[];
+}
+
+interface CustomField {
+  key: string;
+  label: string;
+  formula: string;
+  format: "number" | "currency" | "percentage" | "text";
 }
 
 interface Batch {
@@ -40,6 +51,8 @@ interface Batch {
   unit: string;
   itemCount: number;
   itemUnit: string;
+  itemConsumed: number;
+  conversion?: { primaryQty: number; primaryUnit: string; secondaryQty: number; secondaryUnit: string } | null;
   conversionNote?: string;
   unitPrice: number;
   totalCost: number;
@@ -67,6 +80,7 @@ interface UsageRecord {
     quantity: number;
     unitCost: number;
     itemCount: number;
+    itemUnit: string;
   }[];
   totalQuantity: number;
   totalCost: number;
@@ -79,6 +93,8 @@ interface StockMovement {
   type: string;
   quantity: number;
   unit: string;
+  itemQuantity: number;
+  itemUnit: string;
   reference: string;
   notes: string;
   performedBy: string;
@@ -145,6 +161,57 @@ const movementTypeColors: Record<string, string> = {
   other: "bg-gray-50 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400",
 };
 
+const BATCH_STEPS = [
+  { label: "Material" },
+  { label: "Supplier" },
+  { label: "Batch & Qty" },
+  { label: "Conversion" },
+  { label: "Cost" },
+  { label: "Payment" },
+  { label: "Delivery" },
+  { label: "Review" },
+];
+
+const fmtNum = (v: number | null | undefined, digits = 2): string => {
+  if (v === null || v === undefined || !Number.isFinite(v)) return "—";
+  return v.toLocaleString(undefined, { maximumFractionDigits: digits });
+};
+
+const formatFieldValue = (v: number | null, format: string): string => {
+  if (v === null) return "—";
+  switch (format) {
+    case "currency":
+      return `₦${fmtNum(v)}`;
+    case "percentage":
+      return `${fmtNum(v)}%`;
+    case "number":
+      return fmtNum(v);
+    default:
+      return String(v);
+  }
+};
+
+const itemAvailable = (b: { itemCount?: number; itemConsumed?: number }): number =>
+  (b.itemCount || 0) - (b.itemConsumed || 0);
+
+const batchCtx = (b: Batch): Record<string, number> => ({
+  receivedQuantity: b.receivedQuantity || 0,
+  availableQuantity: b.availableQuantity || 0,
+  consumedQuantity: b.consumedQuantity || 0,
+  itemCount: b.itemCount || 0,
+  itemConsumed: b.itemConsumed || 0,
+  itemAvailable: itemAvailable(b),
+  unitPrice: b.unitPrice || 0,
+  totalCost: b.totalCost || 0,
+  paidAmount: b.paidAmount || 0,
+  amountOwed: b.amountOwed || 0,
+});
+
+const customFieldValue = (b: Batch, cf: CustomField): string => {
+  if (cf.format === "text") return cf.formula || "—";
+  return formatFieldValue(evaluateFormula(cf.formula, batchCtx(b)), cf.format);
+};
+
 export default function RawMaterialsPage() {
   const [tab, setTab] = useState<"materials" | "batches" | "usage">("materials");
 
@@ -193,21 +260,32 @@ export default function RawMaterialsPage() {
   // Add material form
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("");
+  const [secondaryUnit, setSecondaryUnit] = useState("");
+  const [units, setUnits] = useState<string[]>([]);
+  const [draftUnit, setDraftUnit] = useState("");
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [cfDraft, setCfDraft] = useState<CustomField>({ key: "", label: "", formula: "", format: "number" });
+  const [cfEditing, setCfEditing] = useState(-1);
+  const [cfError, setCfError] = useState("");
   const [category, setCategory] = useState("chemical");
   const [minimumStock, setMinimumStock] = useState(0);
   const [unitCost, setUnitCost] = useState(0);
   const [notes, setNotes] = useState("");
 
   // New batch form
+  const [batchStep, setBatchStep] = useState(0);
   const [batchMaterialMode, setBatchMaterialMode] = useState<"existing" | "new">("existing");
   const [batchMaterialId, setBatchMaterialId] = useState("");
   const [newName, setNewName] = useState("");
   const [newUnit, setNewUnit] = useState("");
+  const [newSecondaryUnit, setNewSecondaryUnit] = useState("");
+  const [newUnits, setNewUnits] = useState("");
   const [newCategory, setNewCategory] = useState("chemical");
   const [newMinStock, setNewMinStock] = useState(0);
   const [batchSupplierMode, setBatchSupplierMode] = useState<"existing" | "other">("existing");
   const [batchSupplierId, setBatchSupplierId] = useState("");
   const [batchSupplierName, setBatchSupplierName] = useState("");
+  const [recOrderedQty, setRecOrderedQty] = useState(0);
   const [recQty, setRecQty] = useState(0);
   const [recUnit, setRecUnit] = useState("");
   const [recItemCount, setRecItemCount] = useState(0);
@@ -224,6 +302,7 @@ export default function RawMaterialsPage() {
   // Use stock form
   const [useMaterialId, setUseMaterialId] = useState("");
   const [useBatchId, setUseBatchId] = useState("");
+  const [useMode, setUseMode] = useState<"primary" | "secondary">("primary");
   const [useQty, setUseQty] = useState(0);
   const [useReason, setUseReason] = useState("consumption");
   const [useNotes, setUseNotes] = useState("");
@@ -330,6 +409,9 @@ export default function RawMaterialsPage() {
   const resetAddForm = () => {
     setName(""); setUnit(""); setCategory("chemical");
     setMinimumStock(0); setUnitCost(0); setNotes("");
+    setSecondaryUnit(""); setUnits([]); setDraftUnit("");
+    setCustomFields([]); setCfDraft({ key: "", label: "", formula: "", format: "number" });
+    setCfEditing(-1); setCfError("");
     setEditingMaterial(null);
   };
 
@@ -337,7 +419,32 @@ export default function RawMaterialsPage() {
     setEditingMaterial(m);
     setName(m.name); setUnit(m.unit || ""); setCategory(m.category || "other");
     setMinimumStock(m.minimumStock || 0); setUnitCost(m.unitCost || 0); setNotes(m.notes || "");
+    setSecondaryUnit(m.secondaryUnit || ""); setUnits(m.units && m.units.length ? m.units : []);
+    setCustomFields(Array.isArray(m.customFields) ? m.customFields : []);
+    setCfDraft({ key: "", label: "", formula: "", format: "number" });
+    setCfEditing(-1); setCfError("");
     setShowAddModal(true);
+  };
+
+  const addUnit = () => {
+    const u = draftUnit.trim();
+    if (!u) return;
+    setUnits((prev) => (prev.includes(u) ? prev : [...prev, u]));
+    setDraftUnit("");
+  };
+
+  const saveCustomField = () => {
+    if (!cfDraft.label.trim()) { setCfError("Label is required"); return; }
+    if (!cfDraft.formula.trim()) { setCfError("Formula is required"); return; }
+    if (!isValidFormula(cfDraft.formula)) { setCfError("Formula is invalid — check operators, parentheses and field names"); return; }
+    const key = cfDraft.key || cfDraft.label.trim().replace(/\s+/g, "_");
+    if (cfEditing >= 0) {
+      setCustomFields((prev) => prev.map((f, i) => (i === cfEditing ? { ...f, ...cfDraft, key } : f)));
+    } else {
+      setCustomFields((prev) => [...prev, { ...cfDraft, key }]);
+    }
+    setCfDraft({ key: "", label: "", formula: "", format: "number" });
+    setCfEditing(-1); setCfError("");
   };
 
   const handleAddMaterial = async (e: React.FormEvent) => {
@@ -345,7 +452,17 @@ export default function RawMaterialsPage() {
     if (!name.trim()) { showError("Name is required"); return; }
     setSubmitting(true);
     try {
-      const payload = { name: name.trim(), unit, category, minimumStock, unitCost, notes };
+      const payload = {
+        name: name.trim(),
+        unit,
+        secondaryUnit,
+        units: units.filter(Boolean),
+        category,
+        minimumStock,
+        unitCost,
+        notes,
+        customFields,
+      };
       const url = editingMaterial ? `/api/raw-materials/${editingMaterial._id}` : "/api/raw-materials";
       const res = await fetch(url, {
         method: editingMaterial ? "PATCH" : "POST",
@@ -360,10 +477,12 @@ export default function RawMaterialsPage() {
   };
 
   const resetBatchForm = () => {
+    setBatchStep(0);
     setBatchMaterialMode("existing"); setBatchMaterialId("");
-    setNewName(""); setNewUnit(""); setNewCategory("chemical"); setNewMinStock(0);
+    setNewName(""); setNewUnit(""); setNewSecondaryUnit(""); setNewUnits("");
+    setNewCategory("chemical"); setNewMinStock(0);
     setBatchSupplierMode("existing"); setBatchSupplierId(""); setBatchSupplierName("");
-    setRecQty(0); setRecUnit(""); setRecItemCount(0); setRecItemUnit("");
+    setRecOrderedQty(0); setRecQty(0); setRecUnit(""); setRecItemCount(0); setRecItemUnit("");
     setRecUnitPrice(0); setRecPaid(0); setRecOwed(0);
     setRecLocationType("factory"); setRecLocationId("");
     setRecDate(new Date().toISOString().split("T")[0]);
@@ -378,6 +497,7 @@ export default function RawMaterialsPage() {
     setBatchSupplierMode(b.supplierId ? "existing" : "other");
     setBatchSupplierId(b.supplierId?._id ?? "");
     setBatchSupplierName(b.supplierName || "");
+    setRecOrderedQty(b.orderedQuantity || 0);
     setRecQty(b.receivedQuantity ?? 0);
     setRecUnit(b.unit || "");
     setRecItemCount(b.itemCount || 0);
@@ -399,12 +519,56 @@ export default function RawMaterialsPage() {
       setBatchMaterialId(preselect._id);
       setRecUnit(preselect.unit || "");
       setRecUnitPrice(preselect.unitCost || 0);
+      setRecItemUnit(preselect.secondaryUnit || "");
     }
     const firstFactory = factories[0];
     if (firstFactory) { setRecLocationType("factory"); setRecLocationId(firstFactory._id); }
     else if (depots[0]) { setRecLocationType("depot"); setRecLocationId(depots[0]._id); }
     setShowBatchModal(true);
   };
+
+  const validateBatchStep = (step: number): string => {
+    switch (step) {
+      case 0:
+        if (batchMaterialMode === "new") {
+          if (!newName.trim()) return "Enter the new material name";
+          if (!newUnit.trim()) return "Enter the new material unit";
+        } else if (!batchMaterialId) {
+          return "Select the material (or choose New Material)";
+        }
+        return "";
+      case 1:
+        if (batchSupplierMode === "other" && !batchSupplierName.trim()) return "Enter the supplier name";
+        return "";
+      case 2:
+        if (recQty <= 0) return "Enter the quantity received";
+        if (!recUnit.trim()) return "Enter the unit (e.g. kg, litres, rolls)";
+        return "";
+      case 3:
+        if (recItemCount > 0 && !recItemUnit.trim()) return "Enter the item unit (e.g. rolls, pieces)";
+        if (recItemUnit.trim() && recItemCount <= 0) return "Enter the item count";
+        return "";
+      case 4:
+        if (recUnitPrice < 0) return "Unit price cannot be negative";
+        return "";
+      case 5:
+        if (recPaid < 0 || recOwed < 0) return "Payment amounts cannot be negative";
+        return "";
+      case 6:
+        if (!recLocationId) return "Select the delivery location";
+        return "";
+      default:
+        return "";
+    }
+  };
+
+  const goBatchNext = () => {
+    const err = validateBatchStep(batchStep);
+    if (err) { showError(err); return; }
+    setBatchStep((s) => Math.min(s + 1, BATCH_STEPS.length - 1));
+  };
+
+  const goBatchBack = () => setBatchStep((s) => Math.max(s - 1, 0));
 
   const locationOptions = useMemo(() => {
     const opts = [
@@ -440,10 +604,19 @@ export default function RawMaterialsPage() {
       let materialId = batchMaterialId;
       if (batchMaterialMode === "new") {
         if (!newName.trim()) { showError("Enter the new material name"); return; }
+        const unitList = [newUnit, newSecondaryUnit, ...newUnits.split(",").map((u) => u.trim())]
+          .filter((u) => u && u !== newUnit && u !== newSecondaryUnit);
         const res = await fetch("/api/raw-materials", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName.trim(), unit: newUnit, category: newCategory, minimumStock: newMinStock }),
+          body: JSON.stringify({
+            name: newName.trim(),
+            unit: newUnit,
+            secondaryUnit: newSecondaryUnit,
+            units: [...new Set([newUnit, ...unitList])].filter(Boolean),
+            category: newCategory,
+            minimumStock: newMinStock,
+          }),
         });
         if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to create material"); return; }
         const created = await res.json();
@@ -452,13 +625,18 @@ export default function RawMaterialsPage() {
       const conversionNote = recItemCount > 0 && recItemUnit
         ? `${recQty} ${recUnit} ≈ ${recItemCount} ${recItemUnit}`
         : "";
+      const conversion = recItemCount > 0 && recItemUnit
+        ? { primaryQty: recQty, primaryUnit: recUnit, secondaryQty: recItemCount, secondaryUnit: recItemUnit }
+        : null;
       const payload: Record<string, unknown> = {
         locationType: recLocationType,
         locationId: recLocationId,
+        orderedQuantity: recOrderedQty || recQty,
         receivedQuantity: recQty,
         unit: recUnit,
         itemCount: recItemCount,
         itemUnit: recItemUnit,
+        conversion,
         conversionNote,
         unitPrice: recUnitPrice || undefined,
         paidAmount: recPaid || undefined,
@@ -485,7 +663,7 @@ export default function RawMaterialsPage() {
   };
 
   const openUseModal = (m?: RawMaterial, batch?: Batch) => {
-    setUseReason("consumption"); setUseNotes(""); setUseQty(0);
+    setUseReason("consumption"); setUseNotes(""); setUseQty(0); setUseMode("primary");
     if (batch) {
       setUseMaterialId(batch.rawMaterialId._id);
       setUseBatchId(batch._id);
@@ -505,35 +683,65 @@ export default function RawMaterialsPage() {
 
   const selectedBatch = availableBatches.find((b) => b._id === useBatchId);
 
+  const useRemainingKg = selectedBatch?.availableQuantity ?? 0;
+  const useRemainingItems = selectedBatch ? itemAvailable(selectedBatch) : 0;
+  const useConvertedQty = selectedBatch
+    ? (() => {
+        const received = selectedBatch.receivedQuantity || 0;
+        const count = selectedBatch.itemCount || 0;
+        if (!received || !count) return 0;
+        return useMode === "secondary"
+          ? (useQty * received) / count
+          : (useQty * count) / received;
+      })()
+    : 0;
+
   const handleUseStock = async () => {
     if (!useMaterialId) { showError("Select a material"); return; }
     if (!useBatchId) { showError("Select which batch to take from"); return; }
     if (useQty <= 0) { showError("Enter a valid quantity"); return; }
     const batch = selectedBatch;
     if (!batch) { showError("Batch not found"); return; }
-    if (useQty > batch.availableQuantity) {
+    if (useMode === "secondary") {
+      if (useQty > useRemainingItems) {
+        showError(`Insufficient ${batch.itemUnit || "items"} in batch ${batch.batchNumber}. Available: ${useRemainingItems} ${batch.itemUnit || "items"}`);
+        return;
+      }
+      if (useConvertedQty > batch.availableQuantity) {
+        showError(`Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQuantity} ${batch.unit}`);
+        return;
+      }
+    } else if (useQty > batch.availableQuantity) {
       showError(`Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQuantity} ${batch.unit}`);
       return;
     }
     setSubmitting(true);
     try {
       const locId = typeof batch.locationId === "object" ? batch.locationId._id : batch.locationId;
+      const body: Record<string, unknown> = {
+        batchId: useBatchId,
+        type: useReason,
+        purpose: useReason === "consumption" ? "production" : useReason,
+        notes: useNotes,
+        locationType: batch.locationType,
+        locationId: locId,
+      };
+      if (useMode === "secondary") {
+        body.itemQuantity = useQty;
+        body.itemUnit = batch.itemUnit;
+      } else {
+        body.quantity = useQty;
+      }
       const res = await fetch(`/api/raw-materials/${useMaterialId}/consume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quantity: useQty,
-          batchId: useBatchId,
-          type: useReason,
-          purpose: useReason === "consumption" ? "production" : useReason,
-          notes: useNotes,
-          locationType: batch.locationType,
-          locationId: locId,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const err = await res.json(); showError(err.error || "Failed"); return; }
-      showSuccess(`Used ${useQty} ${batch.unit} from ${batch.batchNumber}`);
-      setShowUseModal(false); setUseMaterialId(""); setUseBatchId(""); setUseQty(0);
+      showSuccess(useMode === "secondary"
+        ? `Used ${useQty} ${batch.itemUnit} (${useConvertedQty.toLocaleString()} ${batch.unit}) from ${batch.batchNumber}`
+        : `Used ${useQty} ${batch.unit} from ${batch.batchNumber}`);
+      setShowUseModal(false); setUseMaterialId(""); setUseBatchId(""); setUseQty(0); setUseMode("primary");
       refreshAll();
     } catch { showError("Network error"); } finally { setSubmitting(false); }
   };
@@ -622,6 +830,11 @@ export default function RawMaterialsPage() {
   const usageMaterialOptions = [{ value: "", label: "All Materials" }, ...materialOptions];
   const useMaterialOptions = materials.filter((m) => m.currentStock > 0).map((m) => ({ value: m._id, label: `${m.name} (${m.currentStock} ${m.unit})` }));
   const batchSupplierFilterOptions = [{ value: "", label: "All Suppliers" }, ...suppliers];
+
+  const batchCustomColumns = useMemo(() => {
+    const m = materials.find((x) => x._id === batchMaterialFilter);
+    return m?.customFields && m.customFields.length > 0 ? m.customFields : [];
+  }, [materials, batchMaterialFilter]);
 
   const tabs = [
     { id: "materials" as const, label: "Materials" },
@@ -837,6 +1050,9 @@ export default function RawMaterialsPage() {
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Unit Price</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Paid / Owed</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status</TableCell>
+                  {batchCustomColumns.map((cf) => (
+                    <TableCell isHeader key={cf.key} className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">{cf.label}</TableCell>
+                  ))}
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
                   <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
                 </TableRow>
@@ -869,6 +1085,7 @@ export default function RawMaterialsPage() {
                         <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
                           {(b.availableQuantity ?? 0).toLocaleString()} {b.unit || ""}
                           {b.consumedQuantity > 0 && <span className="text-[10px] text-gray-400 block">{b.consumedQuantity.toLocaleString()} used</span>}
+                          {b.itemUnit && itemAvailable(b) > 0 && <span className="text-[10px] text-success-600/70 dark:text-success-400/70 block">{itemAvailable(b).toLocaleString()} {b.itemUnit} left</span>}
                         </TableCell>
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                           {b.unitPrice > 0 ? `₦${b.unitPrice.toLocaleString()}/${b.unit || ""}` : "—"}
@@ -893,6 +1110,9 @@ export default function RawMaterialsPage() {
                             {b.status.replace("-", " ")}
                           </span>
                         </TableCell>
+                        {batchCustomColumns.map((cf) => (
+                          <TableCell key={cf.key} className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{customFieldValue(b, cf)}</TableCell>
+                        ))}
                         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{b.receivedDate ? formatDate(b.receivedDate) : formatDate(b.createdAt)}</TableCell>
                         <TableCell className="py-3">
                           <div className="flex gap-1.5 flex-wrap">
@@ -974,6 +1194,7 @@ export default function RawMaterialsPage() {
                               return (
                                 <div key={i} className="text-[11px]">
                                   {batch ? batch.batchNumber : "Batch"} · {a.quantity.toLocaleString()} used @ ₦{(a.unitCost ?? 0).toLocaleString()}
+                                  {a.itemCount > 0 && a.itemUnit ? <span className="text-gray-400"> · {a.itemCount.toLocaleString()} {a.itemUnit}</span> : null}
                                 </div>
                               );
                             })}
@@ -1000,7 +1221,7 @@ export default function RawMaterialsPage() {
       {/* Add Material Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowAddModal(false); resetAddForm(); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{editingMaterial ? "Edit Material" : "Add Material"}</h3>
               <button onClick={() => { setShowAddModal(false); resetAddForm(); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
@@ -1021,18 +1242,146 @@ export default function RawMaterialsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
-                  <Input placeholder="e.g. kg, litres, rolls, pieces" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Unit *</label>
+                  <Input placeholder="e.g. kg" value={unit} onChange={(e) => setUnit(e.target.value)} required />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Unit</label>
+                  <Input placeholder="e.g. rolls, pieces" value={secondaryUnit} onChange={(e) => setSecondaryUnit(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Units (configurable list)</label>
+                <div className="flex gap-2">
+                  <form onSubmit={(e) => { e.preventDefault(); addUnit(); }} className="flex gap-2 flex-1">
+                    <Input placeholder="Add a unit and press enter..." value={draftUnit}
+                      onChange={(e) => setDraftUnit(e.target.value)} />
+                    <Button type="submit" variant="outline" size="sm">Add</Button>
+                  </form>
+                </div>
+                {units.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {units.map((u) => (
+                      <span key={u} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
+                        {u}
+                        <button type="button" onClick={() => setUnits((prev) => prev.filter((x) => x !== u))} className="text-gray-400 hover:text-red-500"><CloseIcon className="size-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Cost (₦)</label>
                   <Input type="number" placeholder="0" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                  <Input type="number" placeholder="0" value={minimumStock} onChange={(e) => setMinimumStock(Number(e.target.value))} />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                <Input type="number" placeholder="0" value={minimumStock} onChange={(e) => setMinimumStock(Number(e.target.value))} />
+
+              {/* Custom columns */}
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-800 dark:text-white/90">Custom Columns (computed from batches)</label>
+                  <span className="text-xs text-gray-400">Add / edit / delete formulas</span>
+                </div>
+                {customFields.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {customFields.map((cf, i) => (
+                      <div key={cf.key} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{cf.label}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">{cf.formula}</p>
+                        </div>
+                        <span className="text-[10px] uppercase text-gray-400">{cf.format}</span>
+                        <button type="button" onClick={() => { setCfEditing(i); setCfDraft(cf); }} className="text-blue-500 hover:text-blue-700 dark:text-blue-400"><PencilIcon className="size-4" /></button>
+                        <button type="button" onClick={() => setCustomFields((prev) => prev.filter((_, x) => x !== i))} className="text-red-500 hover:text-red-700"><TrashBinIcon className="size-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cfEditing === -1 && (
+                  <Button type="button" variant="outline" size="sm" startIcon={<PlusIcon />} onClick={() => { setCfEditing(-2); setCfDraft({ key: "", label: "", formula: "", format: "number" }); setCfError(""); }}>
+                    Add custom column
+                  </Button>
+                )}
+                {(cfEditing === -2 || cfEditing >= 0) && (
+                  <div className="space-y-3 mt-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Label *</label>
+                        <Input placeholder="e.g. Cost per roll" value={cfDraft.label} onChange={(e) => setCfDraft({ ...cfDraft, label: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Format</label>
+                        <Select
+                          options={[
+                            { value: "number", label: "Number" },
+                            { value: "currency", label: "Currency (₦)" },
+                            { value: "percentage", label: "Percentage (%)" },
+                            { value: "text", label: "Text (raw formula)" },
+                          ]}
+                          value={cfDraft.format}
+                          onChange={(v) => setCfDraft({ ...cfDraft, format: v as CustomField["format"] })}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Formula *</label>
+                      <Input placeholder="e.g. unitPrice * itemCount / receivedQuantity" value={cfDraft.formula}
+                        onChange={(e) => setCfDraft({ ...cfDraft, formula: e.target.value })} />
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {BATCH_FORMULA_TOKENS.map((t) => (
+                          <button key={t.token} type="button" title={t.label}
+                            onClick={() => setCfDraft((d) => ({ ...d, formula: `${d.formula}${d.formula ? " " : ""}${t.token}` }))}
+                            className="px-2 py-0.5 text-[10px] font-mono rounded bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-brand-500/10">
+                            {t.token}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {["+", "-", "*", "/", "%", "(", ")"].map((op) => (
+                          <button key={op} type="button"
+                            onClick={() => setCfDraft((d) => ({ ...d, formula: `${d.formula} ${op}` }))}
+                            className="px-2 py-0.5 text-[10px] font-mono rounded bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700 dark:bg-gray-800 dark:text-gray-300">
+                            {op}
+                          </button>
+                        ))}
+                        <span className="text-[10px] text-gray-400 self-center">Percentages: e.g. <span className="font-mono">paidAmount / totalCost * 100</span></span>
+                      </div>
+                    </div>
+                    {(() => {
+                      const sample = editingMaterial
+                        ? batches.find((b) => b.rawMaterialId._id === editingMaterial._id)
+                        : undefined;
+                      const val = isValidFormula(cfDraft.formula) && sample
+                        ? formatFieldValue(evaluateFormula(cfDraft.formula, batchCtx(sample)), cfDraft.format)
+                        : cfDraft.format === "text"
+                          ? cfDraft.formula || "—"
+                          : isValidFormula(cfDraft.formula)
+                            ? "no batch to preview"
+                            : "invalid formula";
+                      return (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Preview: <span className="font-medium text-gray-800 dark:text-white/90">{val}</span>
+                        </p>
+                      );
+                    })()}
+                    {cfError && <p className="text-xs text-red-500">{cfError}</p>}
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="primary" onClick={saveCustomField}>
+                        {cfEditing >= 0 ? "Update Column" : "Save Column"}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => { setCfEditing(-1); setCfDraft({ key: "", label: "", formula: "", format: "number" }); setCfError(""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
                 <TextArea placeholder="Optional notes..." value={notes} onChange={setNotes} rows={2} />
@@ -1046,165 +1395,305 @@ export default function RawMaterialsPage() {
         </div>
       )}
 
-      {/* New Batch / Add Stock Modal */}
+      {/* New Batch / Add Stock Modal — stepper */}
       {showBatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!submitting) { setShowBatchModal(false); } }}>
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-xl w-full max-w-3xl mx-4 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{editingBatch ? `Edit Batch — ${editingBatch.batchNumber}` : "Add Stock / New Batch"}</h3>
               <button onClick={() => { if (!submitting) setShowBatchModal(false); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><CloseIcon className="size-5" /></button>
             </div>
-            <form onSubmit={handleNewBatch} className="p-6 space-y-5">
-              {/* Material */}
-              <div>
-                {editingBatch ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material (fixed — cannot change on edit)</label>
-                    <Input value={editingBatch.rawMaterialId.name} disabled />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2 mb-3">
-                      <button type="button" onClick={() => setBatchMaterialMode("existing")}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                        Existing Material
-                      </button>
-                      <button type="button" onClick={() => setBatchMaterialMode("new")}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "new" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                        New Material
-                      </button>
+
+            {/* Step indicator */}
+            <div className="flex gap-1 px-6 pt-4 pb-2 overflow-x-auto">
+              {BATCH_STEPS.map((s, i) => (
+                <button key={s.label} type="button" onClick={() => { if (i < batchStep) setBatchStep(i); }}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    i === batchStep
+                      ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400"
+                      : i < batchStep
+                        ? "text-success-600 dark:text-success-400 hover:bg-gray-50 dark:hover:bg-white/5"
+                        : "text-gray-400"
+                  }`}>
+                  <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                    i === batchStep
+                      ? "bg-brand-500 text-white"
+                      : i < batchStep
+                        ? "bg-success-500 text-white"
+                        : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                  }`}>{i + 1}</span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleNewBatch} className="p-6 pt-2 space-y-5">
+              {/* Step 0 — Material */}
+              {batchStep === 0 && (
+                <div>
+                  {editingBatch ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material (fixed — cannot change on edit)</label>
+                      <Input value={editingBatch.rawMaterialId.name} disabled />
                     </div>
-                    {batchMaterialMode === "existing" ? (
-                      <Select options={materialOptions} placeholder="Select material..." value={batchMaterialId} onChange={setBatchMaterialId} />
-                    ) : (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material Name *</label>
-                          <Input placeholder="e.g. 50 micron film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                          <Input list="category-options-new" placeholder="e.g. packaging" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
-                          <datalist id="category-options-new">
-                            {CATEGORIES.map((c) => <option key={c.value} value={c.value} />)}
-                          </datalist>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit *</label>
-                          <Input placeholder="e.g. kg, rolls, litres" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                          <Input type="number" placeholder="0" value={newMinStock} onChange={(e) => setNewMinStock(Number(e.target.value))} />
-                        </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2 mb-3">
+                        <button type="button" onClick={() => setBatchMaterialMode("existing")}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                          Existing Material
+                        </button>
+                        <button type="button" onClick={() => setBatchMaterialMode("new")}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchMaterialMode === "new" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                          New Material
+                        </button>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Supplier */}
-              <div>
-                <div className="flex gap-2 mb-3">
-                  <button type="button" onClick={() => setBatchSupplierMode("existing")}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchSupplierMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                    Regular Supplier
-                  </button>
-                  <button type="button" onClick={() => setBatchSupplierMode("other")}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchSupplierMode === "other" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
-                    One-off / Other
-                  </button>
-                </div>
-                {batchSupplierMode === "existing" ? (
-                  <Select options={[{ value: "", label: "Select supplier..." }, ...supplierOptions]} value={batchSupplierId} onChange={setBatchSupplierId} />
-                ) : (
-                  <Input placeholder="Supplier name (won't be added to supplier list)" value={batchSupplierName} onChange={(e) => setBatchSupplierName(e.target.value)} />
-                )}
-              </div>
-
-              {/* Qty / unit / conversion */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity Received *</label>
-                  <Input type="number" placeholder="0" value={recQty} onChange={(e) => setRecQty(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit *</label>
-                  <Input placeholder="kg, litres, rolls..." value={recUnit} onChange={(e) => setRecUnit(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Count (optional)</label>
-                  <Input type="number" placeholder="e.g. 20" value={recItemCount} onChange={(e) => setRecItemCount(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Unit (optional)</label>
-                  <Input placeholder="e.g. rolls" value={recItemUnit} onChange={(e) => setRecItemUnit(e.target.value)} />
-                </div>
-              </div>
-              {recQty > 0 && recItemCount > 0 && recItemUnit && (
-                <div className="bg-brand-50 dark:bg-brand-500/10 rounded-lg px-3 py-2 text-xs text-brand-700 dark:text-brand-400">
-                  Conversion: {recQty} {recUnit || "unit"} ≈ {recItemCount} {recItemUnit}
+                      {batchMaterialMode === "existing" ? (
+                        <Select options={materialOptions} placeholder="Select material..." value={batchMaterialId} onChange={setBatchMaterialId} />
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material Name *</label>
+                            <Input placeholder="e.g. 50 micron film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                            <Input list="category-options-new" placeholder="e.g. packaging" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+                            <datalist id="category-options-new">
+                              {CATEGORIES.map((c) => <option key={c.value} value={c.value} />)}
+                            </datalist>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Unit *</label>
+                            <Input placeholder="e.g. kg" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Unit</label>
+                            <Input placeholder="e.g. rolls" value={newSecondaryUnit} onChange={(e) => setNewSecondaryUnit(e.target.value)} />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Other Units <span className="text-gray-400 font-normal">(comma-separated)</span></label>
+                            <Input placeholder="e.g. bag, carton" value={newUnits} onChange={(e) => setNewUnits(e.target.value)} />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                            <Input type="number" placeholder="0" value={newMinStock} onChange={(e) => setNewMinStock(Number(e.target.value))} />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* Price & payment */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Step 1 — Supplier */}
+              {batchStep === 1 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦)</label>
-                  <Input type="number" placeholder="0" value={recUnitPrice} onChange={(e) => setRecUnitPrice(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Paid (₦)</label>
-                  <Input type="number" placeholder="0" value={recPaid} onChange={(e) => setRecPaid(Number(e.target.value))} />
-                </div>
-              </div>
-              <div>
-                {suggestedTotal > 0 && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Suggested total: <strong className="text-gray-800 dark:text-white/90">₦{suggestedTotal.toLocaleString()}</strong> ({recQty} × ₦{recUnitPrice.toLocaleString()})
-                    {recPaid > 0 && <> · paid <strong className="text-success-600">₦{recPaid.toLocaleString()}</strong></>}
-                    {suggestedOwed > 0 && <> · suggested left <strong className="text-red-600">₦{suggestedOwed.toLocaleString()}</strong></>}
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setBatchSupplierMode("existing")}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchSupplierMode === "existing" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                      Regular Supplier
+                    </button>
+                    <button type="button" onClick={() => setBatchSupplierMode("other")}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${batchSupplierMode === "other" ? "bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/10 dark:border-brand-500/30 dark:text-brand-400" : "border-gray-200 dark:border-gray-700 text-gray-500"}`}>
+                      One-off / Other
+                    </button>
                   </div>
+                  {batchSupplierMode === "existing" ? (
+                    <Select options={[{ value: "", label: "Select supplier..." }, ...supplierOptions]} value={batchSupplierId} onChange={setBatchSupplierId} />
+                  ) : (
+                    <Input placeholder="Supplier name (won't be added to supplier list)" value={batchSupplierName} onChange={(e) => setBatchSupplierName(e.target.value)} />
+                  )}
+                </div>
+              )}
+
+              {/* Step 2 — Batch & Quantity */}
+              {batchStep === 2 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ordered Quantity (optional)</label>
+                      <Input type="number" placeholder="0" value={recOrderedQty} onChange={(e) => setRecOrderedQty(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity Received *</label>
+                      <Input type="number" placeholder="0" value={recQty} onChange={(e) => setRecQty(Number(e.target.value))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit *</label>
+                    <Input list="rec-unit-options" placeholder="kg, litres, rolls..." value={recUnit} onChange={(e) => setRecUnit(e.target.value)} />
+                    {(() => {
+                      const m = materials.find((x) => x._id === batchMaterialId);
+                      const opts = [...new Set([m?.unit, m?.secondaryUnit, ...(m?.units || [])].filter(Boolean))] as string[];
+                      return opts.length > 0 ? (
+                        <datalist id="rec-unit-options">{opts.map((u) => <option key={u} value={u} />)}</datalist>
+                      ) : null;
+                    })()}
+                    <p className="text-xs text-gray-400 mt-1">Each purchase creates a unique batch — the received quantity is this batch&apos;s stock.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 — Conversion */}
+              {batchStep === 3 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Count (optional)</label>
+                      <Input type="number" placeholder="e.g. 50" value={recItemCount} onChange={(e) => setRecItemCount(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item Unit (optional)</label>
+                      <Input list="rec-item-unit-options" placeholder="e.g. rolls" value={recItemUnit} onChange={(e) => setRecItemUnit(e.target.value)} />
+                      {(() => {
+                        const m = materials.find((x) => x._id === batchMaterialId);
+                        const opts = [...new Set([m?.secondaryUnit, ...(m?.units || [])].filter(Boolean))] as string[];
+                        return opts.length > 0 ? (
+                          <datalist id="rec-item-unit-options">{opts.map((u) => <option key={u} value={u} />)}</datalist>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+                  {recQty > 0 && recItemCount > 0 && recItemUnit ? (
+                    <div className="bg-brand-50 dark:bg-brand-500/10 rounded-lg px-3 py-2 text-xs text-brand-700 dark:text-brand-400">
+                      Conversion rate (this batch only): {recQty} {recUnit || "unit"} ≈ {recItemCount} {recItemUnit}
+                      <span className="block text-[11px] opacity-80 mt-0.5">
+                        {(recQty / recItemCount).toLocaleString(undefined, { maximumFractionDigits: 4 })} {recUnit}/{recItemUnit} · {(recItemCount / recQty).toLocaleString(undefined, { maximumFractionDigits: 2 })} {recItemUnit}/{recUnit}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">Optional — set when this batch can be consumed by items (e.g. 10.5 kg ≈ 50 rolls). Conversion rates are per-batch and can differ between purchases.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Step 4 — Cost */}
+              {batchStep === 4 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦ per {recUnit || "unit"})</label>
+                    <Input type="number" placeholder="0" value={recUnitPrice} onChange={(e) => setRecUnitPrice(Number(e.target.value))} />
+                  </div>
+                  {suggestedTotal > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 flex items-center justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Suggested total</span>
+                      <span className="font-semibold text-gray-800 dark:text-white/90">
+                        ₦{suggestedTotal.toLocaleString()} <span className="text-xs font-normal text-gray-400">({recQty} × ₦{recUnitPrice.toLocaleString()})</span>
+                      </span>
+                    </div>
+                  )}
+                  {recItemCount > 0 && recUnitPrice > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ≈ ₦{(recUnitPrice * recQty / recItemCount).toLocaleString(undefined, { maximumFractionDigits: 2 })} per {recItemUnit}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Step 5 — Payment */}
+              {batchStep === 5 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Paid (₦)</label>
+                      <Input type="number" placeholder="0" value={recPaid} onChange={(e) => setRecPaid(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Left / Owed (₦)</label>
+                      <Input type="number" placeholder="0" value={recOwed} onChange={(e) => setRecOwed(Number(e.target.value))} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {suggestedOwed > 0
+                      ? <>Suggested amount left: <strong className="text-red-600">₦{suggestedOwed.toLocaleString()}</strong> — enter the actual figure you still owe.</>
+                      : suggestedTotal > 0 ? "Suggested amount left is ₦0 (fully covered by amount paid)." : "Enter payment amounts to set the payment status."}
+                  </p>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+                    Payment status: <strong>{recOwed <= 0 && (recPaid > 0 || suggestedTotal > 0) ? "Paid" : recPaid > 0 ? "Partial" : "Unpaid"}</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 6 — Delivery */}
+              {batchStep === 6 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
+                      <Select options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]} value={recLocationType} onChange={setRecLocationType} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivered To *</label>
+                      <Select options={locationOptions} placeholder="Select location" value={recLocationId} onChange={handleLocationChange} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received Date</label>
+                    <Input type="date" value={recDate} onChange={(e) => setRecDate(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order / Supplier Notes</label>
+                      <TextArea placeholder="Order details, deals, follow-ups..." value={recOrderNotes} onChange={setRecOrderNotes} rows={2} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quality Notes</label>
+                      <TextArea placeholder="Condition, expiry, specs..." value={recQualityNotes} onChange={setRecQualityNotes} rows={2} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 7 — Review */}
+              {batchStep === 7 && (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <p className="text-gray-500 dark:text-gray-400">Material</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">
+                      {editingBatch ? editingBatch.rawMaterialId.name : batchMaterialMode === "new" ? newName : materials.find((m) => m._id === batchMaterialId)?.name || "—"}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">Supplier</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">
+                      {batchSupplierMode === "existing"
+                        ? suppliers.find((s) => s.value === batchSupplierId)?.label || "—"
+                        : batchSupplierName || "—"}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">Batch quantity</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">
+                      {(recOrderedQty || recQty).toLocaleString()} ordered · <strong>{recQty.toLocaleString()} {recUnit}</strong> received
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">Conversion</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">
+                      {recItemCount > 0 && recItemUnit ? `${recQty} ${recUnit} ≈ ${recItemCount} ${recItemUnit}` : "—"}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">Unit price / total</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">₦{recUnitPrice.toLocaleString()} · ₦{suggestedTotal.toLocaleString()}</p>
+                    <p className="text-gray-500 dark:text-gray-400">Payment</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">
+                      ₦{recPaid.toLocaleString()} paid · <span className="text-red-600">₦{recOwed.toLocaleString()} owed</span>
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400">Delivered to</p>
+                    <p className="font-medium text-gray-800 dark:text-white/90 text-right">{locationOptions.find((l) => l.value === recLocationId)?.label || "—"} · {formatDate(recDate)}</p>
+                  </div>
+                  <p className="text-xs text-gray-400">On save, a unique batch number is generated and stock is added to the selected location. Stock shown in the Materials list is recomputed from all batches.</p>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowBatchModal(false)} disabled={submitting}>Cancel</Button>
+                  {batchStep > 0 && (
+                    <Button variant="outline" size="sm" onClick={goBatchBack} disabled={submitting}>Back</Button>
+                  )}
+                </div>
+                {batchStep < BATCH_STEPS.length - 1 ? (
+                  <Button variant="primary" size="sm" onClick={goBatchNext} disabled={submitting}>Next</Button>
+                ) : (
+                  <Button type="submit" variant="primary" size="sm" disabled={submitting}>
+                    {submitting ? "Saving..." : editingBatch ? "Save Changes" : "Add to Stock"}
+                  </Button>
                 )}
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Amount Left (₦) <span className="text-gray-400 font-normal">— enter the actual figure you still owe</span>
-                </label>
-                <Input type="number" placeholder="0" value={recOwed} onChange={(e) => setRecOwed(Number(e.target.value))} />
-              </div>
-
-              {/* Location */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
-                  <Select options={[{ value: "factory", label: "Factory" }, { value: "depot", label: "Depot" }]} value={recLocationType} onChange={setRecLocationType} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Delivered To *</label>
-                  <Select options={locationOptions} placeholder="Select location" value={recLocationId} onChange={handleLocationChange} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Received Date</label>
-                <Input type="date" value={recDate} onChange={(e) => setRecDate(e.target.value)} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order / Supplier Notes</label>
-                  <TextArea placeholder="Order details, deals, follow-ups..." value={recOrderNotes} onChange={setRecOrderNotes} rows={2} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quality Notes</label>
-                  <TextArea placeholder="Condition, expiry, specs..." value={recQualityNotes} onChange={setRecQualityNotes} rows={2} />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <Button variant="outline" size="sm" onClick={() => setShowBatchModal(false)} disabled={submitting}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={submitting}>
-                  {submitting ? "Saving..." : editingBatch ? "Save Changes" : "Add to Stock"}
-                </Button>
               </div>
             </form>
           </div>
@@ -1236,7 +1725,7 @@ export default function RawMaterialsPage() {
                       { value: "", label: "Select batch..." },
                       ...availableBatches.map((b) => ({
                         value: b._id,
-                        label: `${b.batchNumber} — ${(b.availableQuantity ?? 0).toLocaleString()} ${b.unit || ""} left · ₦${(b.unitPrice ?? 0).toLocaleString()}/${b.unit || ""} · ${b.supplierId ? b.supplierId.name : b.supplierName || "supplier"}`,
+                        label: `${b.batchNumber} — ${(b.availableQuantity ?? 0).toLocaleString()} ${b.unit || ""} left${b.itemUnit && (b.itemCount ?? 0) > 0 ? ` · ${Math.max(0, (b.itemCount ?? 0) - (b.itemConsumed ?? 0)).toLocaleString()} ${b.itemUnit} left` : ""} · ₦${(b.unitPrice ?? 0).toLocaleString()}/${b.unit || ""} · ${b.supplierId ? b.supplierId.name : b.supplierName || "supplier"}`,
                       })),
                     ]}
                     value={useBatchId}
@@ -1249,19 +1738,42 @@ export default function RawMaterialsPage() {
                   <p className="font-medium text-gray-800 dark:text-white/90">{selectedBatch.batchNumber} — {selectedBatch.rawMaterialId.name}</p>
                   <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
                     Available: <strong>{(selectedBatch.availableQuantity ?? 0).toLocaleString()}</strong> {selectedBatch.unit || ""}
-                    {selectedBatch.itemCount > 0 && <> · {selectedBatch.itemCount} {selectedBatch.itemUnit}</>}
+                    {selectedBatch.itemUnit && itemAvailable(selectedBatch) > 0 && (
+                      <> · <strong>{itemAvailable(selectedBatch).toLocaleString()}</strong> {selectedBatch.itemUnit} left</>
+                    )}
                   </p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity to Use *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity to Use *</label>
+                  {selectedBatch && selectedBatch.itemUnit && (selectedBatch.itemCount ?? 0) > 0 && (
+                    <div className="flex gap-1 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs">
+                      <button type="button" onClick={() => setUseMode("primary")}
+                        className={`px-2 py-1 rounded-md font-medium transition-colors ${useMode === "primary" ? "bg-white dark:bg-gray-700 text-brand-700 dark:text-brand-300 shadow-sm" : "text-gray-500"}`}>
+                        {selectedBatch.unit}
+                      </button>
+                      <button type="button" onClick={() => setUseMode("secondary")}
+                        className={`px-2 py-1 rounded-md font-medium transition-colors ${useMode === "secondary" ? "bg-white dark:bg-gray-700 text-brand-700 dark:text-brand-300 shadow-sm" : "text-gray-500"}`}>
+                        {selectedBatch.itemUnit}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <Input type="number" placeholder="0" value={useQty} onChange={(e) => setUseQty(Number(e.target.value))} />
+                {useMode === "secondary" && selectedBatch && !selectedBatch.itemUnit && (
+                  <p className="text-xs text-amber-600 mt-1">This batch has no item conversion — only {selectedBatch.unit || "the base unit"} is available.</p>
+                )}
                 {selectedBatch && useQty > 0 && (
-                  <p className={`text-xs mt-1 ${useQty > selectedBatch.availableQuantity ? "text-red-500" : "text-gray-400"}`}>
-                    {useQty > selectedBatch.availableQuantity
-                      ? `Exceeds batch available (${selectedBatch.availableQuantity.toLocaleString()} ${selectedBatch.unit || ""})!`
-                      : `Remaining in batch: ${(selectedBatch.availableQuantity - useQty).toLocaleString()} ${selectedBatch.unit || ""}`}
-                  </p>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 mt-2 text-xs text-gray-600 dark:text-gray-300">
+                    {useMode === "secondary"
+                      ? <>Uses <strong>{useQty.toLocaleString()} {selectedBatch.itemUnit}</strong> = <strong>{useConvertedQty.toLocaleString()} {selectedBatch.unit}</strong> · Remaining: {Math.max(0, useRemainingKg - useConvertedQty).toLocaleString()} {selectedBatch.unit} / {Math.max(0, useRemainingItems - useQty).toLocaleString()} {selectedBatch.itemUnit}</>
+                      : <>
+                          {useQty > selectedBatch.availableQuantity
+                            ? <span className="text-red-500">Exceeds batch available ({selectedBatch.availableQuantity.toLocaleString()} {selectedBatch.unit || ""})!</span>
+                            : <>Will use <strong>{useQty.toLocaleString()} {selectedBatch.unit}</strong> · Remaining after: {(selectedBatch.availableQuantity - useQty).toLocaleString()} {selectedBatch.unit}{selectedBatch.itemUnit && itemAvailable(selectedBatch) > 0 ? ` / ${itemAvailable(selectedBatch).toLocaleString()} ${selectedBatch.itemUnit}` : ""}</>}
+                        </>}
+                  </div>
                 )}
               </div>
               <div>
@@ -1315,6 +1827,7 @@ export default function RawMaterialsPage() {
                         </TableCell>
                         <TableCell className={`py-2 text-theme-sm font-medium ${mv.quantity > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                           {mv.quantity > 0 ? "+" : ""}{mv.quantity.toLocaleString()} {mv.unit}
+                          {mv.itemUnit && mv.itemQuantity ? <span className="block text-[10px] text-gray-400">{mv.itemQuantity > 0 ? "+" : ""}{mv.itemQuantity.toLocaleString()} {mv.itemUnit}</span> : null}
                         </TableCell>
                         <TableCell className="py-2 text-theme-sm text-gray-500 dark:text-gray-400">{mv.notes || "—"}</TableCell>
                       </TableRow>

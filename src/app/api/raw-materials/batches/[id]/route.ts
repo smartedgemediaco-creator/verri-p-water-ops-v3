@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { RawMaterialBatch, RawMaterial } from "@/lib/models";
+import { RawMaterialBatch } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
+import { recomputeMaterialStock } from "@/lib/rawMaterialStock";
 
 export async function GET(
   _req: NextRequest,
@@ -34,6 +35,8 @@ const BATCH_EDITABLE_FIELDS = [
   "unit",
   "itemCount",
   "itemUnit",
+  "itemConsumed",
+  "conversion",
   "conversionNote",
   "unitPrice",
   "paidAmount",
@@ -64,6 +67,9 @@ export async function PATCH(
   }
 
   const receivedQty = Number(allowed.receivedQuantity ?? oldBatch.receivedQuantity) || 0;
+  const unit = allowed.unit ?? oldBatch.unit ?? "kg";
+  const itemCount = Number(allowed.itemCount ?? oldBatch.itemCount) || 0;
+  const itemUnit = (allowed.itemUnit ?? oldBatch.itemUnit ?? "") as string;
   const unitPrice = Number(allowed.unitPrice ?? oldBatch.unitPrice) || 0;
   const paidAmount = Number(allowed.paidAmount ?? oldBatch.paidAmount) || 0;
   const amountOwed = Number(allowed.amountOwed ?? oldBatch.amountOwed) || 0;
@@ -79,19 +85,28 @@ export async function PATCH(
         : "unpaid"
       : "unpaid";
 
+  const itemConsumed = Math.min(
+    Math.max(Number(allowed.itemConsumed ?? oldBatch.itemConsumed) || 0, 0),
+    itemCount
+  );
+  allowed.itemConsumed = itemConsumed;
+  allowed.conversion =
+    itemCount > 0 && itemUnit
+      ? { primaryQty: receivedQty, primaryUnit: unit, secondaryQty: itemCount, secondaryUnit: itemUnit }
+      : null;
+
   const qtyDiff = receivedQty - (oldBatch.receivedQuantity || 0);
   if (qtyDiff !== 0) {
     const newAvailable = Math.max(0, (oldBatch.availableQuantity || 0) + qtyDiff);
     allowed.availableQuantity = newAvailable;
     if (newAvailable <= 0 && allowed.status !== "expired") allowed.status = "consumed";
     else if (newAvailable > 0 && oldBatch.status === "consumed") allowed.status = "partially-received";
-    await RawMaterial.findByIdAndUpdate(oldBatch.rawMaterialId, {
-      $inc: { currentStock: qtyDiff },
-    });
   }
 
   const batch = await RawMaterialBatch.findByIdAndUpdate(id, allowed, { new: true });
   if (!batch) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await recomputeMaterialStock(oldBatch.rawMaterialId);
 
   await logActivity({
     action: "updated",
@@ -129,9 +144,7 @@ export async function DELETE(
   const batchNumber = batch.batchNumber;
   const availableQty = batch.availableQuantity || 0;
   await RawMaterialBatch.findByIdAndDelete(id);
-  await RawMaterial.findByIdAndUpdate(batch.rawMaterialId, {
-    $inc: { currentStock: -availableQty },
-  });
+  await recomputeMaterialStock(batch.rawMaterialId);
 
   await logActivity({
     action: "deleted",
