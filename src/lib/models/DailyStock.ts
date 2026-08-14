@@ -15,6 +15,8 @@ export interface IDailyStock extends Document {
   returnedSmallTruck2: number;
   depot: number;
   tricycle: number;
+  // arbitrary custom columns stored per-record (key -> number)
+  custom?: Record<string, number> | Map<string, number>;
   shortage: number;
   wastage: number;
   leakages: number;
