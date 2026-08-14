@@ -199,10 +199,24 @@ export async function POST(req: NextRequest) {
       body.baseSalary = staff?.salary ?? 0;
     }
 
-    // Compute net pay
+    // Compute net pay = base salary + bonus − deductions − previous month's brought-forward debt.
     const d = body.deductions || {};
     const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.halfDay || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
-    body.netPay = (body.baseSalary || 0) + (body.bonus || 0) - totalDeductions;
+
+    // Company policy: brought-forward debt = previous month's total deductions minus what was settled.
+    const prevMonth = previousMonth(body.month);
+    let prevDebt = 0;
+    if (prevMonth) {
+      const prevRecord = await PayrollRecord.findOne({ staffId: body.staffId, month: prevMonth }).lean();
+      if (prevRecord) {
+        const pd = prevRecord.deductions || {};
+        const prevDeductions = (pd.absence || 0) + (pd.lateness || 0) + (pd.halfDay || 0) + (pd.debt || 0) + (pd.punishment || 0) + (pd.other || 0);
+        const prevSettled = (prevRecord.debtSettlements || []).reduce((s: number, x: any) => s + (x.amount || 0), 0);
+        prevDebt = Math.max(0, prevDeductions - prevSettled);
+      }
+    }
+    body.previousDebt = prevDebt;
+    body.netPay = (body.baseSalary || 0) + (body.bonus || 0) - totalDeductions - prevDebt;
 
     body.createdBy = user.userId;
 

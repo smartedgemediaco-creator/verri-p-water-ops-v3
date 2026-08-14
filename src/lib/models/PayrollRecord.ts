@@ -24,6 +24,7 @@ export interface IPayrollRecord extends Document {
     syncedAt?: Date;
   };
   bonus: number;
+  previousDebt: number;
   netPay: number;
   status: "pending" | "paid" | "partial";
   paidAmount: number;
@@ -64,6 +65,7 @@ const PayrollRecordSchema = new Schema<IPayrollRecord>(
       default: [],
     },
     bonus: { type: Number, default: 0, min: 0 },
+    previousDebt: { type: Number, default: 0, min: 0 },
     netPay: { type: Number, required: true },
     status: { type: String, enum: ["pending", "paid", "partial"], default: "pending" },
     paidAmount: { type: Number, default: 0, min: 0 },

@@ -23,6 +23,7 @@ interface PayrollRecord {
   deductions: { absence: number; lateness: number; halfDay: number; debt: number; punishment: number; other: number };
   debtSettlements?: { amount: number; date?: string; note?: string }[];
   bonus: number;
+  previousDebt: number;
   netPay: number;
   status: "pending" | "paid" | "partial";
   paidAmount: number;
@@ -176,6 +177,7 @@ export default function PayrollPage() {
   const [formPunishment, setFormPunishment] = useState("0");
   const [formOther, setFormOther] = useState("0");
   const [formBonus, setFormBonus] = useState("0");
+  const [formPrevDebt, setFormPrevDebt] = useState(0);
   const [formStatus, setFormStatus] = useState("pending");
   const [formPaidAmount, setFormPaidAmount] = useState("0");
   const [formNotes, setFormNotes] = useState("");
@@ -224,7 +226,7 @@ export default function PayrollPage() {
     setFormMonth(selectedMonth);
     setFormBaseSalary("");
     setFormAbsence("0"); setFormLateness("0"); setFormHalfDay("0"); setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
-    setFormBonus("0"); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
+    setFormBonus("0"); setFormPrevDebt(0); setFormStatus("pending"); setFormPaidAmount("0"); setFormNotes("");
     setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
     setAutoFilled(false);
     setShowForm(true);
@@ -242,6 +244,7 @@ export default function PayrollPage() {
     setFormPunishment(String(record.deductions?.punishment ?? 0));
     setFormOther(String(record.deductions?.other ?? 0));
     setFormBonus(String(record.bonus ?? 0));
+    setFormPrevDebt(record.previousDebt ?? record.previousMonth?.debt ?? 0);
     setFormStatus(record.status);
     setFormPaidAmount(String(record.paidAmount ?? 0));
     setFormNotes(record.notes ?? "");
@@ -258,10 +261,29 @@ export default function PayrollPage() {
     const base = Number(formBaseSalary) || 0;
     const bonus = Number(formBonus) || 0;
     const deductions = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
-    return base + bonus - deductions;
+    return base + bonus - deductions - formPrevDebt;
   };
 
   const totalDeductionsForm = (Number(formAbsence) || 0) + (Number(formLateness) || 0) + (Number(formHalfDay) || 0) + (Number(formDebt) || 0) + (Number(formPunishment) || 0) + (Number(formOther) || 0);
+
+  const fetchPrevDebt = async (staffId: string, month: string) => {
+    if (!staffId || !month) { setFormPrevDebt(0); return; }
+    const [y, m] = month.split("-").map(Number);
+    if (!y || !m) { setFormPrevDebt(0); return; }
+    const prevDate = new Date(y, m - 2, 1);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+    try {
+      const res = await fetch(`/api/payroll?staffId=${staffId}&month=${prevMonth}&limit=1`);
+      if (!res.ok) { setFormPrevDebt(0); return; }
+      const data = await res.json();
+      const prevRec = (data.records ?? [])[0];
+      if (!prevRec) { setFormPrevDebt(0); return; }
+      const pd = prevRec.deductions ?? {};
+      const prevDeductions = (pd.absence ?? 0) + (pd.lateness ?? 0) + (pd.halfDay ?? 0) + (pd.debt ?? 0) + (pd.punishment ?? 0) + (pd.other ?? 0);
+      const prevSettled = (prevRec.debtSettlements ?? []).reduce((sum: number, s: { amount?: number }) => sum + (s.amount ?? 0), 0);
+      setFormPrevDebt(Math.max(0, prevDeductions - prevSettled));
+    } catch { setFormPrevDebt(0); }
+  };
 
   const handleStaffSelect = (staffId: string) => {
     setFormStaffId(staffId);
@@ -272,6 +294,7 @@ export default function PayrollPage() {
     setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
     setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
     setAutoFilled(false);
+    fetchPrevDebt(staffId, formMonth);
   };
 
   const fetchAttendanceAmounts = async (staffId: string, month: string) => {
@@ -321,7 +344,7 @@ export default function PayrollPage() {
           absence: Number(formAbsence) || 0, lateness: Number(formLateness) || 0,
           halfDay: Number(formHalfDay) || 0, debt: Number(formDebt) || 0, punishment: Number(formPunishment) || 0, other: Number(formOther) || 0,
         },
-        bonus: Number(formBonus) || 0, status: formStatus, paidAmount: Number(formPaidAmount) || 0, notes: formNotes,
+        bonus: Number(formBonus) || 0, previousDebt: formPrevDebt, status: formStatus, paidAmount: Number(formPaidAmount) || 0, notes: formNotes,
       };
       if (autoFilled) {
         body.attendanceSync = { ...formAttendanceSync, syncedAt: new Date().toISOString() };
@@ -535,7 +558,7 @@ export default function PayrollPage() {
             {records.length} records | ₦{(summary?.totalNetPay ?? 0).toLocaleString()} total net pay · this month only
           </p>
           <p className="text-[11px] text-gray-400 mt-0.5">
-            Bonus / Debt = this month · Prev Debt / Prev Pay = last month only (company policy: one month back).
+            Net Pay = Salary − Deductions − Prev Debt + Bonus · Prev Debt = last month&apos;s outstanding deductions (one month back policy).
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -604,7 +627,7 @@ export default function PayrollPage() {
                     <TableCell className="py-3 text-theme-sm text-success-600 dark:text-success-400">{record.bonus > 0 ? `₦${record.bonus.toLocaleString()}` : "—"}</TableCell>
                     <TableCell className="py-3">
                       {(() => {
-                        const prevDebt = record.previousMonth?.debt ?? 0;
+                        const prevDebt = record.previousDebt ?? record.previousMonth?.debt ?? 0;
                         const prevLabel = record.previousMonth?.month ? monthLabel(record.previousMonth.month) : "";
                         return prevDebt > 0 ? (
                           <div className="text-theme-sm font-medium text-red-600 dark:text-red-400">
@@ -720,6 +743,7 @@ export default function PayrollPage() {
                   setFormDebt("0"); setFormPunishment("0"); setFormOther("0");
                   setFormAttendanceSync({ absence: 0, lateness: 0, halfDay: 0 });
                   setAutoFilled(false);
+                  fetchPrevDebt(formStaffId, m);
                 }} />
               </div>
               <div>
@@ -761,10 +785,11 @@ export default function PayrollPage() {
                   <span className="text-sm font-medium text-brand-700 dark:text-brand-300">Net Pay</span>
                   <span className="text-xl font-bold text-brand-700 dark:text-brand-300">₦{computeNetPay().toLocaleString()}</span>
                 </div>
-                <div className="flex gap-4 mt-1 text-xs text-brand-500 dark:text-brand-400">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-brand-500 dark:text-brand-400">
                   <span>Salary: ₦{(Number(formBaseSalary) || 0).toLocaleString()}</span>
                   <span>+ Bonus: ₦{(Number(formBonus) || 0).toLocaleString()}</span>
                   <span>− Deductions: ₦{totalDeductionsForm.toLocaleString()}</span>
+                  <span>− Prev Debt: ₦{formPrevDebt.toLocaleString()}</span>
                 </div>
               </div>
 

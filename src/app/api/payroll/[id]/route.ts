@@ -36,13 +36,15 @@ export async function PATCH(
     const existing = await PayrollRecord.findById(id);
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Recalculate net pay if deductions or bonus changed
-    if (body.deductions || body.bonus !== undefined || body.baseSalary !== undefined) {
+    // Recalculate net pay if deductions, bonus, base salary or previous debt changed
+    // netPay = base salary + bonus − deductions − previous month's brought-forward debt
+    if (body.deductions || body.bonus !== undefined || body.baseSalary !== undefined || body.previousDebt !== undefined) {
       const d = body.deductions ?? existing.deductions;
       const base = body.baseSalary ?? existing.baseSalary;
       const bonus = body.bonus ?? existing.bonus;
+      const prevDebt = body.previousDebt ?? existing.previousDebt ?? 0;
       const totalDeductions = (d.absence || 0) + (d.lateness || 0) + (d.halfDay || 0) + (d.debt || 0) + (d.punishment || 0) + (d.other || 0);
-      body.netPay = base + bonus - totalDeductions;
+      body.netPay = base + bonus - totalDeductions - prevDebt;
     }
 
     const updated = await PayrollRecord.findByIdAndUpdate(id, body, { new: true });
