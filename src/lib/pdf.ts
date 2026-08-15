@@ -24,17 +24,18 @@ function removeOklabRules(doc: Document) {
   for (let si = 0; si < doc.styleSheets.length; si++) {
     const sheet = doc.styleSheets[si];
     try {
-      const removeRules = (rules: CSSRuleList) => {
+      const walk = (rules: CSSRuleList, owner: CSSGroupingRule | CSSStyleSheet) => {
         for (let i = rules.length - 1; i >= 0; i--) {
           const rule = rules[i];
-          if (rule instanceof CSSStyleRule && rule.cssText.includes("oklab")) {
-            sheet.deleteRule(i);
+          const isBad = /oklab|oklch|lab\(|lch\(/i.test(rule.cssText);
+          if (isBad && (rule instanceof CSSStyleRule || rule instanceof CSSPropertyRule)) {
+            owner.deleteRule(i);
           } else if (rule instanceof CSSGroupingRule) {
-            removeRules(rule.cssRules);
+            walk(rule.cssRules, rule);
           }
         }
       };
-      if (sheet.cssRules) removeRules(sheet.cssRules);
+      if (sheet.cssRules) walk(sheet.cssRules, sheet);
     } catch {
       /* cross-origin sheet */
     }
@@ -230,6 +231,9 @@ export async function downloadReceiptPdf(
       logging: false,
       backgroundColor: "#ffffff",
       imageTimeout: 0,
+      onclone: (clonedDoc: Document) => {
+        removeOklabRules(clonedDoc);
+      },
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
