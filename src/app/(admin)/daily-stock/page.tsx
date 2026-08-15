@@ -63,6 +63,13 @@ interface ColumnDef {
   order: number;
 }
 
+interface StatCard {
+  label: string;
+  value: number;
+  prefix?: string;
+  description: string;
+}
+
 const BUILTIN_SALE = ["factorySale", "bigTruck", "smallTruck1", "smallTruck2", "depot", "tricycle"];
 const BUILTIN_RETURN = ["returnedBigTruck", "returnedSmallTruck1", "returnedSmallTruck2"];
 
@@ -210,6 +217,19 @@ export default function DailyStockPage() {
 
   const sumField = (recs: DayRecord[], key: string) =>
     recs.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[key]) || 0), 0);
+
+  const monthLabel = (() => {
+    const [y, m] = month.split("-");
+    const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${names[Number(m) - 1] || ""} ${y}`.trim();
+  })();
+
+  const totalCard = (label: string, value: number, prefix?: string): StatCard => ({
+    label: `Total ${label}`,
+    value,
+    prefix,
+    description: `for ${monthLabel}`,
+  });
 
   const totalDays = monthRecords.length;
   const totalSold = monthRecords.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
@@ -432,13 +452,13 @@ export default function DailyStockPage() {
     const factoryEditableFields = FACTORY_FIELDS.map((f) => f.key);
     const visibleColumns = columns.filter((c) => !hiddenCols.includes(c.key));
 
-    const factoryStatCards: { label: string; value: number; prefix?: string }[] = [
-      { label: "Total Days", value: totalDays },
-      ...FACTORY_FIELDS.map((f) => ({ label: f.label, value: sumField(monthRecords, f.key) })),
-      ...columns.map((col) => ({ label: col.label, value: sumField(monthRecords, col.key) })),
-      { label: "Total Sold", value: totalSold },
-      { label: "Total Returned", value: totalReturned },
-      { label: "Current End Stock", value: currentEndStock },
+    const factoryStatCards: StatCard[] = [
+      { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
+      ...FACTORY_FIELDS.map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
+      ...columns.map((col) => totalCard(col.label, sumField(monthRecords, col.key))),
+      totalCard("Sold", totalSold),
+      totalCard("Returned", totalReturned),
+      { label: "Current End Stock", value: currentEndStock, description: latestMonthRecord ? `as at ${latestMonthRecord.date}` : "no records" },
     ];
 
     return (
@@ -481,6 +501,7 @@ export default function DailyStockPage() {
             <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
               <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.description}</p>
             </div>
           ))}
         </div>
@@ -718,18 +739,16 @@ export default function DailyStockPage() {
   const monthDebtorTotal = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const monthUnsettledCount = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
 
-  const depotStatCards: { label: string; value: number; prefix?: string }[] = [
-    { label: "Total Days", value: totalDays },
-    ...DEPOT_FIELDS.filter((f) => f.type === "number").map((f) => ({ label: f.label, value: sumField(monthRecords, f.key) })),
-    ...visibleCustomCols.map((col) => ({ label: col.label, value: sumField(monthRecords, col.key) })),
-    { label: "Leakages", value: sumField(monthRecords, "leakages") },
-    { label: "Current End Stock", value: currentEndStock },
-    ...DEPOT_POST_ENDSTOCK.map((f) => {
-      if (f.type === "debtors") return { label: f.label, value: monthDebtorCount };
-      if (f.type === "debtAmounts") return { label: `Total ${f.label}`, value: monthDebtorTotal, prefix: "₦" };
-      if (f.type === "debtStatuses") return { label: f.label, value: monthUnsettledCount };
-      return { label: f.label, value: sumField(monthRecords, f.key), prefix: "₦" };
-    }),
+  const depotStatCards: StatCard[] = [
+    { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
+    ...DEPOT_FIELDS.filter((f) => f.type === "number").map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
+    ...visibleCustomCols.map((col) => totalCard(col.label, sumField(monthRecords, col.key))),
+    totalCard("Leakages", sumField(monthRecords, "leakages")),
+    { label: "Current End Stock", value: currentEndStock, description: latestMonthRecord ? `as at ${latestMonthRecord.date}` : "no records" },
+    totalCard("Debtors", monthDebtorCount),
+    totalCard("Debts", monthDebtorTotal, "₦"),
+    totalCard("Unsettled", monthUnsettledCount),
+    totalCard("Cash Delivered", sumField(monthRecords, "cashDelivered"), "₦"),
   ];
   const depotHeaders = [
     "Date",
@@ -781,6 +800,7 @@ export default function DailyStockPage() {
           <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
             <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
             <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.description}</p>
           </div>
         ))}
       </div>
