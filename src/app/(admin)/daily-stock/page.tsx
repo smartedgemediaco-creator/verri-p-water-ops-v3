@@ -83,6 +83,22 @@ const DEPOT_POST_ENDSTOCK = [
   { key: "cashDelivered", label: "Cash Delivered", type: "number" as const },
 ];
 
+const FACTORY_FIELDS: { key: string; label: string }[] = [
+  { key: "startStock", label: "Start Stock" },
+  { key: "bagsProduced", label: "Produced" },
+  { key: "factorySale", label: "Factory Sale" },
+  { key: "bigTruck", label: "Big Truck" },
+  { key: "returnedBigTruck", label: "Ret. Big Truck" },
+  { key: "smallTruck1", label: "Small Truck 1" },
+  { key: "returnedSmallTruck1", label: "Ret. ST1" },
+  { key: "smallTruck2", label: "Small Truck 2" },
+  { key: "returnedSmallTruck2", label: "Ret. ST2" },
+  { key: "depot", label: "Depot" },
+  { key: "tricycle", label: "Tricycle" },
+  { key: "shortage", label: "Shortage" },
+  { key: "wastage", label: "Wastage" },
+];
+
 export default function DailyStockPage() {
   const searchParams = useSearchParams();
   const locationType = (searchParams.get("type") as "factory" | "depot") || "factory";
@@ -192,8 +208,10 @@ export default function DailyStockPage() {
     - (Number(d.leakages) || 0)
     - shortageKeys.reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
 
+  const sumField = (recs: DayRecord[], key: string) =>
+    recs.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[key]) || 0), 0);
+
   const totalDays = monthRecords.length;
-  const totalProduced = monthRecords.reduce((s, r) => s + (Number(r.bagsProduced) || 0), 0);
   const totalSold = monthRecords.reduce((s, r) => allSaleKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
   const totalReturned = monthRecords.reduce((s, r) => allReturnKeys.reduce((sum, k) => sum + (Number(r[k]) || 0), s), 0);
   const currentEndStock = latestMonthRecord ? (isFactory ? calcEndStock(latestMonthRecord) : calcDepotEndStock(latestMonthRecord)) : 0;
@@ -405,16 +423,23 @@ export default function DailyStockPage() {
   // ---- FACTORY VIEW (original columns, unchanged) ----
   if (isFactory) {
     const factoryHeaders = [
-      "Date", "Start Stock", "Produced", "Factory Sale",
-      "Big Truck", "Ret. Big Truck", "Small Truck 1", "Ret. ST1",
-      "Small Truck 2", "Ret. ST2", "Depot", "Tricycle",
-      "Shortage", "Wastage",
+      "Date",
+      ...FACTORY_FIELDS.map((f) => f.label),
       ...columns.filter((c) => !hiddenCols.includes(c.key)).map((c) => c.label),
       "Total Sold", "Total Returned", "End Stock", "Actions",
     ];
 
-    const factoryEditableFields = ["startStock", "bagsProduced", "factorySale", "bigTruck", "returnedBigTruck", "smallTruck1", "returnedSmallTruck1", "smallTruck2", "returnedSmallTruck2", "depot", "tricycle", "shortage", "wastage"] as const;
+    const factoryEditableFields = FACTORY_FIELDS.map((f) => f.key);
     const visibleColumns = columns.filter((c) => !hiddenCols.includes(c.key));
+
+    const factoryStatCards: { label: string; value: number; prefix?: string }[] = [
+      { label: "Total Days", value: totalDays },
+      ...FACTORY_FIELDS.map((f) => ({ label: f.label, value: sumField(monthRecords, f.key) })),
+      ...columns.map((col) => ({ label: col.label, value: sumField(monthRecords, col.key) })),
+      { label: "Total Sold", value: totalSold },
+      { label: "Total Returned", value: totalReturned },
+      { label: "Current End Stock", value: currentEndStock },
+    ];
 
     return (
       <div>
@@ -451,17 +476,11 @@ export default function DailyStockPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-6">
-          {[
-            { label: "Total Days", value: totalDays },
-            { label: "Total Produced", value: totalProduced },
-            { label: "Total Sold", value: totalSold },
-            { label: "Total Returned", value: totalReturned },
-            { label: "Current End Stock", value: currentEndStock },
-          ].map((s) => (
-            <div key={s.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 mb-6">
+          {factoryStatCards.map((s, i) => (
+            <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
-              <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.value.toLocaleString()}</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
             </div>
           ))}
         </div>
@@ -694,6 +713,24 @@ export default function DailyStockPage() {
   const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
   const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+
+  const monthDebtorCount = monthRecords.reduce((s, r) => s + getDebtors(r).length, 0);
+  const monthDebtorTotal = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
+  const monthUnsettledCount = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+
+  const depotStatCards: { label: string; value: number; prefix?: string }[] = [
+    { label: "Total Days", value: totalDays },
+    ...DEPOT_FIELDS.filter((f) => f.type === "number").map((f) => ({ label: f.label, value: sumField(monthRecords, f.key) })),
+    ...visibleCustomCols.map((col) => ({ label: col.label, value: sumField(monthRecords, col.key) })),
+    { label: "Leakages", value: sumField(monthRecords, "leakages") },
+    { label: "Current End Stock", value: currentEndStock },
+    ...DEPOT_POST_ENDSTOCK.map((f) => {
+      if (f.type === "debtors") return { label: f.label, value: monthDebtorCount };
+      if (f.type === "debtAmounts") return { label: `Total ${f.label}`, value: monthDebtorTotal, prefix: "₦" };
+      if (f.type === "debtStatuses") return { label: f.label, value: monthUnsettledCount };
+      return { label: f.label, value: sumField(monthRecords, f.key), prefix: "₦" };
+    }),
+  ];
   const depotHeaders = [
     "Date",
     ...DEPOT_FIELDS.filter((f) => !hiddenCols.includes(f.key)).map((f) => f.label),
@@ -739,15 +776,11 @@ export default function DailyStockPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-6">
-        {[
-          { label: "Total Days", value: totalDays },
-          { label: "Total Delivered", value: totalProduced },
-          { label: "Current End Stock", value: currentEndStock },
-        ].map((s) => (
-          <div key={s.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 mb-6">
+        {depotStatCards.map((s, i) => (
+          <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
             <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
-            <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.value.toLocaleString()}</p>
+            <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
           </div>
         ))}
       </div>
