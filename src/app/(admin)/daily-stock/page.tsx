@@ -708,6 +708,11 @@ export default function DailyStockPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <PageBreadcrumb pageTitle={title} />
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+            className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
             + Add Column
@@ -912,7 +917,7 @@ export default function DailyStockPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, records.length)} of {records.length}
+                Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, monthRecords.length)} of {monthRecords.length}
               </p>
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}
