@@ -193,10 +193,12 @@ export default function ConfirmDialog({
         </div>
 
         <div className="flex justify-end gap-2.5 px-5 py-3.5 border-t border-gray-200 dark:border-gray-800">
-          <Button variant="outline" size="sm" onClick={handleClose} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={handleClose} disabled={loading}
+            data-note="This closes the box WITHOUT doing anything. Nothing is changed or deleted — it's the safe way to change your mind.">
             {cancelLabel}
           </Button>
-          <Button variant={buttonVariant} size="sm" onClick={handleConfirm} disabled={loading}>
+          <Button variant={buttonVariant} size="sm" onClick={handleConfirm} disabled={loading}
+            data-note="This is the YES button — it carries out the action described above. If the action is deleting something, there is no undo, so only click it when you are completely sure.">
             {loading ? "Processing..." : confirmLabel}
           </Button>
         </div>

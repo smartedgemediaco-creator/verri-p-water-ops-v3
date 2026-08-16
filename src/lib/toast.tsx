@@ -1,7 +1,7 @@
 "use client";
 
 import toast from "react-hot-toast";
-import { CheckCircle, XCircle, X } from "lucide-react";
+import { CheckCircle, XCircle, X, NotebookPen } from "lucide-react";
 
 type ToastType = "success" | "error";
 
@@ -57,5 +57,45 @@ export function showError(message: string, options?: ToastOptions) {
   toast.custom(
     (t) => <ToastCard t={t} message={message} type="error" />,
     { duration: options?.duration ?? 5000 },
+  );
+}
+
+function NoteCard({
+  t,
+  message,
+}: {
+  t: { id: string; visible: boolean };
+  message: string;
+}) {
+  return (
+    <div
+      className={`${
+        t.visible ? "animate-enter" : "animate-leave"
+      } flex items-start gap-3 bg-amber-50 dark:bg-gray-800 rounded-xl shadow-theme-lg p-4 min-w-[320px] max-w-[440px] border-l-4 border-l-amber-400`}
+    >
+      <NotebookPen className="size-5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+      <div className="flex-1">
+        <p className="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1">
+          How to do this
+        </p>
+        <p className="text-sm font-medium text-gray-800 dark:text-white/90 leading-5 whitespace-pre-line">
+          {message}
+        </p>
+      </div>
+      <button
+        onClick={() => toast.dismiss(t.id)}
+        className="text-amber-500 hover:text-amber-700 dark:text-amber-400 transition-colors shrink-0"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/** Friendly explainer toast — a note to yourself (or someone else) on what a control does. */
+export function showNote(message: string, options?: ToastOptions) {
+  toast.custom(
+    (t) => <NoteCard t={t} message={message} />,
+    { duration: options?.duration ?? 6000 },
   );
 }

@@ -47,6 +47,7 @@ export async function POST(
     let primaryQty = quantity;
     let itemConsumedQty = 0;
     let itemUnit = "";
+    let consumptionRefId: string | undefined;
     const movementType =
       body.type === "waste" || body.type === "wastage" ? "waste" :
       body.type === "adjustment" ? "adjustment" :
@@ -92,7 +93,7 @@ export async function POST(
       if (body.locationType && body.locationId) {
         const purpose =
           body.purpose || (body.type === "consumption" ? "production" : body.type) || "production";
-        await RawMaterialConsumption.create({
+        const consumption = await RawMaterialConsumption.create({
           rawMaterialId: id,
           locationType: body.locationType,
           locationId: body.locationId,
@@ -112,6 +113,7 @@ export async function POST(
           notes: body.notes || "",
           createdBy: user.userId,
         });
+        consumptionRefId = consumption._id;
       }
     }
 
@@ -134,7 +136,7 @@ export async function POST(
       itemUnit,
       unitCost,
       reference: batchRef ? `${body.type || "consumption"} — batch ${batchRef}` : body.reference || "Manual consumption",
-      referenceId: body.referenceId || undefined,
+      referenceId: consumptionRefId || body.referenceId || undefined,
       notes: body.notes || "",
       performedBy: user.email || user.userId,
     });
