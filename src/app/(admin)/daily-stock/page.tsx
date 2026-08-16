@@ -454,7 +454,7 @@ export default function DailyStockPage() {
 
     const factoryStatCards: StatCard[] = [
       { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
-      ...FACTORY_FIELDS.map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
+      ...FACTORY_FIELDS.filter((f) => f.key !== "startStock").map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
       ...columns.map((col) => totalCard(col.label, sumField(monthRecords, col.key))),
       totalCard("Sold", totalSold),
       totalCard("Returned", totalReturned),
@@ -737,19 +737,12 @@ export default function DailyStockPage() {
   const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
 
-  const monthDebtorCount = monthRecords.reduce((s, r) => s + getDebtors(r).length, 0);
-  const monthDebtorTotal = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
-  const monthUnsettledCount = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
-
   const depotStatCards: StatCard[] = [
     { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
-    ...DEPOT_FIELDS.filter((f) => f.type === "number").map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
+    ...DEPOT_FIELDS.filter((f) => f.type === "number" && f.key !== "startStock").map((f) => totalCard(f.label, sumField(monthRecords, f.key))),
     ...visibleCustomCols.map((col) => totalCard(col.label, sumField(monthRecords, col.key))),
     totalCard("Leakages", sumField(monthRecords, "leakages")),
     { label: "Current End Stock", value: currentEndStock, description: latestMonthRecord ? `as at ${latestMonthRecord.date}` : "no records" },
-    totalCard("Debtors", monthDebtorCount),
-    totalCard("Debts", monthDebtorTotal, "₦"),
-    totalCard("Unsettled", monthUnsettledCount),
     totalCard("Cash Delivered", sumField(monthRecords, "cashDelivered"), "₦"),
   ];
   const depotHeaders = [
