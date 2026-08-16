@@ -119,14 +119,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <BoxCubeIcon className="text-cyan-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total in Stock</p>
-          <AutoAmount value={(totalStock ?? 0).toLocaleString()} className="text-gray-800 dark:text-white !text-sm" />
+          <AutoAmount value={(totalStock ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-2">
             <WaterDropIcon className="text-emerald-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Sold</p>
-          <AutoAmount value={(totalSold ?? 0).toLocaleString()} className="text-gray-800 dark:text-white !text-sm" />
+          <AutoAmount value={(totalSold ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-2">

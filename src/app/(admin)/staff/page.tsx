@@ -320,35 +320,35 @@ export default function StaffPage() {
             <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Staff</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{staff.length}</h4>
         </Link>
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <GroupIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Departments</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{Object.keys(departmentCounts).length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{Object.keys(departmentCounts).length}</h4>
         </Link>
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <UserIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.filter((s) => s.isActive).length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{staff.filter((s) => s.isActive).length}</h4>
         </Link>
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
             <DollarLineIcon className="text-cyan-600 size-5 dark:text-cyan-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Monthly Salary (Active)</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalMonthlySalary.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{totalMonthlySalary.toLocaleString()}</h4>
         </Link>
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <UserIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.filter((s) => !s.isActive).length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{staff.filter((s) => !s.isActive).length}</h4>
         </Link>
       </div>
 

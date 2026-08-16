@@ -884,22 +884,22 @@ export default function RawMaterialsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Materials</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats?.totalMaterials ?? materials.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats?.totalMaterials ?? materials.length}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Low Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats?.lowStockCount ?? lowStockItems.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats?.lowStockCount ?? lowStockItems.length}</h4>
           {lowStockItems.length > 0 && (
             <p className="text-xs text-red-500 dark:text-red-400 mt-1 truncate">{lowStockItems.map((m) => m.name).join(", ")}</p>
           )}
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Out of Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats?.outOfStockCount ?? outOfStockItems.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats?.outOfStockCount ?? outOfStockItems.length}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Stock Value</p>
-          <AutoAmount value={`₦${(stats?.totalStockValue ?? 0).toLocaleString()}`} />
+          <AutoAmount value={`₦${(stats?.totalStockValue ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         </div>
       </div>
 
@@ -1002,15 +1002,15 @@ export default function RawMaterialsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Available (filtered)</p>
-              <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{batchTotals.available.toLocaleString()}</h4>
+              <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{batchTotals.available.toLocaleString()}</h4>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Received (filtered)</p>
-              <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{batchTotals.received.toLocaleString()}</h4>
+              <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{batchTotals.received.toLocaleString()}</h4>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Consumed (filtered)</p>
-              <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{batchTotals.consumed.toLocaleString()}</h4>
+              <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{batchTotals.consumed.toLocaleString()}</h4>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding Debt (filtered)</p>

@@ -91,28 +91,28 @@ export default function TrucksPage() {
             <TruckIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Vehicles</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{trucks.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{trucks.length}</h4>
         </Link>
         <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <CheckCircleIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{totalActive}</h4>
         </Link>
         <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg dark:bg-gray-800 mb-3">
             <CloseLineIcon className="text-gray-600 size-5 dark:text-gray-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{trucks.length - totalActive}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{trucks.length - totalActive}</h4>
         </Link>
         <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <GroupIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Capacity</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalCapacity.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{totalCapacity.toLocaleString()}</h4>
         </Link>
       </div>
 

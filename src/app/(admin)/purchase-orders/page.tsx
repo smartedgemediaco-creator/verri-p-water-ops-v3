@@ -378,35 +378,35 @@ export default function PurchaseOrdersPage() {
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Orders</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats.totalOrders}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats.totalOrders}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
-          <AutoAmount value={`₦${(stats.totalSpent ?? 0).toLocaleString()}`} />
+          <AutoAmount value={`₦${(stats.totalSpent ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
             <ListIcon className="text-amber-600 size-5 dark:text-amber-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Awaiting Delivery</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats.awaiting}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats.awaiting}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <DollarLineIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Unpaid</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{stats.unpaid.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{stats.unpaid.toLocaleString()}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <ListIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Received</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{stats.received}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{stats.received}</h4>
         </div>
       </div>
 

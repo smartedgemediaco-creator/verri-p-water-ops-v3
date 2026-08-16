@@ -265,14 +265,14 @@ export default function WastagePage() {
             <TrashBinIcon className="text-red-600 size-4 dark:text-red-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Records</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white/90">{records.length}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{records.length}</p>
         </Link>
         <Link href="/wastage" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <BoxIconLine className="text-red-600 size-4 dark:text-red-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Units Lost</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white/90">{totalQty.toLocaleString()}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{totalQty.toLocaleString()}</p>
         </Link>
       </div>
 

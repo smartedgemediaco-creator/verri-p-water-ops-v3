@@ -205,14 +205,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             <DollarLineIcon className="text-blue-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Credit Limit</p>
-          <AutoAmount value={`₦${(customer.creditLimit ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white !text-xs" />
+          <AutoAmount value={`₦${(customer.creditLimit ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400 !text-xs" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <DollarLineIcon className="text-red-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding Balance</p>
-          <AutoAmount value={`₦${(customer.outstandingBalance ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white !text-xs" />
+          <AutoAmount value={`₦${(customer.outstandingBalance ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400 !text-xs" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-2">

@@ -170,28 +170,28 @@ export default function CostsPage() {
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Records</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{costs.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{costs.length}</h4>
         </Link>
         <Link href="/costs" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <DollarLineIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenditure</p>
-          <AutoAmount value={`₦${totalCost.toLocaleString()}`} className="font-bold text-gray-800 text-title-sm dark:text-white/90" />
+          <AutoAmount value={`₦${totalCost.toLocaleString()}`} className="font-bold text-blue-600 text-title-sm dark:text-blue-400" />
         </Link>
         <Link href="/costs" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <ListIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Categories</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{categoryList.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{categoryList.length}</h4>
         </Link>
         <Link href="/costs" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <DollarLineIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Avg per Record</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">
             ₦{costs.length ? Math.round(totalCost / costs.length).toLocaleString() : "0"}
           </h4>
         </Link>

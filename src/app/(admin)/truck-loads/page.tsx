@@ -324,49 +324,49 @@ export default function TruckLoadsPage() {
             <TransferIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Loads</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{loads.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{loads.length}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <ListIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Dispatched (Direct Sale)</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("dispatched")}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{byStatus("dispatched")}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <ListIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">In Transit (Transfer)</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("in-transit")}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{byStatus("in-transit")}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <ListIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Delivered</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("delivered")}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{byStatus("delivered")}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
             <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Quantity</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalQty.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{totalQty.toLocaleString()}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Load Value</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalLoadValue.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{totalLoadValue.toLocaleString()}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Cancelled</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("cancelled")}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{byStatus("cancelled")}</h4>
         </div>
       </div>
 

@@ -446,7 +446,7 @@ export default function PayrollPage() {
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Net Pay</p>
-          <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(summary?.totalNetPay ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{summary?.totalStaff ?? 0} staff · this month only</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
@@ -454,7 +454,7 @@ export default function PayrollPage() {
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Paid</p>
-          <AutoAmount value={`₦${(summary?.totalPaid ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(summary?.totalPaid ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{summary?.paidCount ?? 0} paid</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
@@ -462,7 +462,7 @@ export default function PayrollPage() {
             <BoxIconLine className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Deductions</p>
-          <AutoAmount value={`₦${(summary?.totalDeductions ?? 0).toLocaleString()}`} className="text-red-600 dark:text-red-400" />
+          <AutoAmount value={`₦${(summary?.totalDeductions ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">This month only</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
@@ -470,7 +470,7 @@ export default function PayrollPage() {
             <DollarLineIcon className="text-rose-600 size-5 dark:text-rose-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Debt (This Month)</p>
-          <AutoAmount value={`₦${(summary?.totalDebtOutstanding ?? 0).toLocaleString()}`} className="text-rose-600 dark:text-rose-400" />
+          <AutoAmount value={`₦${(summary?.totalDebtOutstanding ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">
             ₦{(summary?.totalDebtSettled ?? 0).toLocaleString()} settled of ₦{(summary?.totalDebt ?? 0).toLocaleString()} · use the settle link on each record
           </p>
@@ -480,14 +480,14 @@ export default function PayrollPage() {
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Bonuses</p>
-          <AutoAmount value={`₦${(summary?.totalBonus ?? 0).toLocaleString()}`} className="text-green-600 dark:text-green-400" />
+          <AutoAmount value={`₦${(summary?.totalBonus ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5">
           <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-3">
             <ListIcon className="text-amber-600 size-5 dark:text-amber-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-white/90">{summary?.pendingCount ?? 0}</p>
+          <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{summary?.pendingCount ?? 0}</p>
           <p className="text-xs text-gray-400 mt-0.5">₦{((summary?.totalNetPay ?? 0) - (summary?.totalPaid ?? 0)).toLocaleString()} outstanding</p>
         </div>
       </div>

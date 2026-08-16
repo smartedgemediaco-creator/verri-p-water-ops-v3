@@ -71,28 +71,28 @@ export default function ProductsPage() {
             <BottleIcon className="text-teal-600 size-5 dark:text-teal-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Products</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{products.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{products.length}</h4>
         </Link>
         <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BottleIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Categories</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{categories.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{categories.length}</h4>
         </Link>
         <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BoxIcon className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Units</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{[...new Set(products.map((p) => p.unit))].length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{[...new Set(products.map((p) => p.unit))].length}</h4>
         </Link>
         <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Avg Unit Price</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{Math.round(avgPrice).toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{Math.round(avgPrice).toLocaleString()}</h4>
         </Link>
       </div>
 

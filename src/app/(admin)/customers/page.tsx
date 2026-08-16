@@ -184,35 +184,35 @@ export default function CustomersPage() {
             <UserIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Customers</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{customers.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{customers.length}</h4>
         </Link>
         <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <GroupIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{totalActive}</h4>
         </Link>
         <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <GroupIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding Balance</p>
-          <AutoAmount value={`₦${totalOutstanding.toLocaleString()}`} />
+          <AutoAmount value={`₦${totalOutstanding.toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         </Link>
         <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
             <DollarLineIcon className="text-cyan-600 size-5 dark:text-cyan-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Credit Limit</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalCreditLimit.toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{totalCreditLimit.toLocaleString()}</h4>
         </Link>
         <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg dark:bg-gray-800 mb-3">
             <GroupIcon className="text-gray-600 size-5 dark:text-gray-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{customers.length - totalActive}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{customers.length - totalActive}</h4>
         </Link>
       </div>
 

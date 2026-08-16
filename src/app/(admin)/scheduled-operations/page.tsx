@@ -276,28 +276,28 @@ export default function ScheduledOperationsPage() {
             <AlertIcon className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Active</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalActive}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{totalActive}</h4>
         </Link>
         <Link href="/scheduled-operations" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <AlertIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{overdue}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{overdue}</h4>
         </Link>
         <Link href="/scheduled-operations" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <CheckCircleIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Completed Today</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{completedToday}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{completedToday}</h4>
         </Link>
         <Link href="/scheduled-operations" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <AlertIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">High / Critical</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{highCritical}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{highCritical}</h4>
         </Link>
       </div>
 

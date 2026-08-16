@@ -219,7 +219,7 @@ export default function AttendancePage() {
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 mb-6">
           {STATUS_OPTIONS.map((opt) => (
             <div key={opt.value} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 shadow-theme-sm text-center">
-              <p className="text-2xl font-bold text-gray-800 dark:text-white/90">{statusCounts[opt.value]}</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusCounts[opt.value]}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{opt.label}</p>
             </div>
           ))}

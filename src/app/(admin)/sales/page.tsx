@@ -259,7 +259,7 @@ export default function SalesPage() {
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
-          <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{pagination.total} sales</p>
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
@@ -267,7 +267,7 @@ export default function SalesPage() {
             <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Units Sold</p>
-          <AutoAmount value={totalQty.toLocaleString()} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={totalQty.toLocaleString()} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">Bags on this page</p>
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
@@ -275,7 +275,7 @@ export default function SalesPage() {
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Cash</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.cash?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(paymentStats?.byMethod?.cash?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.cash?.count ?? 0} transactions</p>
         </Link>
         <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
@@ -283,7 +283,7 @@ export default function SalesPage() {
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">POS</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.pos?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(paymentStats?.byMethod?.pos?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.pos?.count ?? 0} transactions</p>
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
@@ -291,7 +291,7 @@ export default function SalesPage() {
             <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Transfer</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.transfer?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(paymentStats?.byMethod?.transfer?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.transfer?.count ?? 0} transactions</p>
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
@@ -299,7 +299,7 @@ export default function SalesPage() {
             <ListIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Credit Sales</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.credit?.totalAmount ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
+          <AutoAmount value={`₦${(paymentStats?.byMethod?.credit?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.credit?.count ?? 0} transactions</p>
         </Link>
         <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow border-l-4 border-warning-500">
@@ -307,7 +307,7 @@ export default function SalesPage() {
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Credit Outstanding</p>
-          <AutoAmount value={`₦${(paymentStats?.creditOutstanding ?? 0).toLocaleString()}`} className="text-red-600 dark:text-red-400" />
+          <AutoAmount value={`₦${(paymentStats?.creditOutstanding ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-red-400 mt-0.5">Unpaid deficit</p>
         </Link>
       </div>

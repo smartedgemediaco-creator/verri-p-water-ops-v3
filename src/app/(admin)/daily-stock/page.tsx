@@ -502,7 +502,7 @@ export default function DailyStockPage() {
           {factoryStatCards.map((s, i) => (
             <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
-              <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{s.prefix || ""}{s.value.toLocaleString()}</p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.description}</p>
             </div>
           ))}
@@ -803,7 +803,7 @@ export default function DailyStockPage() {
         {depotStatCards.map((s, i) => (
           <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
             <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
-            <p className="text-xl font-bold text-gray-800 dark:text-white/90">{s.prefix || ""}{s.value.toLocaleString()}</p>
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{s.prefix || ""}{s.value.toLocaleString()}</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.description}</p>
           </div>
         ))}

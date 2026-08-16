@@ -116,7 +116,7 @@ export default function SupplierDetailPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Orders</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{orders.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{orders.length}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding Balance</p>

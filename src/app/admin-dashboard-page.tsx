@@ -258,11 +258,11 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-6">
             <Link href="/sales" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
               <p className="stat-label mb-0.5">Total Sales</p>
-              <AutoAmount value={stats.totalSales.toLocaleString()} className="text-gray-800 dark:text-white !font-semibold text-lg" />
+              <AutoAmount value={stats.totalSales.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
             </Link>
             <Link href="/sales" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
               <p className="stat-label mb-0.5">Today&apos;s Sales</p>
-              <AutoAmount value={todaySales.toLocaleString()} className="text-gray-800 dark:text-white !font-semibold text-lg" />
+              <AutoAmount value={todaySales.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
               <div className="flex items-center gap-1 mt-1">
                 {trend === "up" ? <TrendingUpIcon className="w-3.5 h-3.5 text-emerald-500" /> : trend === "down" ? <TrendingDownIcon className="w-3.5 h-3.5 text-red-500" /> : <MinusIcon className="w-3.5 h-3.5 text-gray-400" />}
                 <span className={`text-xs font-medium ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-600" : "text-gray-400"}`}>
@@ -272,11 +272,11 @@ export default function AdminDashboardPage() {
             </Link>
             <Link href="/costs" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
               <p className="stat-label mb-0.5">Today&apos;s Cost</p>
-              <AutoAmount value={todayCosts.toLocaleString()} className="text-gray-800 dark:text-white !font-semibold text-lg" />
+              <AutoAmount value={todayCosts.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
             </Link>
             <Link href="/analysis" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
               <p className="stat-label mb-0.5">Today&apos;s Profit</p>
-              <AutoAmount value={todayProfit.toLocaleString()} className={`!font-semibold text-lg ${todayProfit >= 0 ? "text-emerald-600" : "text-red-600"}`} />
+              <AutoAmount value={todayProfit.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
             </Link>
           </div>
         );
@@ -292,7 +292,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="stat-label mb-0.5">{card.label}</p>
-                <AutoAmount value={String(card.value)} className="text-gray-800 dark:text-white !font-semibold" />
+                <AutoAmount value={String(card.value)} className="text-blue-600 dark:text-blue-400 !font-semibold" />
               </div>
               <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.circleBg}`}>
                 <span className={card.iconColor}>{card.icon}</span>
@@ -343,41 +343,41 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Link href="/stock" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1">Produced</p>
-            <AutoAmount value={invStats.totalProduced.toLocaleString()} className="text-gray-800 dark:text-white/90 !font-semibold" />
+            <AutoAmount value={invStats.totalProduced.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
           <Link href="/stock" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1">Sold</p>
-            <AutoAmount value={invStats.totalSold.toLocaleString()} className="text-gray-800 dark:text-white/90 !font-semibold" />
+            <AutoAmount value={invStats.totalSold.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
           <Link href="/stock" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1">In Stock</p>
-            <AutoAmount value={invStats.totalAvailable.toLocaleString()} className="text-gray-800 dark:text-white/90 !font-semibold" />
+            <AutoAmount value={invStats.totalAvailable.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
           <Link href="/transfers" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1">Pending</p>
-            <AutoAmount value={invStats.pendingTransferQty.toLocaleString()} className="text-gray-800 dark:text-white/90 !font-semibold" />
+            <AutoAmount value={invStats.pendingTransferQty.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
           <Link href="/transfers" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1">In Transit</p>
-            <AutoAmount value={invStats.inTransitQty.toLocaleString()} className="text-gray-800 dark:text-white/90 !font-semibold" />
+            <AutoAmount value={invStats.inTransitQty.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
           <Link href="/stock" className="card-corporate p-3 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="stat-label mb-1 text-gray-400">Wastage</p>
-            <AutoAmount value={invStats.totalWastage.toLocaleString()} className="text-gray-400 dark:text-gray-500 !font-semibold" />
+            <AutoAmount value={invStats.totalWastage.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold" />
           </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-3">
           <Link href="/stock" className="card-corporate px-3 py-2 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Factory</p>
-            <AutoAmount value={invStats.factoryStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={invStats.factoryStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
           <Link href="/stock" className="card-corporate px-3 py-2 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Depot</p>
-            <AutoAmount value={invStats.depotStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={invStats.depotStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
           <Link href="/stock" className="card-corporate px-3 py-2 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Vehicle</p>
-            <AutoAmount value={invStats.truckStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={invStats.truckStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
         </div>
       </div>

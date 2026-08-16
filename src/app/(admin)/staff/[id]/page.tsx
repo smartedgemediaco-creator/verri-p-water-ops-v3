@@ -291,7 +291,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
             <DollarLineIcon className="text-emerald-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Salary (Monthly)</p>
-          <AutoAmount value={`₦${(staff.salary ?? 0).toLocaleString()}`} className="text-gray-800 dark:text-white !text-xs" />
+          <AutoAmount value={`₦${(staff.salary ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400 !text-xs" />
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-2">

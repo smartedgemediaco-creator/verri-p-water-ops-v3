@@ -283,14 +283,14 @@ export default function FactoryDetailPage({ params }: { params: Promise<{ id: st
             <WaterDropIcon className="text-cyan-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">In Stock</p>
-          <AutoAmount value={totalStock.toLocaleString()} className="text-gray-800 dark:text-white !text-sm" />
+          <AutoAmount value={totalStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/costs" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm hover:shadow-theme-md transition-shadow block">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <ListIcon className="text-red-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Costs (₦)</p>
-          <AutoAmount value={`₦${totalCosts.toLocaleString()}`} className="text-gray-800 dark:text-white !text-xs" />
+          <AutoAmount value={`₦${totalCosts.toLocaleString()}`} className="text-blue-600 dark:text-blue-400 !text-xs" />
         </Link>
         <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm hover:shadow-theme-md transition-shadow block">
           <div className="flex items-center justify-center w-9 h-9 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-2">

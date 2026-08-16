@@ -524,42 +524,42 @@ export default function StockPage() {
             <BoxIconLine className="text-emerald-600 size-4 dark:text-emerald-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Produced</p>
-          <AutoAmount value={(stats?.totalProduced ?? 0).toLocaleString()} className="text-emerald-700 dark:text-emerald-300 !text-sm" />
+          <AutoAmount value={(stats?.totalProduced ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-2">
             <ListIcon className="text-blue-600 size-4 dark:text-blue-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Sold</p>
-          <AutoAmount value={(stats?.totalSold ?? 0).toLocaleString()} className="text-blue-700 dark:text-blue-300 !text-sm" />
+          <AutoAmount value={(stats?.totalSold ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/stock" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-2">
             <WaterDropIcon className="text-cyan-600 size-4 dark:text-cyan-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Available</p>
-          <AutoAmount value={(stats?.totalAvailable ?? 0).toLocaleString()} className="text-cyan-700 dark:text-cyan-300 !text-sm" />
+          <AutoAmount value={(stats?.totalAvailable ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/wastage" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-red-100 rounded-lg dark:bg-red-500/10 mb-2">
             <TrashBinIcon className="text-red-600 size-4 dark:text-red-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Wastage</p>
-          <AutoAmount value={(stats?.totalWastage ?? 0).toLocaleString()} className="text-red-700 dark:text-red-300 !text-sm" />
+          <AutoAmount value={(stats?.totalWastage ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-2">
             <AlertIcon className="text-amber-600 size-4 dark:text-amber-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Pending Transfer</p>
-          <AutoAmount value={(stats?.pendingTransferQty ?? 0).toLocaleString()} className="text-amber-700 dark:text-amber-300 !text-sm" />
+          <AutoAmount value={(stats?.pendingTransferQty ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
         <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-9 h-9 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-2">
             <TruckIcon className="text-purple-600 size-4 dark:text-purple-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">In Transit</p>
-          <AutoAmount value={(stats?.inTransitQty ?? 0).toLocaleString()} className="text-purple-700 dark:text-purple-300 !text-sm" />
+          <AutoAmount value={(stats?.inTransitQty ?? 0).toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
         </Link>
       </div>
 
@@ -568,19 +568,19 @@ export default function StockPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <Link href="/factories" className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Factory</p>
-            <AutoAmount value={stats.factoryStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={stats.factoryStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
           <Link href="/depots" className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Depot</p>
-            <AutoAmount value={stats.depotStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={stats.depotStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
           <Link href="/trucks" className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Truck</p>
-            <AutoAmount value={stats.truckStock.toLocaleString()} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={stats.truckStock.toLocaleString()} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
           <Link href="/stock" className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 shadow-theme-sm min-w-0 hover:shadow-theme-md transition-shadow">
             <p className="text-[10px] uppercase tracking-wider text-gray-400">Locations</p>
-            <AutoAmount value={String(stats.locationCount)} className="text-gray-800 dark:text-white/90 !text-sm" />
+            <AutoAmount value={String(stats.locationCount)} className="text-blue-600 dark:text-blue-400 !text-sm" />
           </Link>
         </div>
       )}

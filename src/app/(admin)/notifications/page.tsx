@@ -126,14 +126,14 @@ export default function AlertsPage() {
             <AlertIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Low Stock Alerts</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{lowStock.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{lowStock.length}</h4>
         </Link>
         <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">In-Transit Items</p>
-          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{inTransit.length}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">{inTransit.length}</h4>
         </Link>
       </div>
 
