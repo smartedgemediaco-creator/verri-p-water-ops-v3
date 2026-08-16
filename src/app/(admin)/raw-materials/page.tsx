@@ -515,6 +515,7 @@ export default function RawMaterialsPage() {
 
   const openBatchModal = (preselect?: RawMaterial) => {
     resetBatchForm();
+    if (materials.length === 0) setBatchMaterialMode("new");
     if (preselect) {
       setBatchMaterialId(preselect._id);
       setRecUnit(preselect.unit || "");
@@ -853,14 +854,9 @@ export default function RawMaterialsPage() {
               New Batch
             </Button>
           ) : tab === "usage" ? null : (
-            <>
-              <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => openBatchModal()}>
-                Add Stock
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => { resetAddForm(); setShowAddModal(true); }}>
-                Add Material
-              </Button>
-            </>
+            <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => openBatchModal()}>
+              Add Stock
+            </Button>
           )}
         </div>
       </div>
@@ -943,7 +939,7 @@ export default function RawMaterialsPage() {
               <TableBody>
                 {filteredMaterials.length === 0 ? (
                   <TableRow><TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={6}>
-                    {materials.length === 0 ? 'No raw materials found. Click "Add Material" to create one.' : "No materials match your search."}
+                    {materials.length === 0 ? 'No raw materials found. Click "Add Stock" and choose "New Material" to create one.' : "No materials match your search."}
                   </TableCell></TableRow>
                 ) : (
                   filteredMaterials.map((m) => {
