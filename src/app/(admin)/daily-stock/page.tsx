@@ -463,12 +463,14 @@ export default function DailyStockPage() {
 
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <PageBreadcrumb pageTitle={title} />
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+            <PageBreadcrumb pageTitle={title} />
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+                className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
@@ -762,12 +764,14 @@ export default function DailyStockPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle={title} />
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+          <PageBreadcrumb pageTitle={title} />
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { setNewColLabel(""); setNewColType("custom"); setAddColConfirm(false); setShowAddCol(true); }}>
