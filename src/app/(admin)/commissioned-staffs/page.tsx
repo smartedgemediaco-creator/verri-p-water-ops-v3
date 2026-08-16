@@ -9,6 +9,7 @@ import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon } from "@/icons";
+import SummaryCards from "@/components/ui/SummaryCards";
 import { showSuccess, showError } from "@/lib/toast";
 
 interface CommissionedStaff {
@@ -123,6 +124,19 @@ export default function CommissionedStaffsPage() {
     !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.phone.includes(search)
   );
 
+  const totalLoaded = staff.reduce((sum, s) => sum + (s.totalLoaded || 0), 0);
+  const totalPaid = staff.reduce((sum, s) => sum + (s.totalPaid || 0), 0);
+  const totalOwed = staff.reduce((sum, s) => sum + (s.totalOwed || 0), 0);
+
+  const summaryCards = [
+    { label: "Total Staff", value: staff.length },
+    { label: "Active", value: staff.filter((s) => s.isActive).length },
+    { label: "Inactive", value: staff.filter((s) => !s.isActive).length },
+    { label: "Total Loaded", value: totalLoaded, description: "bags" },
+    { label: "Total Paid", value: totalPaid, prefix: "₦" },
+    { label: "Total Owed", value: totalOwed, prefix: "₦" },
+  ];
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -132,6 +146,8 @@ export default function CommissionedStaffsPage() {
           <Button size="sm" startIcon={<PlusIcon />} onClick={openCreate}>Add Staff</Button>
         </div>
       </div>
+
+      <SummaryCards cards={summaryCards} />
 
       <div className="mb-4">
         <Input placeholder="Search by name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} />

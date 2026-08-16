@@ -181,6 +181,13 @@ export default function PosDevicesPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{devices.length - totalActive}</h4>
         </Link>
+        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
+            <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Providers</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{new Set(devices.map((d) => d.provider)).size}</h4>
+        </Link>
       </div>
 
       {showForm && (

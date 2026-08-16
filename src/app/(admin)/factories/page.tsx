@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, BoxIconLine } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { FactoryIcon } from "@/components/icons/EntityIcons";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
@@ -41,6 +41,7 @@ export default function FactoriesPage() {
   };
 
   const totalActive = factories.filter((f) => f.isActive).length;
+  const totalCapacity = factories.reduce((s, f) => s + (f.capacity || 0), 0);
 
   return (
     <div>
@@ -79,6 +80,13 @@ export default function FactoriesPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{factories.length - totalActive}</h4>
+        </Link>
+        <Link href="/factories" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
+            <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Capacity</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalCapacity.toLocaleString()} bags</h4>
         </Link>
       </div>
 

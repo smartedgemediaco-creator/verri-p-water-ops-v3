@@ -230,6 +230,7 @@ export default function PaymentTransactionsPage() {
   const totalAmount = transactions.reduce((s, t) => s + t.amount, 0);
   const matchedCount = transactions.filter((t) => t.status === "matched").length;
   const unmatchedCount = transactions.filter((t) => t.status === "unmatched").length;
+  const ignoredCount = transactions.filter((t) => t.status === "ignored").length;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -282,6 +283,13 @@ export default function PaymentTransactionsPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Value</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalAmount.toLocaleString()}</h4>
+        </Link>
+        <Link href="/payment-transactions" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
+            <BoxIconLine className="text-red-600 size-5 dark:text-red-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Ignored</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{ignoredCount}</h4>
         </Link>
       </div>
 

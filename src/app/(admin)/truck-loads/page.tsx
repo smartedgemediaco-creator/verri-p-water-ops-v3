@@ -10,7 +10,7 @@ import Select from "@/components/form/Select";
 import Input from "@/components/form/input/InputField";
 import { showSuccess, showError } from "@/lib/toast";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, ListIcon } from "@/icons";
+import { PlusIcon, ListIcon, BoxIconLine, DollarLineIcon } from "@/icons";
 import { TransferIcon } from "@/components/icons/EntityIcons";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dateFormat";
@@ -231,6 +231,8 @@ export default function TruckLoadsPage() {
   };
 
   const byStatus = (s: string) => loads.filter((t) => t.status === s).length;
+  const totalQty = loads.reduce((sum, t) => sum + (t.quantity || 0), 0);
+  const totalLoadValue = loads.reduce((sum, t) => sum + (t.loadAmount || 0), 0);
 
   const resetForm = () => {
     setFormFromType("");
@@ -344,6 +346,27 @@ export default function TruckLoadsPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Delivered</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("delivered")}</h4>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
+            <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Quantity</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{totalQty.toLocaleString()}</h4>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+          <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
+            <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Load Value</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalLoadValue.toLocaleString()}</h4>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
+          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
+            <ListIcon className="text-red-600 size-5 dark:text-red-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Cancelled</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{byStatus("cancelled")}</h4>
         </div>
       </div>
 

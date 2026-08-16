@@ -173,6 +173,7 @@ export default function SalesPage() {
   };
 
   const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalQty = sales.reduce((sum, s) => sum + (s.quantity || 0), 0);
 
   const doSettle = async () => {
     const id = confirmSettleId;
@@ -260,6 +261,14 @@ export default function SalesPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
           <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-gray-800 dark:text-white/90" />
           <p className="text-xs text-gray-400 mt-0.5">{pagination.total} sales</p>
+        </Link>
+        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
+            <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Units Sold</p>
+          <AutoAmount value={totalQty.toLocaleString()} className="text-gray-800 dark:text-white/90" />
+          <p className="text-xs text-gray-400 mt-0.5">Bags on this page</p>
         </Link>
         <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">

@@ -13,7 +13,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import AutoAmount from "@/components/ui/AutoAmount";
 import LocationPicker from "@/components/location/LocationPicker";
 import type { LocationValue } from "@/components/location/LocationPicker";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, DollarLineIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
 
@@ -149,6 +149,7 @@ export default function CustomersPage() {
 
   const totalActive = customers.filter((c) => c.isActive).length;
   const totalOutstanding = customers.reduce((s, c) => s + (c.outstandingBalance ?? 0), 0);
+  const totalCreditLimit = customers.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
 
   const typeBadge = (type: string) => {
     const colors: Record<string, string> = {
@@ -198,6 +199,20 @@ export default function CustomersPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding Balance</p>
           <AutoAmount value={`₦${totalOutstanding.toLocaleString()}`} />
+        </Link>
+        <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
+            <DollarLineIcon className="text-cyan-600 size-5 dark:text-cyan-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Credit Limit</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalCreditLimit.toLocaleString()}</h4>
+        </Link>
+        <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg dark:bg-gray-800 mb-3">
+            <GroupIcon className="text-gray-600 size-5 dark:text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{customers.length - totalActive}</h4>
         </Link>
       </div>
 

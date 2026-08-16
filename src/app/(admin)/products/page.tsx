@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import Button from "@/components/ui/button/Button";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { PlusIcon, TrashBinIcon, PencilIcon, BoxIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, BoxIcon, DollarLineIcon } from "@/icons";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { BottleIcon } from "@/components/icons/EntityIcons";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
@@ -42,6 +42,7 @@ export default function ProductsPage() {
   };
 
   const categories = [...new Set(products.map((p) => p.category))];
+  const avgPrice = products.length ? products.reduce((s, p) => s + (p.unitPrice || 0), 0) / products.length : 0;
 
   return (
     <div>
@@ -85,6 +86,13 @@ export default function ProductsPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Units</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{[...new Set(products.map((p) => p.unit))].length}</h4>
+        </Link>
+        <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
+            <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Avg Unit Price</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{Math.round(avgPrice).toLocaleString()}</h4>
         </Link>
       </div>
 

@@ -264,7 +264,7 @@ export default function DailyProductionPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 mb-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <p className="text-xs text-gray-500 dark:text-gray-400">Workers</p>
           <p className="text-xl font-bold text-gray-800 dark:text-white/90">{entries.length}</p>
@@ -276,6 +276,14 @@ export default function DailyProductionPage() {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <p className="text-xs text-gray-500 dark:text-gray-400">Total Earned (today)</p>
           <p className="text-xl font-bold text-brand-600 dark:text-brand-400">₦{totalEarned.toLocaleString()}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Month Bags</p>
+          <p className="text-xl font-bold text-gray-800 dark:text-white/90">{monthTotals.bags.toLocaleString()}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Month Paid</p>
+          <p className="text-xl font-bold text-brand-600 dark:text-brand-400">₦{monthTotals.earned.toLocaleString()}</p>
         </div>
       </div>
 

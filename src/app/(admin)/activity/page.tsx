@@ -18,6 +18,7 @@ import { downloadTablePdf } from "@/lib/pdf";
 import Pagination from "@/components/tables/Pagination";
 import DatePicker from "@/components/form/date-picker";
 import { WaterDropIcon } from "@/components/icons/EntityIcons";
+import SummaryCards from "@/components/ui/SummaryCards";
 
 interface ActivityUser {
   _id: string;
@@ -213,6 +214,14 @@ export default function ActivityPage() {
       <div className="mb-6">
         <PageBreadcrumb pageTitle="Activity Log" />
       </div>
+
+      <SummaryCards
+        cards={[
+          { label: "Total Records", value: pagination.total },
+          { label: "On This Page", value: logs.length },
+          { label: "Entity Filters", value: ENTITIES.filter((e) => e.value).length },
+        ]}
+      />
 
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">

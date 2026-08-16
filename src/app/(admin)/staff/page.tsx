@@ -10,7 +10,7 @@ import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import TextArea from "@/components/form/input/TextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ArrowRightIcon } from "@/icons";
+import { PlusIcon, TrashBinIcon, PencilIcon, GroupIcon, CloseIcon, UserIcon, ArrowRightIcon, DollarLineIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
 import StaffAvatar from "@/components/ui/StaffAvatar";
@@ -282,6 +282,7 @@ export default function StaffPage() {
     acc[s.department] = (acc[s.department] ?? 0) + 1;
     return acc;
   }, {});
+  const totalMonthlySalary = staff.filter((s) => s.isActive).reduce((sum, s) => sum + (s.salary ?? 0), 0);
 
   const roleBadge = (role: string) => {
     const colors: Record<string, string> = {
@@ -334,6 +335,20 @@ export default function StaffPage() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
           <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.filter((s) => s.isActive).length}</h4>
+        </Link>
+        <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
+            <DollarLineIcon className="text-cyan-600 size-5 dark:text-cyan-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Monthly Salary (Active)</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">₦{totalMonthlySalary.toLocaleString()}</h4>
+        </Link>
+        <Link href="/staff" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
+          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
+            <UserIcon className="text-red-600 size-5 dark:text-red-400" />
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
+          <h4 className="mt-1 font-bold text-gray-800 text-title-sm dark:text-white/90">{staff.filter((s) => !s.isActive).length}</h4>
         </Link>
       </div>
 
