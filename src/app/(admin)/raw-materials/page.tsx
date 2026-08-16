@@ -281,7 +281,6 @@ export default function RawMaterialsPage() {
   const [newSecondaryUnit, setNewSecondaryUnit] = useState("");
   const [newUnits, setNewUnits] = useState("");
   const [newCategory, setNewCategory] = useState("chemical");
-  const [newMinStock, setNewMinStock] = useState(0);
   const [batchSupplierMode, setBatchSupplierMode] = useState<"existing" | "other">("existing");
   const [batchSupplierId, setBatchSupplierId] = useState("");
   const [batchSupplierName, setBatchSupplierName] = useState("");
@@ -480,7 +479,7 @@ export default function RawMaterialsPage() {
     setBatchStep(0);
     setBatchMaterialMode("existing"); setBatchMaterialId("");
     setNewName(""); setNewUnit(""); setNewSecondaryUnit(""); setNewUnits("");
-    setNewCategory("chemical"); setNewMinStock(0);
+    setNewCategory("chemical");
     setBatchSupplierMode("existing"); setBatchSupplierId(""); setBatchSupplierName("");
     setRecOrderedQty(0); setRecQty(0); setRecUnit(""); setRecItemCount(0); setRecItemUnit("");
     setRecUnitPrice(0); setRecPaid(0); setRecOwed(0);
@@ -616,7 +615,6 @@ export default function RawMaterialsPage() {
             secondaryUnit: newSecondaryUnit,
             units: [...new Set([newUnit, ...unitList])].filter(Boolean),
             category: newCategory,
-            minimumStock: newMinStock,
           }),
         });
         if (!res.ok) { const err = await res.json(); showError(err.error || "Failed to create material"); return; }
@@ -1450,7 +1448,7 @@ export default function RawMaterialsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Material Name *</label>
-                            <Input placeholder="e.g. 50 micron film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                            <Input placeholder="e.g. film roll" value={newName} onChange={(e) => setNewName(e.target.value)} />
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
@@ -1470,10 +1468,6 @@ export default function RawMaterialsPage() {
                           <div className="col-span-2">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Other Units <span className="text-gray-400 font-normal">(comma-separated)</span></label>
                             <Input placeholder="e.g. bag, carton" value={newUnits} onChange={(e) => setNewUnits(e.target.value)} />
-                          </div>
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                            <Input type="number" placeholder="0" value={newMinStock} onChange={(e) => setNewMinStock(Number(e.target.value))} />
                           </div>
                         </div>
                       )}
