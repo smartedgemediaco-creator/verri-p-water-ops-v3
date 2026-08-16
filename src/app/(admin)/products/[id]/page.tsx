@@ -133,14 +133,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <ListIcon className="text-blue-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Locations</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white">{locationCount}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{locationCount}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
           <div className="flex items-center justify-center w-9 h-9 bg-amber-100 rounded-lg dark:bg-amber-500/10 mb-2">
             <DollarLineIcon className="text-amber-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Unit Price</p>
-          <p className="text-xs font-bold text-gray-800 dark:text-white">₦{product.unitPrice?.toLocaleString()}</p>
+          <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{product.unitPrice?.toLocaleString()}</p>
         </div>
         {product.chilledPrice && (
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
@@ -148,7 +148,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <DollarLineIcon className="text-cyan-600 size-4" />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Chilled Price</p>
-            <p className="text-xs font-bold text-gray-800 dark:text-white">₦{product.chilledPrice.toLocaleString()}</p>
+            <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{product.chilledPrice.toLocaleString()}</p>
           </div>
         )}
       </div>
@@ -205,19 +205,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 <Link href="/stock" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Stock</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{(insights.totalStock ?? 0).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalStock ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/sales" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Sold</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{(insights.totalSold ?? 0).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalSold ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/sales" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Revenue</p>
-                  <p className="text-xs font-bold text-success-700 dark:text-success-400">₦{(insights.totalRevenue ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.totalRevenue ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/stock" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Produced</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{(insights.totalProduced ?? 0).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalProduced ?? 0).toLocaleString()}</p>
                 </Link>
               </div>
 

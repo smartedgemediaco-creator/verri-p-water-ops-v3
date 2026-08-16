@@ -1014,7 +1014,7 @@ export default function RawMaterialsPage() {
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding Debt (filtered)</p>
-              <h4 className="mt-1 font-bold text-red-600 dark:text-red-400 text-title-sm">₦{batchTotals.owed.toLocaleString()}</h4>
+              <h4 className="mt-1 font-bold text-blue-600 text-title-sm dark:text-blue-400">₦{batchTotals.owed.toLocaleString()}</h4>
             </div>
           </div>
 

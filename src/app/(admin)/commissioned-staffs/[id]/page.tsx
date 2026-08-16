@@ -377,14 +377,14 @@ export default function CommissionedStaffDetailPage({ params }: { params: Promis
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             {[
-              { label: "Records", value: String(records.length), color: "text-gray-800 dark:text-white/90" },
-              { label: "Bags Loaded", value: totals.stockLoaded.toLocaleString(), color: "text-gray-800 dark:text-white/90" },
-              { label: "Bags Returned", value: totals.stockReturned.toLocaleString(), color: "text-gray-800 dark:text-white/90" },
-              { label: "Expected", value: `₦${totals.expectedAmount.toLocaleString()}`, color: "text-gray-800 dark:text-white/90" },
+              { label: "Records", value: String(records.length), color: "text-blue-600 dark:text-blue-400" },
+              { label: "Bags Loaded", value: totals.stockLoaded.toLocaleString(), color: "text-blue-600 dark:text-blue-400" },
+              { label: "Bags Returned", value: totals.stockReturned.toLocaleString(), color: "text-blue-600 dark:text-blue-400" },
+              { label: "Expected", value: `₦${totals.expectedAmount.toLocaleString()}`, color: "text-blue-600 dark:text-blue-400" },
               { label: "Transferred", value: `₦${totals.amountTransferred.toLocaleString()}`, color: "text-blue-600 dark:text-blue-400" },
-              { label: "Cash", value: `₦${totals.cashPaid.toLocaleString()}`, color: "text-green-600 dark:text-green-400" },
-              { label: "Deficit", value: `₦${totals.deficit.toLocaleString()}`, color: "text-orange-600 dark:text-orange-400" },
-              { label: "Debt", value: `₦${totals.debt.toLocaleString()}`, color: totals.debt > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400" },
+              { label: "Cash", value: `₦${totals.cashPaid.toLocaleString()}`, color: "text-blue-600 dark:text-blue-400" },
+              { label: "Deficit", value: `₦${totals.deficit.toLocaleString()}`, color: "text-blue-600 dark:text-blue-400" },
+              { label: "Debt", value: `₦${totals.debt.toLocaleString()}`, color: "text-blue-600 dark:text-blue-400" },
             ].map((c) => (
               <div key={c.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3 shadow-theme-sm">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{c.label}</p>

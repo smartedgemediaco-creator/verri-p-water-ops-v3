@@ -246,14 +246,14 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             <ListIcon className="text-blue-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Service Records</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white">{serviceRecords.length}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{serviceRecords.length}</p>
         </Link>
         <Link href="/transfers" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm hover:shadow-theme-md transition-shadow block">
           <div className="flex items-center justify-center w-9 h-9 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-2">
             <ArrowRightIcon className="text-purple-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Active Transfers</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white">{activeTransfers}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{activeTransfers}</p>
         </Link>
         <Link href="/scheduled-operations" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm hover:shadow-theme-md transition-shadow block">
           <div className="flex items-center justify-center w-9 h-9 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-2">
@@ -347,19 +347,19 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
                 <Link href="/costs" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Service Cost</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-white">₦{(insights.totalServiceCost ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.totalServiceCost ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/costs" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Fuel Cost</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-white">₦{(insights.totalFuelCost ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.totalFuelCost ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/transfers" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Trips</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.tripCount} total · {insights.completedTrips} completed</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.tripCount} total · {insights.completedTrips} completed</p>
                 </Link>
                 <Link href="/transfers" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Distance</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{(insights.totalTripMileage ?? 0).toLocaleString()} km</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalTripMileage ?? 0).toLocaleString()} km</p>
                 </Link>
               </div>
 

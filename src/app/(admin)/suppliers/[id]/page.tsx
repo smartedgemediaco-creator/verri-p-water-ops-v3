@@ -124,11 +124,11 @@ export default function SupplierDetailPage() {
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">We Owe Them</p>
-          <h4 className="mt-1 font-bold text-red-600 dark:text-red-400 text-title-sm">₦{(supplier.totalWeOwe ?? 0).toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 dark:text-blue-400 text-title-sm">₦{(supplier.totalWeOwe ?? 0).toLocaleString()}</h4>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">They Owe Us</p>
-          <h4 className="mt-1 font-bold text-green-600 dark:text-green-400 text-title-sm">₦{(supplier.totalOwedToUs ?? 0).toLocaleString()}</h4>
+          <h4 className="mt-1 font-bold text-blue-600 dark:text-blue-400 text-title-sm">₦{(supplier.totalOwedToUs ?? 0).toLocaleString()}</h4>
         </div>
       </div>
 

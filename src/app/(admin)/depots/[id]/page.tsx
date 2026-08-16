@@ -248,14 +248,14 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
             <GroupIcon className="text-blue-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Staff</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white">{staff.length}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{staff.length}</p>
         </Link>
         <Link href="/products" className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm hover:shadow-theme-md transition-shadow block">
           <div className="flex items-center justify-center w-9 h-9 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-2">
             <BottleIcon className="text-purple-600 size-4" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Products</p>
-          <p className="text-sm font-bold text-gray-800 dark:text-white">{distinctProducts}</p>
+          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{distinctProducts}</p>
         </Link>
       </div>
 
@@ -325,40 +325,40 @@ export default function DepotDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 <Link href="/sales" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Sales</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-white">₦{(insights.totalSales ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.totalSales ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/costs" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Total Costs</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-white">₦{(insights.totalCosts ?? 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.totalCosts ?? 0).toLocaleString()}</p>
                 </Link>
                 <Link href="/analysis" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Profit</p>
-                  <p className={`text-xs font-bold ${(insights.profit ?? 0) >= 0 ? "text-success-700 dark:text-success-400" : "text-error-700 dark:text-error-400"}`}>
+                  <p className={`text-xs font-bold ${(insights.profit ?? 0) >= 0 ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`}>
                     ₦{(insights.profit ?? 0).toLocaleString()}
                   </p>
                 </Link>
                 <Link href="/stock" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">In Stock</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{(insights.totalStock ?? 0).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalStock ?? 0).toLocaleString()}</p>
                 </Link>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 <Link href="/products" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Products</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.productCount}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.productCount}</p>
                 </Link>
                 <Link href="/wastage" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Wastage</p>
-                  <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{(insights.totalWastage ?? 0).toLocaleString()} ({insights.wastageCount} record{insights.wastageCount === 1 ? "" : "s"})</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{(insights.totalWastage ?? 0).toLocaleString()} ({insights.wastageCount} record{insights.wastageCount === 1 ? "" : "s"})</p>
                 </Link>
                 <Link href="/transfers" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Active Transfers</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.activeTransfers}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.activeTransfers}</p>
                 </Link>
                 <Link href="/sales" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Sales Count</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.saleCount}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.saleCount}</p>
                 </Link>
               </div>
 

@@ -155,7 +155,7 @@ export default function AnalysisPage() {
               <Link key={card.label} href={card.href} className="block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm hover:shadow-theme-md transition-shadow">
                 <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${card.bg} mb-3`}>{card.icon}</div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{card.label}</p>
-                <p className="text-sm font-bold text-gray-800 dark:text-white">{card.value}</p>
+                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{card.value}</p>
               </Link>
             ))}
             {financialCards.map((card) => (

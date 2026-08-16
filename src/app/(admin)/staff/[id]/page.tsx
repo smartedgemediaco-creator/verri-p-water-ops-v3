@@ -369,19 +369,19 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 <Link href="/costs" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Salary</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-white">₦{(insights.salary ?? 0).toLocaleString()}/mo</p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400">₦{(insights.salary ?? 0).toLocaleString()}/mo</p>
                 </Link>
                 <Link href="/staff" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Tenure</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.tenureMonths} months</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.tenureMonths} months</p>
                 </Link>
                 <Link href="/staff" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Attendance</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{insights.attendanceCount} records</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.attendanceCount} records</p>
                 </Link>
                 <Link href="/staff" className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:shadow-theme-sm transition-shadow block">
                   <p className="text-xs text-gray-400 mb-0.5">Approved Leaves</p>
-                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{insights.approvedLeaveCount}</p>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{insights.approvedLeaveCount}</p>
                 </Link>
               </div>
 

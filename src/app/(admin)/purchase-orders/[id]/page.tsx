@@ -176,7 +176,7 @@ export default function PurchaseOrderDetailPage() {
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Outstanding</p>
-          <h4 className={`mt-1 font-bold text-title-sm ${outstanding > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+          <h4 className={`mt-1 font-bold text-title-sm text-blue-600 dark:text-blue-400`}>
             \u20A6{outstanding.toLocaleString()}
           </h4>
         </div>

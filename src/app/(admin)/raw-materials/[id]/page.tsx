@@ -293,7 +293,7 @@ export default function RawMaterialDetailPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Current Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 dark:text-white/90 text-xl">
+          <h4 className="mt-1 font-bold text-blue-600 dark:text-blue-400 text-xl">
             {material.currentStock.toLocaleString()}{" "}
             <span className="text-sm font-normal text-gray-400">{material.unit}</span>
           </h4>
@@ -310,7 +310,7 @@ export default function RawMaterialDetailPage() {
 
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Minimum Stock</p>
-          <h4 className="mt-1 font-bold text-gray-800 dark:text-white/90 text-xl">
+          <h4 className="mt-1 font-bold text-blue-600 dark:text-blue-400 text-xl">
             {material.minimumStock.toLocaleString()}{" "}
             <span className="text-sm font-normal text-gray-400">{material.unit}</span>
           </h4>
@@ -334,7 +334,7 @@ export default function RawMaterialDetailPage() {
 
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm">
           <p className="text-sm text-gray-500 dark:text-gray-400">Unit Cost</p>
-          <AutoAmount value={`₦${(material.unitCost ?? 0).toLocaleString()}`} />
+          <AutoAmount value={`₦${(material.unitCost ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
         </div>
       </div>
 
