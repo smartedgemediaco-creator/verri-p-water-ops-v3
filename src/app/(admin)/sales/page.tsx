@@ -47,7 +47,7 @@ const LEDGER_FIELDS: { key: string; label: string; type: "number" | "text" }[] =
   { key: "stockLoaded", label: "Stock Loaded", type: "number" },
   { key: "returnedStock", label: "Returned Stock", type: "number" },
   { key: "cashDelivered", label: "Cash Delivered", type: "number" },
-  { key: "transferBy", label: "Transfer By", type: "text" },
+  { key: "transferBy", label: "Transferred By", type: "text" },
   { key: "amountTransferred", label: "Amount Transferred", type: "number" },
 ];
 
