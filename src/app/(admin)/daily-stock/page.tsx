@@ -488,7 +488,7 @@ export default function DailyStockPage() {
           </div>
         </div>
 
-        {locations.length > 1 && (
+        {locations.length > 0 && (
           <div className="flex items-center gap-2 mb-4">
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
             <select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}
@@ -782,7 +782,7 @@ export default function DailyStockPage() {
         </div>
       </div>
 
-      {locations.length > 1 && (
+      {locations.length > 0 && (
         <div className="flex items-center gap-2 mb-4">
           <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
           <select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}
