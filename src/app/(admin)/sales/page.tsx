@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import Button from "@/components/ui/button/Button";
 import Select from "@/components/form/Select";
@@ -73,6 +74,9 @@ const PAYMENT_BADGES: Record<string, { bg: string; text: string; label: string }
 
 export default function SalesPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const saleType = (searchParams.get("type") as "factory" | "depot") || "depot";
+  const isFactoryView = saleType === "factory";
   const isAdminUser = user?.role === "admin";
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,7 @@ export default function SalesPage() {
 
   const fetchStats = (params: URLSearchParams) => {
     const statsParams = new URLSearchParams();
+    if (params.get("locationType")) statsParams.set("locationType", params.get("locationType")!);
     if (params.get("startDate")) statsParams.set("startDate", params.get("startDate")!);
     if (params.get("endDate")) statsParams.set("endDate", params.get("endDate")!);
     if (params.get("productId")) statsParams.set("productId", params.get("productId")!);
@@ -132,6 +137,7 @@ export default function SalesPage() {
     setLoading(true);
     const params = new URLSearchParams();
     const p = overrides?.page ?? page;
+    params.set("locationType", saleType);
     if (filterProduct) params.set("productId", filterProduct);
     if (customerSearch) params.set("customerName", customerSearch);
     if (startDate) params.set("startDate", startDate);
@@ -245,8 +251,8 @@ export default function SalesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle="Sales" />
-        <Link href="/sales/new">
+        <PageBreadcrumb pageTitle={isFactoryView ? "Factory Sales" : "Depot Sales"} />
+        <Link href={`/sales/new?type=${saleType}`}>
           <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
             Record Sale
           </Button>
@@ -254,7 +260,7 @@ export default function SalesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 md:gap-6 mb-6">
-        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
             <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
           </div>
@@ -262,7 +268,7 @@ export default function SalesPage() {
           <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{pagination.total} sales</p>
         </Link>
-        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
             <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
           </div>
@@ -270,7 +276,7 @@ export default function SalesPage() {
           <AutoAmount value={totalQty.toLocaleString()} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">Bags on this page</p>
         </Link>
-        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
             <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
           </div>
@@ -278,7 +284,7 @@ export default function SalesPage() {
           <AutoAmount value={`₦${(paymentStats?.byMethod?.cash?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.cash?.count ?? 0} transactions</p>
         </Link>
-        <Link href="/pos-devices" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
             <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
           </div>
@@ -286,7 +292,7 @@ export default function SalesPage() {
           <AutoAmount value={`₦${(paymentStats?.byMethod?.pos?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.pos?.count ?? 0} transactions</p>
         </Link>
-        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
             <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />
           </div>
@@ -294,7 +300,7 @@ export default function SalesPage() {
           <AutoAmount value={`₦${(paymentStats?.byMethod?.transfer?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.transfer?.count ?? 0} transactions</p>
         </Link>
-        <Link href="/sales" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
             <ListIcon className="text-orange-600 size-5 dark:text-orange-400" />
           </div>
@@ -302,7 +308,7 @@ export default function SalesPage() {
           <AutoAmount value={`₦${(paymentStats?.byMethod?.credit?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
           <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.credit?.count ?? 0} transactions</p>
         </Link>
-        <Link href="/customers" className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow border-l-4 border-warning-500">
+        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow border-l-4 border-warning-500">
           <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
             <ListIcon className="text-red-600 size-5 dark:text-red-400" />
           </div>
@@ -356,7 +362,7 @@ export default function SalesPage() {
 
       <div ref={reportRef} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Sales Report</h3>
+          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{isFactoryView ? "Factory" : "Depot"} Sales Report</h3>
           <p className="text-xs text-gray-400 mt-1">
             {pagination.total} records | ₦{totalRevenue.toLocaleString()} total revenue
             {filterProduct && ` | Product filtered`}

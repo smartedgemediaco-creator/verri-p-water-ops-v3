@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { showSuccess, showError } from "@/lib/toast";
 import { downloadReceiptPdf } from "@/lib/pdf";
 import InputField from "@/components/form/input/InputField";
@@ -23,6 +23,9 @@ const PAYMENT_METHODS = [
 
 export default function NewSalePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const saleType = (searchParams.get("type") as "factory" | "depot") || "depot";
+  const isFactorySale = saleType === "factory";
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -35,6 +38,7 @@ export default function NewSalePage() {
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -68,17 +72,17 @@ export default function NewSalePage() {
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (locationType && locationId && productId) {
-      fetch(`/api/stock?locationType=${locationType}&locationId=${locationId}&productId=${productId}`)
-        .then((r) => r.json())
-        .then((data: { quantity?: number }[]) => {
-          const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
-          setAvailableStock(total);
-        })
-        .catch(() => setAvailableStock(null))
-        .finally(() => setStockLoading(false));
-    }
-  }, [locationType, locationId, productId]);
+    if (isFactorySale || !locationType || !locationId || !productId) return;
+    setStockLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
+    fetch(`/api/stock?locationType=${locationType}&locationId=${locationId}&productId=${productId}`)
+      .then((r) => r.json())
+      .then((data: { quantity?: number }[]) => {
+        const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
+        setAvailableStock(total);
+      })
+      .catch(() => setAvailableStock(null))
+      .finally(() => setStockLoading(false));
+  }, [isFactorySale, locationType, locationId, productId]);
 
   const isDepotManager = user?.role === "depot-manager";
   const isFactoryManager = user?.role === "factory-manager";
@@ -88,26 +92,21 @@ export default function NewSalePage() {
   const userFactoryName = user?.factoryName ?? (typeof user?.factoryId === "object" ? user.factoryId?.name : undefined) ?? "Your Factory";
 
   useEffect(() => {
-    if (isDepotManager && !locationType) {
-      setLocationType("depot"); // eslint-disable-line react-hooks/set-state-in-effect
-    }
-    if (isFactoryManager && !locationType) {
-      setLocationType("factory"); // eslint-disable-line react-hooks/set-state-in-effect
-    }
-  }, [isDepotManager, isFactoryManager, locationType]);
+    setLocationType(saleType); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [saleType]);
 
   useEffect(() => {
     if (isDepotManager && user?.depotId && locations.length === 0) {
       const id = typeof user.depotId === "string" ? user.depotId : user.depotId._id;
       const name = user.depotName ?? (typeof user.depotId === "object" ? user.depotId.name : "My Depot");
       setLocations([{ value: id, label: name }]); // eslint-disable-line react-hooks/set-state-in-effect
-      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
+      setLocationId(id);
     }
     if (isFactoryManager && user?.factoryId && locations.length === 0) {
       const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
       const name = user.factoryName ?? (typeof user.factoryId === "object" ? user.factoryId.name : "My Factory");
-      setLocations([{ value: id, label: name }]); // eslint-disable-line react-hooks/set-state-in-effect
-      setLocationId(id); // eslint-disable-line react-hooks/set-state-in-effect
+      setLocations([{ value: id, label: name }]);
+      setLocationId(id);
     }
   }, [isDepotManager, isFactoryManager, user?.depotId, user?.factoryId, user?.depotName, user?.factoryName, locations.length]);
 
@@ -128,10 +127,17 @@ export default function NewSalePage() {
     }
   }, [productId, productsList]);
 
+  // auto-calculate total when qty or price changes
   useEffect(() => {
-    if (!locationType) return;
+    if (quantity && unitPrice) {
+      setTotalAmount(String(Number(quantity) * Number(unitPrice))); // eslint-disable-line react-hooks/set-state-in-effect
+    }
+  }, [quantity, unitPrice]);
+
+  useEffect(() => {
+    if (!saleType) return;
     let cancelled = false;
-    const endpoint = locationType === "truck" ? "/api/trucks" : locationType === "factory" ? "/api/factories" : `/api/${locationType}s`;
+    const endpoint = saleType === "factory" ? "/api/factories" : `/api/depots`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((data: { _id: string; name?: string; plateNumber?: string }[]) => {
@@ -150,9 +156,9 @@ export default function NewSalePage() {
     if (!hasAutoLocation) {
       setLocationId(""); // eslint-disable-line react-hooks/set-state-in-effect
     }
-    setPosDeviceId(""); // eslint-disable-line react-hooks/set-state-in-effect
+    setPosDeviceId("");
     return () => { cancelled = true; };
-  }, [locationType, isDepotManager, isFactoryManager, user?.depotId, user?.factoryId]);
+  }, [saleType, isDepotManager, isFactoryManager, user?.depotId, user?.factoryId]);
 
   useEffect(() => {
     if (!locationType) { setPosDevices([]); return; } // eslint-disable-line react-hooks/set-state-in-effect
@@ -243,12 +249,12 @@ export default function NewSalePage() {
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
-        locationType,
+        locationType: saleType,
         locationId,
         productId,
         quantity: Number(quantity),
         unitPrice: Number(unitPrice),
-        totalAmount: Number(quantity) * Number(unitPrice),
+        totalAmount: totalAmount ? Number(totalAmount) : Number(quantity) * Number(unitPrice),
         customerName,
         date: date || undefined,
         notes,
@@ -279,11 +285,11 @@ export default function NewSalePage() {
         productName: product?.label ?? "Product",
         quantity: Number(quantity),
         unitPrice: Number(unitPrice),
-        totalAmount: Number(quantity) * Number(unitPrice),
+        totalAmount: totalAmount ? Number(totalAmount) : Number(quantity) * Number(unitPrice),
         customerName: customerName || "Daily Sales",
         paymentMethod,
         date: date ? formatDate(date) : formatDate(new Date().toISOString()),
-        locationName: loc?.label ?? locationType,
+        locationName: loc?.label ?? saleType,
         recordedBy: userDisplayName,
       });
       setReceiptOpen(true);
@@ -307,30 +313,31 @@ export default function NewSalePage() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Record Sale</h1>
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
+          {isFactorySale ? "Record Factory Sale" : "Record Depot Sale"}
+        </h1>
         <span className="text-xs text-gray-400 dark:text-gray-500">Recorded by: {userDisplayName}</span>
       </div>
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl space-y-4">
-        {isDepotManager || isFactoryManager ? (
+        {isFactorySale ? (
           <div className="p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-sm text-blue-700 dark:text-blue-400 font-medium">
-            Selling from: {isDepotManager ? userDepotName : userFactoryName} ({isDepotManager ? "Depot" : "Factory"})
+            Selling from: {isFactoryManager ? userFactoryName : "Factory"} — Revenue only (no stock deduction)
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sale From</label>
-              <Select options={[{ value: "depot", label: "Depot" }, { value: "factory", label: "Factory" }, { value: "truck", label: "Truck" }]} placeholder="Select origin" onChange={setLocationType} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-              <Select
-                options={locations}
-                placeholder={locationType ? `Select ${locationType}` : "Select origin first"}
-                value={locationId}
-                onChange={setLocationId}
-                className={!locationType ? "opacity-50" : ""}
-              />
-            </div>
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+            Selling from: {isDepotManager ? userDepotName : "Depot"} — Stock will be deducted
+          </div>
+        )}
+
+        {isDepotManager || isFactoryManager ? null : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+            <Select
+              options={locations}
+              placeholder={`Select ${saleType}`}
+              value={locationId}
+              onChange={setLocationId}
+            />
           </div>
         )}
 
@@ -343,7 +350,7 @@ export default function NewSalePage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
             <div className="relative">
               <InputField type="number" id="quantity" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-              {availableStock !== null && locationId && productId && (
+              {!isFactorySale && availableStock !== null && locationId && productId && (
                 <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
                   availableStock > 0
                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
@@ -353,10 +360,13 @@ export default function NewSalePage() {
                   {availableStock.toLocaleString()} avail.
                 </div>
               )}
-              {stockLoading && (
+              {!isFactorySale && stockLoading && (
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">loading...</div>
               )}
             </div>
+            {!isFactorySale && quantity && availableStock !== null && Number(quantity) > availableStock && (
+              <p className="mt-1 text-xs text-red-500 font-medium">Warning: exceeds available stock ({availableStock.toLocaleString()})</p>
+            )}
           </div>
         </div>
 
@@ -394,9 +404,16 @@ export default function NewSalePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit Price (₦)</label>
-            <InputField type="number" id="unitPrice" placeholder="Unit price" value={unitPrice} disabled />
-            {unitPrice && <p className="text-xs text-gray-400 mt-1">{isChilled ? "Chilled price" : "Price from product catalog"} — set on product record</p>}
+            <InputField type="number" id="unitPrice" placeholder="Unit price" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+            {unitPrice && <p className="text-xs text-gray-400 mt-1">{isChilled ? "Chilled price" : "Catalog default"}: ₦{productsList.find((p) => p.value === productId)?.unitPrice?.toLocaleString() ?? "—"}</p>}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Amount (₦)</label>
+            <InputField type="number" id="totalAmount" placeholder="Total" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Name <span className="text-gray-400 font-normal">(Optional)</span></label>
             <InputField id="customerName" placeholder="Leave blank for daily sales" value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value)} />
@@ -419,35 +436,26 @@ export default function NewSalePage() {
               <p className="mt-1 text-xs text-success-600 dark:text-success-400">Existing customer</p>
             )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
             <Select options={PAYMENT_METHODS} value={paymentMethod} onChange={setPaymentMethod} />
           </div>
-          {paymentMethod === "pos" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">POS Device</label>
-              <Select
-                options={posDevices}
-                placeholder={locationType ? "Select POS device" : "Select origin first"}
-                value={posDeviceId}
-                onChange={setPosDeviceId}
-                className={!locationType ? "opacity-50" : ""}
-              />
-            </div>
-          )}
-          {paymentMethod === "credit" && (
-            <div className="flex items-end">
-              <p className="text-sm text-orange-600 dark:text-orange-400">This sale will be marked as unpaid credit.</p>
-            </div>
-          )}
         </div>
 
-        {quantity && unitPrice && (
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Total: <strong>₦{(Number(quantity) * Number(unitPrice)).toLocaleString()}</strong>
+        {paymentMethod === "pos" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">POS Device</label>
+            <Select
+              options={posDevices}
+              placeholder="Select POS device"
+              value={posDeviceId}
+              onChange={setPosDeviceId}
+            />
+          </div>
+        )}
+        {paymentMethod === "credit" && (
+          <div className="p-3 bg-orange-50 dark:bg-orange-500/10 rounded-lg text-sm text-orange-600 dark:text-orange-400 font-medium">
+            This sale will be marked as unpaid credit.
           </div>
         )}
 
@@ -456,18 +464,17 @@ export default function NewSalePage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
             <DatePicker id="date" placeholder="Select date" defaultDate={date || undefined} onChange={(_dates, dateStr) => setDate(dateStr)} />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-          <TextArea placeholder="Optional notes" value={notes} onChange={setNotes} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <TextArea placeholder="Optional notes" value={notes} onChange={setNotes} />
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting}>
             {submitting ? "Saving..." : "Record Sale"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.push("/sales")}>
+          <Button type="button" variant="outline" onClick={() => router.push(`/sales?type=${saleType}`)}>
             Cancel
           </Button>
         </div>
@@ -477,16 +484,18 @@ export default function NewSalePage() {
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={doSubmit}
-        title="Record Sale"
+        title={isFactorySale ? "Record Factory Sale" : "Record Depot Sale"}
         message={
           <>
-            You are about to record a sale that will <strong>permanently deduct stock</strong>:
+            You are about to record a {isFactorySale ? "factory" : "depot"} sale:
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Quantity:</strong> {quantity}</li>
-              <li><strong>Total:</strong> ₦{(Number(quantity) * Number(unitPrice)).toLocaleString()}</li>
+              <li><strong>Total:</strong> ₦{(totalAmount ? Number(totalAmount) : Number(quantity) * Number(unitPrice)).toLocaleString()}</li>
               <li><strong>Payment:</strong> {paymentMethod}</li>
             </ul>
-            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">This action cannot be undone — stock will be reduced.</p>
+            {!isFactorySale && (
+              <p className="mt-2 text-red-600 dark:text-red-400 font-medium">Stock will be reduced at this location.</p>
+            )}
           </>
         }
         confirmLabel="Record Sale"
@@ -641,7 +650,7 @@ export default function NewSalePage() {
               </div>
 
               <button
-                onClick={() => { setReceiptOpen(false); setLastSale(null); router.push("/sales"); }}
+                onClick={() => { setReceiptOpen(false); setLastSale(null); router.push(`/sales?type=${saleType}`); }}
                 className="w-full mt-4 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
               >
                 View All Sales

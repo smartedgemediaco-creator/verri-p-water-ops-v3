@@ -58,6 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const oldAmount = sale.totalAmount;
   const oldQty = sale.quantity;
   const oldProduct = sale.productId?.toString();
+  const isFactorySale = sale.locationType === "factory";
 
   if (body.productId) sale.productId = body.productId;
   if (body.quantity != null) sale.quantity = body.quantity;
@@ -69,6 +70,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.notes != null) sale.notes = body.notes;
 
   await sale.save();
+
+  // Adjust stock for non-factory sales when quantity or product changed
+  if (!isFactorySale && (oldQty !== sale.quantity || oldProduct !== sale.productId?.toString())) {
+    // Restore old stock
+    await Stock.findOneAndUpdate(
+      { locationType: sale.locationType, locationId: sale.locationId, productId: oldProduct },
+      { $inc: { quantity: oldQty } }
+    );
+    // Deduct new stock
+    await Stock.findOneAndUpdate(
+      { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
+      { $inc: { quantity: -sale.quantity } },
+      { upsert: true }
+    );
+  }
 
   const changes: string[] = [];
   if (oldAmount !== sale.totalAmount) changes.push(`amount ₦${oldAmount?.toLocaleString()}→₦${sale.totalAmount?.toLocaleString()}`);
@@ -111,11 +127,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   sale.cancelReason = cancelReason;
   await sale.save();
 
-  await Stock.findOneAndUpdate(
-    { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
-    { $inc: { quantity: sale.quantity } },
-    { upsert: true }
-  );
+  // Only restore stock for non-factory sales
+  if (sale.locationType !== "factory") {
+    await Stock.findOneAndUpdate(
+      { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
+      { $inc: { quantity: sale.quantity } },
+      { upsert: true }
+    );
+  }
 
   await logActivity({
     action: "deleted",

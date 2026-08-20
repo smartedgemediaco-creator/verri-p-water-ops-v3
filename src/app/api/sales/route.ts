@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Stock, Factory, Depot, Truck, PosDevice, Product } from "@/lib/models";
+import { Sale, Stock, Factory, Depot, Truck, PosDevice } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
   const endDate = url.searchParams.get("endDate");
   const paymentMethod = url.searchParams.get("paymentMethod");
   const creditStatus = url.searchParams.get("creditStatus");
+  const locationTypeParam = url.searchParams.get("locationType");
 
   const filter: any = {};
   filter.status = { $ne: "cancelled" };
@@ -53,6 +54,8 @@ export async function GET(req: NextRequest) {
   } else if (user.role === "driver" && user.truckId) {
     filter.locationType = "truck";
     filter.locationId = user.truckId;
+  } else if (locationTypeParam && (locationTypeParam === "factory" || locationTypeParam === "depot" || locationTypeParam === "truck")) {
+    filter.locationType = locationTypeParam;
   }
 
   if (productId) filter.productId = productId;
@@ -129,19 +132,6 @@ export async function POST(req: NextRequest) {
       body.isPaid = true;
     }
 
-    if (user.role !== "admin" && body.productId) {
-      const product = await Product.findById(body.productId).select("unitPrice chilledPrice").lean();
-      if (product) {
-        const expectedPrice = body.condition === "chilled" && product.chilledPrice ? product.chilledPrice : product.unitPrice;
-        if (expectedPrice > 0 && Number(body.unitPrice) !== expectedPrice) {
-          return NextResponse.json(
-            { error: `Unit price must match product catalog price (₦${expectedPrice}). Contact admin to change.` },
-            { status: 403 }
-          );
-        }
-      }
-    }
-
     if (body.paymentMethod === "pos" && body.posDeviceId) {
       const device = await PosDevice.findById(body.posDeviceId);
       if (device && device.terminalSerial && !body.posTransactionRef) {
@@ -149,23 +139,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const inventoryFilter = { locationType: body.locationType, locationId: body.locationId, productId: body.productId };
-    const currentStock = await Stock.findOne(inventoryFilter);
-    const available = currentStock?.quantity ?? 0;
-    if (available < body.quantity) {
-      return NextResponse.json(
-        { error: `Insufficient stock: ${available} available, ${body.quantity} required` },
-        { status: 400 }
-      );
+    // Factory sales are revenue-only — no stock check or deduction
+    const isFactorySale = body.locationType === "factory";
+
+    if (!isFactorySale) {
+      const inventoryFilter = { locationType: body.locationType, locationId: body.locationId, productId: body.productId };
+      const currentStock = await Stock.findOne(inventoryFilter);
+      const available = currentStock?.quantity ?? 0;
+      if (available < body.quantity) {
+        return NextResponse.json(
+          { error: `Insufficient stock: ${available} available, ${body.quantity} required` },
+          { status: 400 }
+        );
+      }
     }
 
     const sale = await Sale.create(body);
 
-    await Stock.findOneAndUpdate(
-      inventoryFilter,
-      { $inc: { quantity: -body.quantity } },
-      { upsert: true }
-    );
+    if (!isFactorySale) {
+      await Stock.findOneAndUpdate(
+        { locationType: body.locationType, locationId: body.locationId, productId: body.productId },
+        { $inc: { quantity: -body.quantity } },
+        { upsert: true }
+      );
+    }
 
     try {
       await logActivity({
