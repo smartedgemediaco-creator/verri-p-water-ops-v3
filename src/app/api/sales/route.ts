@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Stock, Factory, Depot, Truck, PosDevice } from "@/lib/models";
+import { Sale, Factory, Depot, Truck, PosDevice } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -139,30 +139,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Factory sales are revenue-only — no stock check or deduction
-    const isFactorySale = body.locationType === "factory";
-
-    if (!isFactorySale) {
-      const inventoryFilter = { locationType: body.locationType, locationId: body.locationId, productId: body.productId };
-      const currentStock = await Stock.findOne(inventoryFilter);
-      const available = currentStock?.quantity ?? 0;
-      if (available < body.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock: ${available} available, ${body.quantity} required` },
-          { status: 400 }
-        );
-      }
-    }
-
+    // Sales are revenue-only — no stock check or deduction
     const sale = await Sale.create(body);
-
-    if (!isFactorySale) {
-      await Stock.findOneAndUpdate(
-        { locationType: body.locationType, locationId: body.locationId, productId: body.productId },
-        { $inc: { quantity: -body.quantity } },
-        { upsert: true }
-      );
-    }
 
     try {
       await logActivity({

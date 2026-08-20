@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Stock } from "@/lib/models";
+import { Sale } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -58,7 +58,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const oldAmount = sale.totalAmount;
   const oldQty = sale.quantity;
   const oldProduct = sale.productId?.toString();
-  const isFactorySale = sale.locationType === "factory";
 
   if (body.productId) sale.productId = body.productId;
   if (body.quantity != null) sale.quantity = body.quantity;
@@ -71,20 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   await sale.save();
 
-  // Adjust stock for non-factory sales when quantity or product changed
-  if (!isFactorySale && (oldQty !== sale.quantity || oldProduct !== sale.productId?.toString())) {
-    // Restore old stock
-    await Stock.findOneAndUpdate(
-      { locationType: sale.locationType, locationId: sale.locationId, productId: oldProduct },
-      { $inc: { quantity: oldQty } }
-    );
-    // Deduct new stock
-    await Stock.findOneAndUpdate(
-      { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
-      { $inc: { quantity: -sale.quantity } },
-      { upsert: true }
-    );
-  }
+  // Sales are revenue-only — no stock adjustments on edit
 
   const changes: string[] = [];
   if (oldAmount !== sale.totalAmount) changes.push(`amount ₦${oldAmount?.toLocaleString()}→₦${sale.totalAmount?.toLocaleString()}`);
@@ -127,14 +113,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   sale.cancelReason = cancelReason;
   await sale.save();
 
-  // Only restore stock for non-factory sales
-  if (sale.locationType !== "factory") {
-    await Stock.findOneAndUpdate(
-      { locationType: sale.locationType, locationId: sale.locationId, productId: sale.productId },
-      { $inc: { quantity: sale.quantity } },
-      { upsert: true }
-    );
-  }
+  // Sales are revenue-only — no stock restore on cancel
 
   await logActivity({
     action: "deleted",

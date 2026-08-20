@@ -44,8 +44,6 @@ export default function NewSalePage() {
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [posDeviceId, setPosDeviceId] = useState("");
-  const [availableStock, setAvailableStock] = useState<number | null>(null);
-  const [stockLoading, setStockLoading] = useState(false);
   const [isChilled, setIsChilled] = useState(false);
 
   const [existingCustomer, setExistingCustomer] = useState<boolean | null>(null);
@@ -70,19 +68,6 @@ export default function NewSalePage() {
   } | null>(null);
   const [receiptPdfLoading, setReceiptPdfLoading] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isFactorySale || !locationType || !locationId || !productId) return;
-    setStockLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
-    fetch(`/api/stock?locationType=${locationType}&locationId=${locationId}&productId=${productId}`)
-      .then((r) => r.json())
-      .then((data: { quantity?: number }[]) => {
-        const total = Array.isArray(data) ? data.reduce((s, item) => s + (item.quantity ?? 0), 0) : 0;
-        setAvailableStock(total);
-      })
-      .catch(() => setAvailableStock(null))
-      .finally(() => setStockLoading(false));
-  }, [isFactorySale, locationType, locationId, productId]);
 
   const isDepotManager = user?.role === "depot-manager";
   const isFactoryManager = user?.role === "factory-manager";
@@ -321,11 +306,11 @@ export default function NewSalePage() {
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-2xl space-y-4">
         {isFactorySale ? (
           <div className="p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-sm text-blue-700 dark:text-blue-400 font-medium">
-            Selling from: {isFactoryManager ? userFactoryName : "Factory"} — Revenue only (no stock deduction)
+            Selling from: {isFactoryManager ? userFactoryName : "Factory"}
           </div>
         ) : (
           <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg text-sm text-emerald-700 dark:text-emerald-400 font-medium">
-            Selling from: {isDepotManager ? userDepotName : "Depot"} — Stock will be deducted
+            Selling from: {isDepotManager ? userDepotName : "Depot"}
           </div>
         )}
 
@@ -348,25 +333,7 @@ export default function NewSalePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantity</label>
-            <div className="relative">
-              <InputField type="number" id="quantity" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-              {!isFactorySale && availableStock !== null && locationId && productId && (
-                <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                  availableStock > 0
-                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                    : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${availableStock > 0 ? "bg-emerald-500" : "bg-red-500"}`} />
-                  {availableStock.toLocaleString()} avail.
-                </div>
-              )}
-              {!isFactorySale && stockLoading && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">loading...</div>
-              )}
-            </div>
-            {!isFactorySale && quantity && availableStock !== null && Number(quantity) > availableStock && (
-              <p className="mt-1 text-xs text-red-500 font-medium">Warning: exceeds available stock ({availableStock.toLocaleString()})</p>
-            )}
+            <InputField type="number" id="quantity" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
           </div>
         </div>
 
@@ -493,9 +460,6 @@ export default function NewSalePage() {
               <li><strong>Total:</strong> ₦{(totalAmount ? Number(totalAmount) : Number(quantity) * Number(unitPrice)).toLocaleString()}</li>
               <li><strong>Payment:</strong> {paymentMethod}</li>
             </ul>
-            {!isFactorySale && (
-              <p className="mt-2 text-red-600 dark:text-red-400 font-medium">Stock will be reduced at this location.</p>
-            )}
           </>
         }
         confirmLabel="Record Sale"
