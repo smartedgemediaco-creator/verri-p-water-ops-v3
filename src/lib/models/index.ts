@@ -109,3 +109,5 @@ export { RawMaterialConsumption } from "./RawMaterialConsumption";
 export type { IRawMaterialConsumption, IConsumptionAllocation } from "./RawMaterialConsumption";
 export { SupplierLedger } from "./SupplierLedger";
 export type { ISupplierLedger } from "./SupplierLedger";
+export { SalesLedger } from "./SalesLedger";
+export type { ISalesLedger } from "./SalesLedger";

@@ -1,690 +1,557 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
-import Button from "@/components/ui/button/Button";
-import Select from "@/components/form/Select";
-import Input from "@/components/form/input/InputField";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import Pagination from "@/components/tables/Pagination";
-import DatePicker from "@/components/form/date-picker";
-import AutoAmount from "@/components/ui/AutoAmount";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { PlusIcon, DollarLineIcon, BoxIconLine, ListIcon } from "@/icons";
+import Button from "@/components/ui/button/Button";
+import { PlusIcon } from "@/icons";
 import { showSuccess, showError } from "@/lib/toast";
-import { downloadReceiptPdf, downloadTablePdf } from "@/lib/pdf";
-import AdminEditButton from "@/components/disputes/AdminEditButton";
-import { formatDate } from "@/lib/dateFormat";
-import { useAuth } from "@/context/AuthContext";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
-interface Sale {
+interface LedgerRecord {
   _id: string;
-  locationType: string;
-  locationId: string;
-  location: { _id: string; name: string } | null;
-  productId: { _id: string; name: string } | null;
-  quantity: number;
-  unitPrice: number;
-  totalAmount: number;
-  customerName: string;
   date: string;
-  paymentMethod: "cash" | "pos" | "transfer" | "credit";
-  posDeviceId?: { _id: string; name: string; terminalSerial: string } | null;
-  isPaid: boolean;
-  paidAmount?: number;
-  condition?: "ordinary" | "chilled";
+  locationType: "factory" | "depot";
+  locationId: string;
+  stockLoaded: number;
+  returnedStock: number;
+  cashDelivered: number;
+  transferBy: string;
+  amountTransferred: number;
+  debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
+  debts: number;
+  debtStatus: string;
+  notes: string;
 }
 
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
+interface DebtorEntry {
+  name: string;
+  amount: number;
+  settlements?: { amount: number; date?: string; note?: string }[];
 }
 
-interface PaymentStats {
-  byMethod: Record<string, { totalAmount: number; totalQuantity: number; count: number }>;
-  grandTotal: number;
-  creditOutstanding: number;
-  totalSales: number;
+interface SettleTarget {
+  recordId: string;
+  date: string;
+  index: number;
+  name: string;
+  amount: number;
+  settled: number;
+  remaining: number;
 }
 
-const PAYMENT_METHODS = [
-  { value: "", label: "All Methods" },
-  { value: "cash", label: "Cash" },
-  { value: "pos", label: "POS" },
-  { value: "transfer", label: "Transfer" },
-  { value: "credit", label: "Credit" },
+const PAGE_SIZE = 10;
+
+const LEDGER_FIELDS: { key: string; label: string; type: "number" | "text" }[] = [
+  { key: "stockLoaded", label: "Stock Loaded", type: "number" },
+  { key: "returnedStock", label: "Returned Stock", type: "number" },
+  { key: "cashDelivered", label: "Cash Delivered", type: "number" },
+  { key: "transferBy", label: "Transfer By", type: "text" },
+  { key: "amountTransferred", label: "Amount Transferred", type: "number" },
 ];
 
-const CREDIT_STATUSES = [
-  { value: "", label: "All Sales" },
-  { value: "unpaid", label: "Unpaid Credit" },
-  { value: "paid", label: "Paid Credit" },
-];
-
-const PAYMENT_BADGES: Record<string, { bg: string; text: string; label: string }> = {
-  cash: { bg: "bg-success-50 dark:bg-success-500/10", text: "text-success-700 dark:text-success-400", label: "Cash" },
-  pos: { bg: "bg-blue-50 dark:bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", label: "POS" },
-  transfer: { bg: "bg-purple-50 dark:bg-purple-500/10", text: "text-purple-700 dark:text-purple-400", label: "Transfer" },
-  credit: { bg: "bg-warning-50 dark:bg-warning-500/10", text: "text-warning-700 dark:text-warning-400", label: "Credit" },
-};
-
-export default function SalesPage() {
-  const { user } = useAuth();
+export default function SalesLedgerPage() {
   const searchParams = useSearchParams();
-  const saleType = (searchParams.get("type") as "factory" | "depot") || "depot";
-  const isFactoryView = saleType === "factory";
-  const isAdminUser = user?.role === "admin";
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 30, total: 0, totalPages: 0 });
-  const [products, setProducts] = useState<{ value: string; label: string }[]>([]);
-  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+  const locationType = (searchParams.get("type") as "factory" | "depot") || "factory";
+  const isFactory = locationType === "factory";
 
-  const [filterProduct, setFilterProduct] = useState("");
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
-  const [creditStatus, setCreditStatus] = useState("");
-  const [page, setPage] = useState(1);
-  const [dateKey, setDateKey] = useState(0);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [settling, setSettling] = useState<string | null>(null);
-  const [confirmSettleId, setConfirmSettleId] = useState<string | null>(null);
-  const confirmSettleSale = sales.find((s) => s._id === confirmSettleId) ?? null;
-  const [shareSaleId, setShareSaleId] = useState<string | null>(null);
-  const shareSale = sales.find((s) => s._id === shareSaleId) ?? null;
-  const [receiptPdfLoading, setReceiptPdfLoading] = useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
-  const reportRef = useRef<HTMLDivElement>(null);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-  const confirmCancelSale = sales.find((s) => s._id === confirmCancelId) ?? null;
-  const [cancelReason, setCancelReason] = useState("");
+  const [allLocations, setAllLocations] = useState<{ id: string; name: string }[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
 
   useEffect(() => {
-    fetch("/api/products")
+    const endpoint = locationType === "factory" ? "/api/factories" : "/api/depots";
+    setSelectedLocationId("");
+    fetch(endpoint)
       .then((r) => r.json())
-      .then((data: { _id: string; name: string }[]) => {
+      .then((data) => {
         if (Array.isArray(data)) {
-          setProducts([
-            { value: "", label: "All Products" },
-            ...data.map((p) => ({ value: p._id, label: p.name })),
-          ]);
+          const mapped = data.map((item: { _id: string; name: string }) => ({ id: item._id, name: item.name }));
+          setAllLocations(mapped);
+          if (mapped.length > 0) setSelectedLocationId(mapped[0].id);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [locationType]);
 
-  const fetchStats = (params: URLSearchParams) => {
-    const statsParams = new URLSearchParams();
-    if (params.get("locationType")) statsParams.set("locationType", params.get("locationType")!);
-    if (params.get("startDate")) statsParams.set("startDate", params.get("startDate")!);
-    if (params.get("endDate")) statsParams.set("endDate", params.get("endDate")!);
-    if (params.get("productId")) statsParams.set("productId", params.get("productId")!);
+  const locations = allLocations;
 
-    fetch(`/api/sales/stats?${statsParams}`)
+  const [records, setRecords] = useState<LedgerRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [addDayDate, setAddDayDate] = useState("");
+  const [showAddDay, setShowAddDay] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [page, setPage] = useState(1);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+
+  const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, unknown>>>({});
+  const [savingBatch, setSavingBatch] = useState(false);
+  const dirtyCount = Object.keys(pendingChanges).length;
+
+  const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNote, setSettleNote] = useState("");
+  const [settling, setSettling] = useState(false);
+
+  const locationParam = useMemo(() => JSON.stringify({ type: locationType, id: selectedLocationId }), [locationType, selectedLocationId]);
+
+  const fetchRecords = useCallback(() => {
+    if (!selectedLocationId) return;
+    fetch(`/api/sales-ledger?location=${encodeURIComponent(locationParam)}`)
       .then((r) => r.json())
-      .then(setPaymentStats)
-      .catch(() => setPaymentStats(null));
-  };
-
-  const fetchSales = (overrides?: { page?: number }) => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    const p = overrides?.page ?? page;
-    params.set("locationType", saleType);
-    if (filterProduct) params.set("productId", filterProduct);
-    if (customerSearch) params.set("customerName", customerSearch);
-    if (startDate) params.set("startDate", startDate);
-    if (endDate) params.set("endDate", endDate);
-    if (paymentMethod) params.set("paymentMethod", paymentMethod);
-    if (creditStatus) params.set("creditStatus", creditStatus);
-    params.set("page", p.toString());
-    params.set("limit", "30");
-
-    fetch(`/api/sales?${params}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setSales(data.sales ?? []);
-        setPagination(data.pagination ?? { page: 1, limit: 30, total: 0, totalPages: 0 });
-      })
-      .catch(() => setSales([]))
+      .then((data) => { setRecords(Array.isArray(data) ? data : []); })
+      .catch(() => setRecords([]))
       .finally(() => setLoading(false));
+  }, [locationParam, selectedLocationId]);
 
-    fetchStats(params);
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+  useEffect(() => { setPage(1); setPendingChanges({}); }, [selectedLocationId, locationType]);
+  useEffect(() => { setPage(1); setPendingChanges({}); }, [month]);
+
+  const todayStr = (() => {
+    const d = new Date();
+    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  })();
+
+  const latestRecord = records.length > 0 ? records[0] : null;
+  const isCurrentDay = (date: string) => date === todayStr || (latestRecord && date === latestRecord.date);
+  const monthRecords = records.filter((r) => r.date.startsWith(month));
+
+  const totalPages = Math.max(1, Math.ceil(monthRecords.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRecords = monthRecords.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const monthLabel = (() => {
+    const [y, m] = month.split("-");
+    const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${names[Number(m) - 1] || ""} ${y}`.trim();
+  })();
+
+  const sumField = (recs: LedgerRecord[], key: string) =>
+    recs.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[key]) || 0), 0);
+
+  const totalDays = monthRecords.length;
+  const totalStockLoaded = sumField(monthRecords, "stockLoaded");
+  const totalReturned = sumField(monthRecords, "returnedStock");
+  const totalCash = sumField(monthRecords, "cashDelivered");
+  const totalTransferred = sumField(monthRecords, "amountTransferred");
+  const totalDebts = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
+  const totalUnsettled = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+
+  const statCards = [
+    { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
+    { label: "Stock Loaded", value: totalStockLoaded, description: "bags loaded" },
+    { label: "Returned", value: totalReturned, description: "bags returned" },
+    { label: "Cash Delivered", value: totalCash, prefix: "₦", description: "total cash" },
+    { label: "Amount Transferred", value: totalTransferred, prefix: "₦", description: "via transfer" },
+    { label: "Total Debts", value: totalDebts, prefix: "₦", description: `${totalUnsettled} unsettled` },
+  ];
+
+  const handleChange = (id: string, field: string, rawValue: string) => {
+    const isText = field === "transferBy" || field === "notes";
+    const val: unknown = isText ? rawValue : Number(rawValue) || 0;
+    setRecords((prev) => prev.map((r) => r._id === id ? { ...r, [field]: val } : r));
+    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }));
   };
 
-  useEffect(() => { fetchSales(); /* eslint-disable-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */ }, []);
+  const getDebtors = (d: LedgerRecord): DebtorEntry[] =>
+    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
 
-  const handleFilter = () => {
-    setPage(1);
-    fetchSales({ page: 1 });
+  const debtSettledTotal = (debtor: DebtorEntry) =>
+    (Array.isArray(debtor.settlements) ? debtor.settlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+  const debtRemaining = (debtor: DebtorEntry) =>
+    Math.max(0, (Number(debtor.amount) || 0) - debtSettledTotal(debtor));
+
+  const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
+    const current = records.find((r) => r._id === id);
+    const next = updater(getDebtors(current ?? ({} as LedgerRecord)));
+    setRecords((prev) => prev.map((r) => (r._id === id ? { ...r, debtors: next } : r)));
+    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), debtors: next } }));
   };
 
-  const resetFilters = () => {
-    setFilterProduct("");
-    setCustomerSearch("");
-    setStartDate("");
-    setEndDate("");
-    setPaymentMethod("");
-    setCreditStatus("");
-    setPage(1);
-    setDateKey((k) => k + 1);
-    fetchSales({ page: 1 });
+  const handleDebtorChange = (id: string, index: number, field: "name" | "amount", value: string) => {
+    updateDebtors(id, (list) => list.map((d, i) =>
+      i === index ? { ...d, [field]: field === "amount" ? Number(value) || 0 : value } : d
+    ));
   };
 
-  const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalQty = sales.reduce((sum, s) => sum + (s.quantity || 0), 0);
+  const handleDebtorAdd = (id: string) => {
+    updateDebtors(id, (list) => [...list, { name: "", amount: 0, settlements: [] }]);
+  };
+
+  const handleDebtorRemove = (id: string, index: number) => {
+    updateDebtors(id, (list) => list.filter((_, i) => i !== index));
+  };
+
+  const openSettle = (record: LedgerRecord, index: number) => {
+    const debtor = getDebtors(record)[index];
+    if (!debtor) return;
+    const settled = debtSettledTotal(debtor);
+    const remaining = debtRemaining(debtor);
+    setSettleTarget({ recordId: record._id, date: record.date, index, name: debtor.name || "", amount: Number(debtor.amount) || 0, settled, remaining });
+    setSettleAmount(remaining > 0 ? String(remaining) : "");
+    setSettleNote("");
+  };
 
   const doSettle = async () => {
-    const id = confirmSettleId;
-    if (!id || settling) return;
-    setSettling(id);
+    if (!settleTarget) return;
+    const amount = Number(settleAmount) || 0;
+    if (amount <= 0) { showError("Enter a valid amount"); return; }
+    if (amount > settleTarget.remaining) { showError("Amount exceeds outstanding balance"); return; }
+    setSettling(true);
     try {
-      const res = await fetch(`/api/sales/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPaid: true }) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        showError(err.error || "Failed to settle");
-        return;
-      }
-      showSuccess("Credit sale settled");
-      fetchSales();
-    } catch {
-      showError("Network error");
-    } finally {
-      setSettling(null);
-    }
-  };
-
-  const doCancelSale = async () => {
-    const id = confirmCancelId;
-    if (!id || cancellingId) return;
-    setCancellingId(id);
-    try {
-      const res = await fetch(`/api/sales/${id}`, {
-        method: "DELETE",
+      const record = records.find((r) => r._id === settleTarget.recordId);
+      const nextDebtors = getDebtors(record ?? ({} as LedgerRecord)).map((d, i) =>
+        i === settleTarget.index
+          ? { ...d, settlements: [...(Array.isArray(d.settlements) ? d.settlements : []), { amount, date: new Date().toISOString(), note: settleNote }] }
+          : d
+      );
+      const res = await fetch(`/api/sales-ledger/${settleTarget.recordId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: cancelReason }),
+        body: JSON.stringify({ debtors: nextDebtors }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        showError(err.error || "Failed to cancel sale");
-        return;
-      }
-      showSuccess("Sale cancelled and stock restored");
-      setConfirmCancelId(null);
-      setCancelReason("");
-      fetchSales();
-    } catch {
-      showError("Network error");
-    } finally {
-      setCancellingId(null);
+      if (!res.ok) { showError("Failed to record settlement"); return; }
+      const updated = await res.json();
+      setRecords((prev) => prev.map((r) => r._id === settleTarget.recordId ? { ...r, ...updated } : r));
+      setPendingChanges((prev) => {
+        const next = { ...prev };
+        if (next[settleTarget.recordId]) {
+          const rest = { ...next[settleTarget.recordId] };
+          delete rest.debtors;
+          next[settleTarget.recordId] = rest;
+        }
+        return next;
+      });
+      showSuccess("Settlement recorded");
+      setSettleTarget(null);
+      setSettleAmount("");
+      setSettleNote("");
+    } catch { showError("Network error"); } finally { setSettling(false); }
+  };
+
+  const saveAll = async () => {
+    setSavingBatch(true);
+    const ids = Object.keys(pendingChanges);
+    let failed = 0;
+    for (const id of ids) {
+      const fields = pendingChanges[id];
+      try {
+        const res = await fetch(`/api/sales-ledger/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fields),
+        });
+        if (!res.ok) { failed++; continue; }
+        const updated = await res.json();
+        setRecords((prev) => prev.map((r) => r._id === id ? { ...r, ...updated } : r));
+      } catch { failed++; }
     }
+    setPendingChanges({});
+    setSavingBatch(false);
+    if (failed > 0) showError(`${failed} record(s) failed to save`);
+    else showSuccess("All changes saved");
   };
 
-  const downloadReceipt = async () => {
-    if (!receiptRef.current || !shareSale) return;
-    setReceiptPdfLoading(true);
-    await downloadReceiptPdf(
-      receiptRef,
-      `receipt-${shareSale.productId?.name ?? "sale"}-${formatDate(shareSale.date).replace(/\//g, "-")}.pdf`,
-      setReceiptPdfLoading
-    );
+  const discardChanges = () => {
+    setPendingChanges({});
+    fetchRecords();
+    showSuccess("Changes discarded");
   };
 
-  const downloadPDF = async () => {
-    if (!reportRef.current) return;
-    setPdfLoading(true);
-    await downloadTablePdf(
-      reportRef,
-      "sales-report",
-      setPdfLoading,
-      { title: "Sales Report", subtitle: `${pagination.total} records | ₦${totalRevenue.toLocaleString()} total` }
-    );
+  const addNewDay = async () => {
+    if (!addDayDate) { showError("Select a date"); return; }
+    setAdding(true);
+    try {
+      const res = await fetch("/api/sales-ledger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: addDayDate, locationType, locationId: selectedLocationId }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Failed" })); showError(err.error || "Failed"); return; }
+      showSuccess("New day added");
+      setShowAddDay(false);
+      setAddDayDate("");
+      setPage(1);
+      fetchRecords();
+    } catch { showError("Network error"); } finally { setAdding(false); }
   };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/sales-ledger/${deleteTarget}`, { method: "DELETE" });
+    if (!res.ok) { showError("Failed"); return; }
+    showSuccess("Deleted");
+    setDeleteTarget(null);
+    fetchRecords();
+  };
+
+  const cls = (id: string, field: string) =>
+    `w-full px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${
+      pendingChanges[id]?.[field] != null
+        ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800"
+        : "border-gray-200 dark:border-gray-600"
+    }`;
+
+  const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
+  const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
+  const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+
+  const title = isFactory ? "Sales Ledger (Factories)" : "Sales Ledger (Depots)";
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <PageBreadcrumb pageTitle={isFactoryView ? "Factory Sales" : "Depot Sales"} />
-        <Link href={`/sales/new?type=${saleType}`}>
-          <Button variant="primary" size="sm" startIcon={<PlusIcon />}>
-            Record Sale
-          </Button>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 md:gap-6 mb-6">
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg dark:bg-emerald-500/10 mb-3">
-            <DollarLineIcon className="text-emerald-600 size-5 dark:text-emerald-400" />
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+          <PageBreadcrumb pageTitle={title} />
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month:</label>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
-          <AutoAmount value={`₦${(paymentStats?.grandTotal ?? totalRevenue).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{pagination.total} sales</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-cyan-100 rounded-lg dark:bg-cyan-500/10 mb-3">
-            <BoxIconLine className="text-cyan-600 size-5 dark:text-cyan-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Units Sold</p>
-          <AutoAmount value={totalQty.toLocaleString()} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">Bags on this page</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/10 mb-3">
-            <DollarLineIcon className="text-green-600 size-5 dark:text-green-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Cash</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.cash?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.cash?.count ?? 0} transactions</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/10 mb-3">
-            <BoxIconLine className="text-blue-600 size-5 dark:text-blue-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">POS</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.pos?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.pos?.count ?? 0} transactions</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/10 mb-3">
-            <BoxIconLine className="text-purple-600 size-5 dark:text-purple-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Transfer</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.transfer?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.transfer?.count ?? 0} transactions</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow">
-          <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/10 mb-3">
-            <ListIcon className="text-orange-600 size-5 dark:text-orange-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Credit Sales</p>
-          <AutoAmount value={`₦${(paymentStats?.byMethod?.credit?.totalAmount ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{paymentStats?.byMethod?.credit?.count ?? 0} transactions</p>
-        </Link>
-        <Link href={`/sales?type=${saleType}`} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm p-5 hover:shadow-theme-md transition-shadow border-l-4 border-warning-500">
-          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg dark:bg-red-500/10 mb-3">
-            <ListIcon className="text-red-600 size-5 dark:text-red-400" />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Credit Outstanding</p>
-          <AutoAmount value={`₦${(paymentStats?.creditOutstanding ?? 0).toLocaleString()}`} className="text-blue-600 dark:text-blue-400" />
-          <p className="text-xs text-red-400 mt-0.5">Unpaid deficit</p>
-        </Link>
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <Select
-            options={products}
-            placeholder="All Products"
-            value={filterProduct}
-            onChange={setFilterProduct}
-          />
-          <Input
-            type="text"
-            placeholder="Customer name..."
-            value={customerSearch}
-            onChange={(e) => setCustomerSearch(e.target.value)}
-          />
-          <DatePicker
-            key={`start-${dateKey}`}
-            id="sales-start-date"
-            placeholder="Start Date"
-            defaultDate={startDate || undefined}
-            onChange={(_dates, dateStr) => setStartDate(dateStr)}
-          />
-          <DatePicker
-            key={`end-${dateKey}`}
-            id="sales-end-date"
-            placeholder="End Date"
-            defaultDate={endDate || undefined}
-            onChange={(_dates, dateStr) => setEndDate(dateStr)}
-          />
-          <Select options={PAYMENT_METHODS} placeholder="All Methods" value={paymentMethod} onChange={setPaymentMethod} />
-          <Select options={CREDIT_STATUSES} placeholder="Credit Status" value={creditStatus} onChange={setCreditStatus} />
         </div>
-        <div className="flex gap-3">
-          <Button variant="primary" size="sm" onClick={handleFilter}>Apply Filters</Button>
-          <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
-          {sales.length > 0 && (
-            <Button variant="outline" size="sm" onClick={downloadPDF} disabled={pdfLoading}>
-              {pdfLoading ? "Generating PDF..." : "Download PDF"}
-            </Button>
+        <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={() => {
+          setAddDayDate(todayStr);
+          setShowAddDay(true);
+        }}>
+          Add New Day
+        </Button>
+      </div>
+
+      {locations.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
+          <select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}
+            className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            {locations.map((loc) => (<option key={loc.id} value={loc.id}>{loc.name}</option>))}
+          </select>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 mb-6">
+        {statCards.map((s, i) => (
+          <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
+            <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{s.prefix || ""}{s.value.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.description}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-[1100px] w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
+                {LEDGER_FIELDS.map((f) => (
+                  <th key={f.key} className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.label}</th>
+                ))}
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debtors Name</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={9} className="text-center py-10 text-gray-500">Loading...</td></tr>
+              ) : paginatedRecords.length === 0 ? (
+                <tr><td colSpan={9} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
+              ) : (
+                paginatedRecords.map((d) => {
+                  const editable = isCurrentDay(d.date);
+                  return (
+                    <tr key={d._id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5">
+                      <td className="px-1.5 py-1.5 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">{d.date}</td>
+                      {LEDGER_FIELDS.map((f) => (
+                        <td key={f.key} className="px-1.5 py-1.5">
+                          {f.type === "text" ? (
+                            <input type="text" value={(d as unknown as Record<string, string>)[f.key] || ""}
+                              onChange={(e) => handleChange(d._id, f.key, e.target.value)}
+                              placeholder={f.label}
+                              className={`${cls(d._id, f.key)} text-left`} />
+                          ) : (
+                            <input type="number" value={(d as unknown as Record<string, number>)[f.key] ?? 0}
+                              onChange={(e) => handleChange(d._id, f.key, e.target.value)}
+                              disabled={!editable}
+                              className={`${cls(d._id, f.key)} ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-1.5 py-1.5 align-top">
+                        <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {getDebtors(d).map((debtor, di) => (
+                            <div key={di} className="flex items-center gap-1">
+                              <input type="text" value={debtor.name}
+                                onChange={(e) => handleDebtorChange(d._id, di, "name", e.target.value)}
+                                placeholder="Name"
+                                className="flex-1 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                              <button onClick={() => handleDebtorRemove(d._id, di)}
+                                className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => handleDebtorAdd(d._id)}
+                            className="text-[9px] text-brand-500 hover:text-brand-700">+ Add debtor</button>
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1.5 align-top">
+                        <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {getDebtors(d).map((debtor, di) => (
+                            <div key={di} className="flex items-center gap-1 justify-between">
+                              <input type="number" value={debtor.amount ?? 0}
+                                onChange={(e) => handleDebtorChange(d._id, di, "amount", e.target.value)}
+                                placeholder="₦"
+                                className="w-20 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                              {debtor.name.trim() && Number(debtor.amount) > 0 && debtRemaining(debtor) <= 0 ? (
+                                <span className="px-1 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap">✓ Settled</span>
+                              ) : (
+                                <button onClick={() => openSettle(d, di)}
+                                  className="text-[9px] font-medium text-brand-500 hover:text-brand-700 whitespace-nowrap">settle</button>
+                              )}
+                            </div>
+                          ))}
+                          {getDebtors(d).length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
+                              <span>Total</span>
+                              <span>₦{getDebtors(d).reduce((a, dd) => a + (Number(dd.amount) || 0), 0).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {getDebtors(d).filter((dd) => debtRemaining(dd) > 0).length > 0 && (
+                            <div className="text-[9px] text-gray-400">{getDebtors(d).filter((dd) => debtRemaining(dd) > 0).length} unsettled</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1.5">
+                        <button onClick={() => setDeleteTarget(d._id)}
+                          className="px-2 py-1 text-[10px] font-medium rounded bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            {paginatedRecords.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold text-gray-800 dark:text-white/90">
+                  <td className="px-1.5 py-2 text-xs">Totals</td>
+                  {LEDGER_FIELDS.map((f) => (
+                    <td key={f.key} className="px-1.5 py-2 text-xs text-right">
+                      {f.type === "text" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
+                    </td>
+                  ))}
+                  <td className="px-1.5 py-2 text-xs text-right">{debtorCount} debtor{debtorCount !== 1 ? "s" : ""}</td>
+                  <td className="px-1.5 py-2 text-xs text-right">
+                    <span>₦{debtorTotal.toLocaleString()}</span>
+                    {unsettledCount > 0 && <span className="ml-2 text-red-500 font-normal">{unsettledCount} unsettled</span>}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          {dirtyCount > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-500/5 border-b border-amber-200 dark:border-amber-500/20">
+              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">{dirtyCount} unsaved change{dirtyCount > 1 ? "s" : ""}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={discardChanges}>Discard</Button>
+                <Button size="sm" onClick={saveAll} disabled={savingBatch}>{savingBatch ? "Saving..." : "Update"}</Button>
+              </div>
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, monthRecords.length)} of {monthRecords.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}
+                  className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`px-2.5 py-1 text-xs rounded border ${p === safePage ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>{p}</button>
+                ))}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}
+                  className="px-2.5 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <div ref={reportRef} className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
-        <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">{isFactoryView ? "Factory" : "Depot"} Sales Report</h3>
-          <p className="text-xs text-gray-400 mt-1">
-            {pagination.total} records | ₦{totalRevenue.toLocaleString()} total revenue
-            {filterProduct && ` | Product filtered`}
-            {customerSearch && ` | Customer: ${customerSearch}`}
-            {startDate && ` | From: ${startDate}`}
-            {endDate && ` | To: ${endDate}`}
-          </p>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Payment</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Location</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Product</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Qty</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Total</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Customer</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Date</TableCell>
-              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>Loading...</TableCell>
-              </TableRow>
-            ) : sales.length === 0 ? (
-              <TableRow>
-                <TableCell className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm" colSpan={8}>No sales records match your filters. Click &quot;Record Sale&quot; to create one.</TableCell>
-              </TableRow>
-            ) : (
-              sales.map((sale) => {
-                const badge = PAYMENT_BADGES[sale.paymentMethod] ?? PAYMENT_BADGES.cash;
-                return (
-                <TableRow key={sale._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                  <TableCell className="py-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
-                        {badge.label}
-                      </span>
-                      {sale.paymentMethod === "credit" && !sale.isPaid && (
-                        <span className="text-xs text-red-500 font-medium">Unpaid</span>
-                      )}
-                      {sale.paymentMethod === "credit" && sale.isPaid && (
-                        <span className="text-xs text-green-500 font-medium">Paid</span>
-                      )}
-                      {sale.paymentMethod === "pos" && sale.posDeviceId && (
-                        <span className="text-xs text-gray-400 truncate max-w-[100px]">{sale.posDeviceId.name}</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 capitalize">
-                    <Link href={`/${sale.locationType === "factory" ? "factories" : sale.locationType === "depot" ? "depots" : "trucks"}/${sale.locationId}`} className="text-theme-sm text-blue-600 dark:text-blue-400 hover:underline">{sale.location?.name ?? sale.locationType}</Link>
-                  </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">
-                    <div className="flex items-center gap-1.5">
-                      {sale.productId?._id ? <Link href={`/products/${sale.productId._id}`} className="text-theme-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">{sale.productId.name}</Link> : "N/A"}
-                      {sale.condition === "chilled" && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">
-                          Chilled
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{(sale.quantity ?? 0).toLocaleString()}</TableCell>
-                  <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">₦{sale.totalAmount?.toLocaleString()}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{sale.customerName}</TableCell>
-                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{formatDate(sale.date)}</TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex gap-1.5 items-center">
-                      {isAdminUser && (
-                        <button
-                          onClick={() => { setConfirmCancelId(sale._id); setCancelReason(""); }}
-                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
-                          title="Cancel Sale"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      {sale.paymentMethod === "credit" && !sale.isPaid && (
-                        <button
-                          onClick={() => setConfirmSettleId(sale._id)}
-                          disabled={settling === sale._id}
-                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {settling === sale._id ? "Settling..." : "Settle"}
-                        </button>
-                      )}
-                      <AdminEditButton
-                        entity="Sale"
-                        entityId={sale._id}
-                        entityLabel={`${sale.productId?.name ?? "Sale"} — ₦${sale.totalAmount?.toLocaleString()}`}
-                        apiPath={`/api/sales/${sale._id}`}
-                        onSaved={() => fetchSales()}
-                        fields={[
-                          { key: "productId", label: "Product", type: "select", options: products.filter(p => p.value) },
-                          { key: "quantity", label: "Quantity", type: "number" },
-                          { key: "totalAmount", label: "Amount (₦)", type: "number" },
-                          { key: "unitPrice", label: "Unit Price (₦)", type: "number" },
-                          { key: "customerName", label: "Customer", type: "text" },
-                          { key: "date", label: "Date", type: "date" },
-                          { key: "paymentMethod", label: "Payment", type: "select", options: [
-                            { value: "cash", label: "Cash" },
-                            { value: "pos", label: "POS" },
-                            { value: "transfer", label: "Transfer" },
-                            { value: "credit", label: "Credit" },
-                          ]},
-                        ]}
-                        initialValues={{
-                          productId: sale.productId?._id ?? "",
-                          quantity: sale.quantity,
-                          totalAmount: sale.totalAmount,
-                          unitPrice: sale.unitPrice,
-                          customerName: sale.customerName,
-                          date: sale.date?.split("T")[0] ?? "",
-                          paymentMethod: sale.paymentMethod,
-                        }}
-                      />
-                      <button
-                        onClick={() => setShareSaleId(sale._id)}
-                        className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20 transition-colors"
-                        title="Share Receipt"
-                      >
-                        Share Receipt
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )})
-            )}
-          </TableBody>
-        </Table>
-
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-800">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {((pagination.page - 1) * pagination.limit) + 1}&ndash;{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-            </span>
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              onPageChange={(p) => { setPage(p); fetchSales({ page: p }); }}
-            />
-          </div>
-        )}
-      </div>
-
-      <ConfirmDialog
-        isOpen={confirmSettleId !== null}
-        onClose={() => setConfirmSettleId(null)}
-        onConfirm={doSettle}
-        title="Settle Credit Sale"
-        message={
-          <>
-            <p>You are about to mark an unpaid credit sale as <strong>paid</strong>:</p>
-            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
-              <li><strong>Customer:</strong> {confirmSettleSale?.customerName || "unknown"}</li>
-              <li><strong>Amount:</strong> ₦{confirmSettleSale?.totalAmount?.toLocaleString() ?? "0"}</li>
-              <li><strong>Date:</strong> {confirmSettleSale ? formatDate(confirmSettleSale.date) : "—"}</li>
-            </ul>
-            <p className="mt-2 text-orange-600 dark:text-orange-400 font-medium">⚠ This will mark the debt as fully paid.</p>
-          </>
-        }
-        confirmLabel="Confirm Settlement"
-        variant="password"
-        loading={settling !== null}
-        successMessage="Credit sale settled successfully!"
-      />
-
-      <ConfirmDialog
-        isOpen={confirmCancelId !== null}
-        onClose={() => { setConfirmCancelId(null); setCancelReason(""); }}
-        onConfirm={doCancelSale}
-        title="Cancel Sale"
-        message={
-          <>
-            <p>You are about to <strong>cancel</strong> this sale and restore the stock:</p>
-            <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
-              <li><strong>Product:</strong> {confirmCancelSale?.productId?.name ?? "N/A"}</li>
-              <li><strong>Quantity:</strong> {(confirmCancelSale?.quantity ?? 0).toLocaleString()} units</li>
-              <li><strong>Amount:</strong> ₦{confirmCancelSale?.totalAmount?.toLocaleString() ?? "0"}</li>
-              <li><strong>Customer:</strong> {confirmCancelSale?.customerName || "Walk-in"}</li>
-              <li><strong>Date:</strong> {confirmCancelSale ? formatDate(confirmCancelSale.date) : "—"}</li>
-            </ul>
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
-              <input
-                type="text"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Mistaken entry, duplicate record..."
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              />
+      {showAddDay && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40" onClick={() => setShowAddDay(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-theme-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Add New Day</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+              <input type="date" value={addDayDate} onChange={(e) => setAddDayDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
             </div>
-            <p className="mt-2 text-red-600 dark:text-red-400 font-medium">⚠ This will restore the stock at {confirmCancelSale?.locationType} and cannot be undone.</p>
-          </>
-        }
-        confirmLabel="Cancel Sale"
-        variant="danger"
-        loading={cancellingId !== null}
-        successMessage="Sale cancelled and stock restored!"
-      />
-
-      {shareSale && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareSaleId(null)}>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-5 text-center shrink-0">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-              </div>
-              <h3 className="text-lg font-bold text-white">Share Receipt</h3>
-              <p className="text-sm text-white/70 mt-0.5">Send to your customer</p>
-            </div>
-
-            <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
-              <div ref={receiptRef} className="bg-white rounded-xl p-5 mb-5 border border-gray-200 shadow-sm" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>
-                <div className="text-center mb-4 pb-3" style={{ borderBottom: "2px solid #465FFF" }}>
-                  <div className="text-lg font-extrabold tracking-tight" style={{ color: "#465FFF" }}>VERRI P WATER INC</div>
-                  <div className="text-xs mt-0.5" style={{ color: "#6b7280" }}>100% Pure & Safe Drinking Water</div>
-                  <div className="text-xs" style={{ color: "#6b7280" }}>Nigeria</div>
-                </div>
-                <div className="text-center mb-3">
-                  <span className="text-xs font-bold px-3 py-1 rounded" style={{ color: "#374151", background: "#f3f4f6" }}>SALES RECEIPT</span>
-                </div>
-                <div className="text-center text-xs mb-3" style={{ color: "#6b7280" }}>{formatDate(shareSale.date, "long")}</div>
-                <div className="border-t border-dashed my-2" style={{ borderColor: "#e5e7eb" }} />
-                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-                  <tbody>
-                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Product</td><td className="py-1 text-right font-semibold">{shareSale.productId?.name ?? "N/A"}</td></tr>
-                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Quantity</td><td className="py-1 text-right font-semibold">{(shareSale.quantity ?? 0).toLocaleString()}</td></tr>
-                    <tr><td className="py-1" style={{ color: "#6b7280" }}>Unit Price</td><td className="py-1 text-right font-semibold">₦{(shareSale.unitPrice ?? 0).toLocaleString()}</td></tr>
-                  </tbody>
-                </table>
-                <div className="my-2" style={{ borderTop: "2px solid #465FFF" }} />
-                <div className="flex justify-between text-sm font-extrabold" style={{ color: "#465FFF" }}>
-                  <span>TOTAL</span>
-                  <span>₦{(shareSale.totalAmount ?? 0).toLocaleString()}</span>
-                </div>
-                <div className="border-t border-dashed my-2" style={{ borderColor: "#e5e7eb" }} />
-                <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-                  <tbody>
-                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Payment</td><td className="py-0.5 text-right font-semibold capitalize">{shareSale.paymentMethod}</td></tr>
-                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Customer</td><td className="py-0.5 text-right font-semibold">{shareSale.customerName || "Walk-in"}</td></tr>
-                    <tr><td className="py-0.5" style={{ color: "#6b7280" }}>Location</td><td className="py-0.5 text-right font-semibold">{shareSale.location?.name ?? shareSale.locationType}</td></tr>
-                  </tbody>
-                </table>
-                <div className="border-t border-dashed mt-3 pt-2 text-center text-xs" style={{ borderColor: "#e5e7eb", color: "#9ca3af" }}>
-                  Thank you for your purchase!<br/>Verri P Water Inc &mdash; Nigeria
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                <button
-                  onClick={downloadReceipt}
-                  disabled={receiptPdfLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
-                  </svg>
-                  {receiptPdfLoading ? "Generating PDF..." : "Download PDF Receipt"}
-                </button>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                      `*Verri P Water Inc - Sales Receipt*\n\n` +
-                      `Date: ${formatDate(shareSale.date)}\n` +
-                      `Product: ${shareSale.productId?.name ?? "N/A"}\n` +
-                      `Quantity: ${(shareSale.quantity ?? 0).toLocaleString()}\n` +
-                      `Unit Price: ₦${(shareSale.unitPrice ?? 0).toLocaleString()}\n` +
-                      `Total: ₦${(shareSale.totalAmount ?? 0).toLocaleString()}\n` +
-                      `Payment: ${shareSale.paymentMethod}\n` +
-                      `Customer: ${shareSale.customerName || "Walk-in"}\n` +
-                      `Location: ${shareSale.location?.name ?? shareSale.locationType}\n\n` +
-                      `Thank you for your purchase!`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-semibold text-sm transition-colors"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
-                    WhatsApp
-                  </a>
-                  <a
-                    href={`mailto:?subject=${encodeURIComponent(
-                      `Sales Receipt - Verri P Water Inc (${formatDate(shareSale.date)})`
-                    )}&body=${encodeURIComponent(
-                      `Verri P Water Inc - Sales Receipt\n` +
-                      `================================\n\n` +
-                      `Date: ${formatDate(shareSale.date)}\n` +
-                      `Product: ${shareSale.productId?.name ?? "N/A"}\n` +
-                      `Quantity: ${(shareSale.quantity ?? 0).toLocaleString()}\n` +
-                      `Unit Price: ₦${(shareSale.unitPrice ?? 0).toLocaleString()}\n` +
-                      `Total: ₦${(shareSale.totalAmount ?? 0).toLocaleString()}\n` +
-                      `Payment: ${shareSale.paymentMethod}\n` +
-                      `Customer: ${shareSale.customerName || "Walk-in"}\n` +
-                      `Location: ${shareSale.location?.name ?? shareSale.locationType}\n\n` +
-                      `Thank you for your purchase!`
-                    )}`}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                    </svg>
-                    Email
-                  </a>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShareSaleId(null)}
-                className="w-full mt-4 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
-              >
-                Close
-              </button>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowAddDay(false)}>Cancel</Button>
+              <Button size="sm" disabled={adding} onClick={addNewDay}>{adding ? "Adding..." : "Add Day"}</Button>
             </div>
           </div>
         </div>
       )}
+
+      {settleTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSettleTarget(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Settle Debt</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Debtor:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{settleTarget.name || "—"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Date:</span>
+                <span className="font-medium text-gray-800 dark:text-white">{settleTarget.date}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Debt:</span>
+                <span className="font-medium text-red-600">₦{settleTarget.amount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Settled So Far:</span>
+                <span className="font-medium text-green-600">₦{settleTarget.settled.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Outstanding:</span>
+                <span className="font-bold text-red-600">₦{settleTarget.remaining.toLocaleString()}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Settled (₦)</label>
+              <input type="number" value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder="0"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note (optional)</label>
+              <input type="text" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} placeholder="e.g. cash payment"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={doSettle} disabled={settling || !settleAmount || Number(settleAmount) <= 0}>
+                {settling ? "Saving..." : "Record Settlement"}
+              </Button>
+              <Button variant="outline" onClick={() => setSettleTarget(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog isOpen={deleteTarget !== null} onClose={() => setDeleteTarget(null)} onConfirm={doDelete}
+        title="Delete Day Record" message="This will permanently delete this day's sales record." confirmLabel="Delete" variant="danger" />
     </div>
   );
 }
