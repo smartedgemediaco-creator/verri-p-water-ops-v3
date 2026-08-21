@@ -133,6 +133,15 @@ export default function SalesLedgerPage() {
   const sumField = (recs: LedgerRecord[], key: string) =>
     recs.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[key]) || 0), 0);
 
+  const getDebtors = (d: LedgerRecord): DebtorEntry[] =>
+    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
+
+  const debtSettledTotal = (debtor: DebtorEntry) =>
+    (Array.isArray(debtor.settlements) ? debtor.settlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+  const debtRemaining = (debtor: DebtorEntry) =>
+    Math.max(0, (Number(debtor.amount) || 0) - debtSettledTotal(debtor));
+
   const totalDays = monthRecords.length;
   const totalStockLoaded = sumField(monthRecords, "stockLoaded");
   const totalReturned = sumField(monthRecords, "returnedStock");
@@ -156,15 +165,6 @@ export default function SalesLedgerPage() {
     setRecords((prev) => prev.map((r) => r._id === id ? { ...r, [field]: val } : r));
     setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }));
   };
-
-  const getDebtors = (d: LedgerRecord): DebtorEntry[] =>
-    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
-
-  const debtSettledTotal = (debtor: DebtorEntry) =>
-    (Array.isArray(debtor.settlements) ? debtor.settlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
-
-  const debtRemaining = (debtor: DebtorEntry) =>
-    Math.max(0, (Number(debtor.amount) || 0) - debtSettledTotal(debtor));
 
   const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
     const current = records.find((r) => r._id === id);
