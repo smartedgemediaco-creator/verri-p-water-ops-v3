@@ -5,8 +5,8 @@ import { SalesLedger } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 
 const SKIP_KEYS = new Set(["date", "locationType", "locationId", "_id", "__v", "createdAt", "updatedAt"]);
-const STRING_FIELDS = new Set(["transferBy", "debtStatus", "notes"]);
-const ARRAY_FIELDS = new Set(["debtors"]);
+const STRING_FIELDS = new Set(["debtStatus", "notes"]);
+const ARRAY_FIELDS = new Set(["debtors", "transfers"]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = getUserFromRequest(req);
@@ -25,13 +25,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ? (val as any[]).map((d) => ({
             name: String(d?.name ?? "").trim(),
             amount: Number(d?.amount) || 0,
-            settlements: Array.isArray(d?.settlements)
-              ? d.settlements.map((s: any) => ({
-                  amount: Number(s?.amount) || 0,
-                  date: s?.date ? String(s.date) : new Date().toISOString(),
-                  note: s?.note ? String(s.note) : "",
-                }))
-              : [],
+            ...(key === "debtors"
+              ? {
+                  settlements: Array.isArray(d?.settlements)
+                    ? d.settlements.map((s: any) => ({
+                        amount: Number(s?.amount) || 0,
+                        date: s?.date ? String(s.date) : new Date().toISOString(),
+                        note: s?.note ? String(s.note) : "",
+                      }))
+                    : [],
+                }
+              : {}),
           }))
         : [];
     } else if (STRING_FIELDS.has(key)) {

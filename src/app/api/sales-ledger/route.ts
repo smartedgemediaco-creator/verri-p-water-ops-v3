@@ -45,9 +45,14 @@ export async function POST(req: NextRequest) {
     locationId: body.locationId,
     stockLoaded: Number(body.stockLoaded) || 0,
     returnedStock: Number(body.returnedStock) || 0,
+    leakages: Number(body.leakages) || 0,
     cashDelivered: Number(body.cashDelivered) || 0,
-    transferBy: body.transferBy || "",
-    amountTransferred: Number(body.amountTransferred) || 0,
+    transfers: Array.isArray(body.transfers)
+      ? body.transfers.map((t: { name?: unknown; amount?: unknown }) => ({
+          name: String(t?.name ?? "").trim(),
+          amount: Number(t?.amount) || 0,
+        }))
+      : [],
     debtors: Array.isArray(body.debtors) ? body.debtors : [],
     debts: Number(body.debts) || 0,
     debtStatus: body.debtStatus || "pending",

@@ -16,9 +16,9 @@ interface LedgerRecord {
   locationId: string;
   stockLoaded: number;
   returnedStock: number;
+  leakages: number;
   cashDelivered: number;
-  transferBy: string;
-  amountTransferred: number;
+  transfers: { name: string; amount: number }[];
   debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
   debts: number;
   debtStatus: string;
@@ -29,6 +29,11 @@ interface DebtorEntry {
   name: string;
   amount: number;
   settlements?: { amount: number; date?: string; note?: string }[];
+}
+
+interface TransferEntry {
+  name: string;
+  amount: number;
 }
 
 interface SettleTarget {
@@ -46,9 +51,8 @@ const PAGE_SIZE = 10;
 const LEDGER_FIELDS: { key: string; label: string; type: "number" | "text" }[] = [
   { key: "stockLoaded", label: "Stock Loaded", type: "number" },
   { key: "returnedStock", label: "Returned Stock", type: "number" },
+  { key: "leakages", label: "Leakages", type: "number" },
   { key: "cashDelivered", label: "Cash Delivered", type: "number" },
-  { key: "transferBy", label: "Transferred By", type: "text" },
-  { key: "amountTransferred", label: "Amount Transferred", type: "number" },
 ];
 
 export default function SalesLedgerPage() {
@@ -133,6 +137,12 @@ export default function SalesLedgerPage() {
   const sumField = (recs: LedgerRecord[], key: string) =>
     recs.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[key]) || 0), 0);
 
+  const bagsSoldOf = (r: LedgerRecord) =>
+    Math.max(0, (Number(r.stockLoaded) || 0) - (Number(r.returnedStock) || 0) - (Number(r.leakages) || 0));
+
+  const getTransfers = (d: LedgerRecord): TransferEntry[] =>
+    (Array.isArray(d.transfers) ? d.transfers : []).map((x) => ({ name: x.name || "", amount: x.amount || 0 }));
+
   const getDebtors = (d: LedgerRecord): DebtorEntry[] =>
     (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
 
@@ -145,8 +155,10 @@ export default function SalesLedgerPage() {
   const totalDays = monthRecords.length;
   const totalStockLoaded = sumField(monthRecords, "stockLoaded");
   const totalReturned = sumField(monthRecords, "returnedStock");
+  const totalLeakages = sumField(monthRecords, "leakages");
+  const totalBagsSold = monthRecords.reduce((s, r) => s + bagsSoldOf(r), 0);
   const totalCash = sumField(monthRecords, "cashDelivered");
-  const totalTransferred = sumField(monthRecords, "amountTransferred");
+  const totalTransferred = monthRecords.reduce((s, r) => s + getTransfers(r).reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
   const totalDebts = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const totalUnsettled = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
 
@@ -154,16 +166,38 @@ export default function SalesLedgerPage() {
     { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
     { label: "Stock Loaded", value: totalStockLoaded, description: "bags loaded" },
     { label: "Returned", value: totalReturned, description: "bags returned" },
+    { label: "Bags Sold", value: totalBagsSold, description: "loaded − returned − leakages" },
+    { label: "Leakages", value: totalLeakages, description: "bags lost" },
     { label: "Cash Delivered", value: totalCash, prefix: "₦", description: "total cash" },
     { label: "Amount Transferred", value: totalTransferred, prefix: "₦", description: "via transfer" },
     { label: "Total Debts", value: totalDebts, prefix: "₦", description: `${totalUnsettled} unsettled` },
   ];
 
   const handleChange = (id: string, field: string, rawValue: string) => {
-    const isText = field === "transferBy" || field === "notes";
-    const val: unknown = isText ? rawValue : Number(rawValue) || 0;
+    const val: unknown = Number(rawValue) || 0;
     setRecords((prev) => prev.map((r) => r._id === id ? { ...r, [field]: val } : r));
     setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }));
+  };
+
+  const updateTransfers = (id: string, updater: (list: TransferEntry[]) => TransferEntry[]) => {
+    const current = records.find((r) => r._id === id);
+    const next = updater(getTransfers(current ?? ({} as LedgerRecord)));
+    setRecords((prev) => prev.map((r) => (r._id === id ? { ...r, transfers: next } : r)));
+    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), transfers: next } }));
+  };
+
+  const handleTransferChange = (id: string, index: number, field: "name" | "amount", value: string) => {
+    updateTransfers(id, (list) => list.map((t, i) =>
+      i === index ? { ...t, [field]: field === "amount" ? Number(value) || 0 : value } : t
+    ));
+  };
+
+  const handleTransferAdd = (id: string) => {
+    updateTransfers(id, (list) => [...list, { name: "", amount: 0 }]);
+  };
+
+  const handleTransferRemove = (id: string, index: number) => {
+    updateTransfers(id, (list) => list.filter((_, i) => i !== index));
   };
 
   const updateDebtors = (id: string, updater: (list: DebtorEntry[]) => DebtorEntry[]) => {
@@ -300,6 +334,9 @@ export default function SalesLedgerPage() {
   const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
   const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
   const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+  const transferCount = paginatedRecords.reduce((s, r) => s + getTransfers(r).length, 0);
+  const transferTotal = paginatedRecords.reduce((s, r) => s + getTransfers(r).reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
+  const bagsSoldTotal = paginatedRecords.reduce((s, r) => s + bagsSoldOf(r), 0);
 
   const title = isFactory ? "Sales Ledger (Factories)" : "Sales Ledger (Depots)";
 
@@ -332,7 +369,7 @@ export default function SalesLedgerPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 mb-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 mb-6">
         {statCards.map((s, i) => (
           <div key={`${s.label}-${i}`} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-theme-sm">
             <p className="text-xs text-gray-500 dark:text-gray-400">{s.label}</p>
@@ -344,13 +381,15 @@ export default function SalesLedgerPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[1100px] w-full text-xs">
+          <table className="min-w-[1300px] w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
                 {LEDGER_FIELDS.map((f) => (
                   <th key={f.key} className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.label}</th>
                 ))}
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Bags Sold</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Transfers</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debtors Name</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</th>
@@ -358,9 +397,9 @@ export default function SalesLedgerPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={10} className="text-center py-10 text-gray-500">Loading...</td></tr>
               ) : paginatedRecords.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
+                <tr><td colSpan={10} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
               ) : (
                 paginatedRecords.map((d) => {
                   const editable = isCurrentDay(d.date);
@@ -382,6 +421,37 @@ export default function SalesLedgerPage() {
                           )}
                         </td>
                       ))}
+                      <td className="px-1.5 py-1.5">
+                        <div className="w-full px-1.5 py-1 text-xs text-right border rounded border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-gray-800 dark:text-white/90 font-medium min-w-[52px]">
+                          {bagsSoldOf(d).toLocaleString()}
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1.5 align-top">
+                        <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.transfers != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {getTransfers(d).map((tr, ti) => (
+                            <div key={ti} className="flex items-center gap-1">
+                              <input type="text" value={tr.name}
+                                onChange={(e) => handleTransferChange(d._id, ti, "name", e.target.value)}
+                                placeholder="Name"
+                                className="flex-1 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                              <input type="number" value={tr.amount ?? 0}
+                                onChange={(e) => handleTransferChange(d._id, ti, "amount", e.target.value)}
+                                placeholder="₦"
+                                className="w-20 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                              <button onClick={() => handleTransferRemove(d._id, ti)}
+                                className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => handleTransferAdd(d._id)}
+                            className="text-[9px] text-brand-500 hover:text-brand-700">+ Add transfer</button>
+                          {getTransfers(d).length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
+                              <span>Total</span>
+                              <span>₦{getTransfers(d).reduce((a, t) => a + (Number(t.amount) || 0), 0).toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-1.5 py-1.5 align-top">
                         <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
                           {getDebtors(d).map((debtor, di) => (
@@ -445,6 +515,11 @@ export default function SalesLedgerPage() {
                       {f.type === "text" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
                   ))}
+                  <td className="px-1.5 py-2 text-xs text-right">{bagsSoldTotal.toLocaleString()}</td>
+                  <td className="px-1.5 py-2 text-xs text-right">
+                    <span>₦{transferTotal.toLocaleString()}</span>
+                    {transferCount > 0 && <span className="ml-2 text-gray-400 font-normal">{transferCount} transfer{transferCount !== 1 ? "s" : ""}</span>}
+                  </td>
                   <td className="px-1.5 py-2 text-xs text-right">{debtorCount} debtor{debtorCount !== 1 ? "s" : ""}</td>
                   <td className="px-1.5 py-2 text-xs text-right">
                     <span>₦{debtorTotal.toLocaleString()}</span>

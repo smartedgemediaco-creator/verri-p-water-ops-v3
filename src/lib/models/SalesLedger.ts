@@ -6,9 +6,9 @@ export interface ISalesLedger extends Document {
   locationId: string;
   stockLoaded: number;
   returnedStock: number;
+  leakages: number;
   cashDelivered: number;
-  transferBy: string;
-  amountTransferred: number;
+  transfers: { name: string; amount: number }[];
   debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
   debts: number;
   debtStatus: "pending" | "partial" | "paid";
@@ -24,9 +24,9 @@ const SalesLedgerSchema = new Schema<ISalesLedger>(
     locationId: { type: String, required: true },
     stockLoaded: { type: Number, default: 0 },
     returnedStock: { type: Number, default: 0 },
+    leakages: { type: Number, default: 0 },
     cashDelivered: { type: Number, default: 0 },
-    transferBy: { type: String, default: "" },
-    amountTransferred: { type: Number, default: 0 },
+    transfers: { type: Schema.Types.Mixed, default: [] },
     debtors: { type: Schema.Types.Mixed, default: [] },
     debts: { type: Number, default: 0 },
     debtStatus: { type: String, enum: ["pending", "partial", "paid"], default: "pending" },
