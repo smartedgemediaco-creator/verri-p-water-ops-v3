@@ -159,18 +159,15 @@ export default function SalesLedgerPage() {
   const totalBagsSold = monthRecords.reduce((s, r) => s + bagsSoldOf(r), 0);
   const totalCash = sumField(monthRecords, "cashDelivered");
   const totalTransferred = monthRecords.reduce((s, r) => s + getTransfers(r).reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
-  const totalDebts = monthRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
-  const totalUnsettled = monthRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
 
   const statCards = [
     { label: "Total Days", value: totalDays, description: `in ${monthLabel}` },
-    { label: "Stock Loaded", value: totalStockLoaded, description: "bags loaded" },
-    { label: "Returned", value: totalReturned, description: "bags returned" },
-    { label: "Bags Sold", value: totalBagsSold, description: "loaded − returned − leakages" },
-    { label: "Leakages", value: totalLeakages, description: "bags lost" },
-    { label: "Cash Delivered", value: totalCash, prefix: "₦", description: "total cash" },
-    { label: "Amount Transferred", value: totalTransferred, prefix: "₦", description: "via transfer" },
-    { label: "Total Debts", value: totalDebts, prefix: "₦", description: `${totalUnsettled} unsettled` },
+    { label: "Total Stock Loaded", value: totalStockLoaded, description: "bags loaded" },
+    { label: "Total Returned", value: totalReturned, description: "bags returned" },
+    { label: "Total Bags Sold", value: totalBagsSold, description: "loaded − returned − leakages" },
+    { label: "Total Leakages", value: totalLeakages, description: "bags lost" },
+    { label: "Total Cash Delivered", value: totalCash, prefix: "₦", description: "total cash" },
+    { label: "Total Amount Transferred", value: totalTransferred, prefix: "₦", description: "via transfer" },
   ];
 
   const handleChange = (id: string, field: string, rawValue: string) => {
