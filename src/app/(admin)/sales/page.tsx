@@ -381,7 +381,7 @@ export default function SalesLedgerPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[1300px] w-full text-xs">
+          <table className="min-w-[1400px] w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
@@ -389,7 +389,8 @@ export default function SalesLedgerPage() {
                   <th key={f.key} className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.label}</th>
                 ))}
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Bags Sold</th>
-                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Transfers</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Transferred By</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount Transferred</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debtors Name</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</th>
@@ -397,9 +398,9 @@ export default function SalesLedgerPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={11} className="text-center py-10 text-gray-500">Loading...</td></tr>
               ) : paginatedRecords.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
+                <tr><td colSpan={11} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
               ) : (
                 paginatedRecords.map((d) => {
                   const editable = isCurrentDay(d.date);
@@ -434,16 +435,24 @@ export default function SalesLedgerPage() {
                                 onChange={(e) => handleTransferChange(d._id, ti, "name", e.target.value)}
                                 placeholder="Name"
                                 className="flex-1 px-1.5 py-1 text-xs text-left border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
-                              <input type="number" value={tr.amount ?? 0}
-                                onChange={(e) => handleTransferChange(d._id, ti, "amount", e.target.value)}
-                                placeholder="₦"
-                                className="w-20 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
                               <button onClick={() => handleTransferRemove(d._id, ti)}
                                 className="text-red-400 hover:text-red-600 text-[10px] leading-none">✕</button>
                             </div>
                           ))}
                           <button onClick={() => handleTransferAdd(d._id)}
                             className="text-[9px] text-brand-500 hover:text-brand-700">+ Add transfer</button>
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1.5 align-top">
+                        <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.transfers != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {getTransfers(d).map((tr, ti) => (
+                            <div key={ti} className="flex items-center gap-1 justify-end">
+                              <input type="number" value={tr.amount ?? 0}
+                                onChange={(e) => handleTransferChange(d._id, ti, "amount", e.target.value)}
+                                placeholder="₦"
+                                className="flex-1 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                            </div>
+                          ))}
                           {getTransfers(d).length > 0 && (
                             <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
                               <span>Total</span>
@@ -516,10 +525,8 @@ export default function SalesLedgerPage() {
                     </td>
                   ))}
                   <td className="px-1.5 py-2 text-xs text-right">{bagsSoldTotal.toLocaleString()}</td>
-                  <td className="px-1.5 py-2 text-xs text-right">
-                    <span>₦{transferTotal.toLocaleString()}</span>
-                    {transferCount > 0 && <span className="ml-2 text-gray-400 font-normal">{transferCount} transfer{transferCount !== 1 ? "s" : ""}</span>}
-                  </td>
+                  <td className="px-1.5 py-2 text-xs text-right">{transferCount} transfer{transferCount !== 1 ? "s" : ""}</td>
+                  <td className="px-1.5 py-2 text-xs text-right">₦{transferTotal.toLocaleString()}</td>
                   <td className="px-1.5 py-2 text-xs text-right">{debtorCount} debtor{debtorCount !== 1 ? "s" : ""}</td>
                   <td className="px-1.5 py-2 text-xs text-right">
                     <span>₦{debtorTotal.toLocaleString()}</span>
