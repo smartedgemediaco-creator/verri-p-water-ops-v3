@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -157,15 +158,15 @@ export default function CommissionedStaffsPage() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableCell isHeader>Name</TableCell>
-                <TableCell isHeader>Phone</TableCell>
-                <TableCell isHeader>Deal Price</TableCell>
-                <TableCell isHeader>Total Loaded</TableCell>
-                <TableCell isHeader>Total Paid</TableCell>
-                <TableCell isHeader>Total Owed</TableCell>
-                <TableCell isHeader>Status</TableCell>
-                <TableCell isHeader>Actions</TableCell>
+              <TableRow className="border-b border-gray-200 dark:border-gray-700">
+                <TableCell isHeader className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Name</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Phone</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Deal Price</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Loaded</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Paid</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Owed</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                <TableCell isHeader className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</TableCell>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -179,17 +180,17 @@ export default function CommissionedStaffsPage() {
                   </div>
                 </TableCell></TableRow>
               ) : filtered.map((s) => (
-                <TableRow key={s._id}>
-                  <TableCell>
+                <TableRow key={s._id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5">
+                  <TableCell className="py-3 text-theme-sm">
                     <Link href={`/commissioned-staffs/${s._id}`} className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
                       {s.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{s.phone || "—"}</TableCell>
-                  <TableCell>₦{(s.dealPrice ?? 0).toLocaleString()}/bag</TableCell>
-                  <TableCell>{(s.totalLoaded ?? 0).toLocaleString()} bags</TableCell>
-                  <TableCell>₦{(s.totalPaid ?? 0).toLocaleString()}</TableCell>
-                  <TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">{s.phone || "—"}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-gray-800 dark:text-white/90">₦{(s.dealPrice ?? 0).toLocaleString()}/bag</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-right text-gray-800 dark:text-white/90">{(s.totalLoaded ?? 0).toLocaleString()} bags</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-right text-green-600 dark:text-green-400 font-medium">₦{(s.totalPaid ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="py-3 text-theme-sm text-right">
                     <span className={(s.totalOwed ?? 0) > 0 ? "text-red-600 dark:text-red-400 font-semibold" : "text-green-600 dark:text-green-400"}>
                       ₦{(s.totalOwed ?? 0).toLocaleString()}
                     </span>
