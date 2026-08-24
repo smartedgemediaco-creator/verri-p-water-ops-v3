@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ISalesLedger extends Document {
   date: string;
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: string;
   stockLoaded: number;
   returnedStock: number;
@@ -20,7 +20,7 @@ export interface ISalesLedger extends Document {
 const SalesLedgerSchema = new Schema<ISalesLedger>(
   {
     date: { type: String, required: true },
-    locationType: { type: String, enum: ["factory", "depot"], required: true },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: String, required: true },
     stockLoaded: { type: Number, default: 0 },
     returnedStock: { type: Number, default: 0 },

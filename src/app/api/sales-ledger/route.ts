@@ -3,12 +3,16 @@ import connectDB from "@/lib/db";
 import { SalesLedger } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 
-function parseLocation(searchParams: URLSearchParams): { locationType: "factory" | "depot"; locationId: string } | null {
+const VALID_TYPES = new Set(["factory", "depot", "truck"]);
+
+function parseLocation(searchParams: URLSearchParams): { locationType: "factory" | "depot" | "truck"; locationId: string } | null {
   const loc = searchParams.get("location");
   if (!loc) return null;
   try {
     const parsed = JSON.parse(loc);
-    if (parsed.type && parsed.id) return { locationType: parsed.type, locationId: parsed.id };
+    if (parsed.type && parsed.id && VALID_TYPES.has(parsed.type)) {
+      return { locationType: parsed.type, locationId: parsed.id };
+    }
   } catch { /* ignore */ }
   return null;
 }
@@ -35,6 +39,7 @@ export async function POST(req: NextRequest) {
 
   if (!body.date) return NextResponse.json({ error: "Date is required" }, { status: 400 });
   if (!body.locationType || !body.locationId) return NextResponse.json({ error: "Location is required" }, { status: 400 });
+  if (!VALID_TYPES.has(body.locationType)) return NextResponse.json({ error: "Invalid location type" }, { status: 400 });
 
   const existing = await SalesLedger.findOne({ date: body.date, locationType: body.locationType, locationId: body.locationId });
   if (existing) return NextResponse.json({ error: "A record for this date already exists at this location" }, { status: 409 });

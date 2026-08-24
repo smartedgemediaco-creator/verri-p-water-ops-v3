@@ -12,7 +12,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 interface LedgerRecord {
   _id: string;
   date: string;
-  locationType: "factory" | "depot";
+  locationType: "factory" | "depot" | "truck";
   locationId: string;
   stockLoaded: number;
   returnedStock: number;
@@ -24,6 +24,14 @@ interface LedgerRecord {
   debtStatus: string;
   notes: string;
 }
+
+type EntityType = "factory" | "depot" | "truck";
+
+const ENTITY_TYPES: { value: EntityType; label: string }[] = [
+  { value: "factory", label: "Factory" },
+  { value: "depot", label: "Depot" },
+  { value: "truck", label: "Vehicle" },
+];
 
 interface DebtorEntry {
   name: string;
@@ -57,20 +65,34 @@ const LEDGER_FIELDS: { key: string; label: string; type: "number" | "text" }[] =
 
 export default function SalesLedgerPage() {
   const searchParams = useSearchParams();
-  const locationType = (searchParams.get("type") as "factory" | "depot") || "factory";
-  const isFactory = locationType === "factory";
+  const typeParam = searchParams.get("type");
+  const [locationType, setLocationType] = useState<EntityType>(
+    () => (typeParam === "depot" || typeParam === "truck" ? typeParam : "factory")
+  );
+
+  useEffect(() => {
+    if (typeParam === "depot" || typeParam === "truck" || typeParam === "factory") {
+      setLocationType(typeParam);
+    }
+  }, [typeParam]);
 
   const [allLocations, setAllLocations] = useState<{ id: string; name: string }[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState("");
 
   useEffect(() => {
-    const endpoint = locationType === "factory" ? "/api/factories" : "/api/depots";
+    const endpoint =
+      locationType === "factory" ? "/api/factories" : locationType === "depot" ? "/api/depots" : "/api/trucks";
     setSelectedLocationId("");
     fetch(endpoint)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          const mapped = data.map((item: { _id: string; name: string }) => ({ id: item._id, name: item.name }));
+          const mapped = data
+            .map((item: { _id: string; name?: string; plateNumber?: string }) => ({
+              id: item._id,
+              name: locationType === "truck" ? `Vehicle: ${item.plateNumber ?? ""}` : item.name ?? "",
+            }))
+            .filter((l) => l.name.trim() !== "");
           setAllLocations(mapped);
           if (mapped.length > 0) setSelectedLocationId(mapped[0].id);
         }
@@ -335,7 +357,7 @@ export default function SalesLedgerPage() {
   const transferTotal = paginatedRecords.reduce((s, r) => s + getTransfers(r).reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
   const bagsSoldTotal = paginatedRecords.reduce((s, r) => s + bagsSoldOf(r), 0);
 
-  const title = isFactory ? "Sales Ledger (Factories)" : "Sales Ledger (Depots)";
+  const title = "Sales";
 
   return (
     <div>
@@ -356,15 +378,24 @@ export default function SalesLedgerPage() {
         </Button>
       </div>
 
-      {locations.length > 0 && (
-        <div className="flex items-center gap-2 mb-4">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
-          <select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Entity:</label>
+          <select value={locationType} onChange={(e) => setLocationType(e.target.value as EntityType)}
             className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
-            {locations.map((loc) => (<option key={loc.id} value={loc.id}>{loc.name}</option>))}
+            {ENTITY_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
           </select>
         </div>
-      )}
+        {allLocations.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Location:</label>
+            <select value={selectedLocationId} onChange={(e) => setSelectedLocationId(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              {allLocations.map((loc) => (<option key={loc.id} value={loc.id}>{loc.name}</option>))}
+            </select>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 mb-6">
         {statCards.map((s, i) => (
