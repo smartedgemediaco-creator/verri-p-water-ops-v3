@@ -5,7 +5,7 @@ import { SalesLedger } from "@/lib/models";
 import { getUserFromRequest, isAdmin } from "@/lib/auth";
 
 const SKIP_KEYS = new Set(["date", "locationType", "locationId", "_id", "__v", "createdAt", "updatedAt"]);
-const STRING_FIELDS = new Set(["debtStatus", "notes"]);
+const STRING_FIELDS = new Set(["debtStatus", "notes", "productId"]);
 const ARRAY_FIELDS = new Set(["debtors", "transfers"]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

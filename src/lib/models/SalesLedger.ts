@@ -4,6 +4,9 @@ export interface ISalesLedger extends Document {
   date: string;
   locationType: "factory" | "depot" | "truck";
   locationId: string;
+  productId: string;
+  unitPrice: number;
+  amountSold: number;
   stockLoaded: number;
   returnedStock: number;
   leakages: number;
@@ -22,6 +25,9 @@ const SalesLedgerSchema = new Schema<ISalesLedger>(
     date: { type: String, required: true },
     locationType: { type: String, enum: ["factory", "depot", "truck"], required: true },
     locationId: { type: String, required: true },
+    productId: { type: String, default: "" },
+    unitPrice: { type: Number, default: 0 },
+    amountSold: { type: Number, default: 0 },
     stockLoaded: { type: Number, default: 0 },
     returnedStock: { type: Number, default: 0 },
     leakages: { type: Number, default: 0 },

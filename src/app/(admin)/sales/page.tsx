@@ -14,6 +14,9 @@ interface LedgerRecord {
   date: string;
   locationType: "factory" | "depot" | "truck";
   locationId: string;
+  productId?: string;
+  unitPrice?: number;
+  amountSold?: number;
   stockLoaded: number;
   returnedStock: number;
   leakages: number;
@@ -56,12 +59,19 @@ interface SettleTarget {
 
 const PAGE_SIZE = 10;
 
+interface ProductOption {
+  id: string;
+  name: string;
+  unitPrice: number;
+}
+
 const LEDGER_FIELDS: { key: string; label: string; type: "number" | "text" }[] = [
   { key: "stockLoaded", label: "Stock Loaded", type: "number" },
   { key: "returnedStock", label: "Returned Stock", type: "number" },
   { key: "leakages", label: "Leakages", type: "number" },
-  { key: "cashDelivered", label: "Cash Delivered", type: "number" },
 ];
+
+const RECALC_TRIGGERS = new Set(["stockLoaded", "returnedStock", "leakages", "unitPrice"]);
 
 export default function SalesLedgerPage() {
   const searchParams = useSearchParams();
@@ -100,7 +110,25 @@ export default function SalesLedgerPage() {
       .catch(() => {});
   }, [locationType]);
 
-  const locations = allLocations;
+  const [products, setProducts] = useState<ProductOption[]>([]);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped = data
+            .map((p: { _id: string; name?: string; unitPrice?: number }) => ({
+              id: p._id,
+              name: p.name ?? "",
+              unitPrice: Number(p.unitPrice) || 0,
+            }))
+            .filter((p: ProductOption) => p.name.trim() !== "");
+          setProducts(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [records, setRecords] = useState<LedgerRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +190,14 @@ export default function SalesLedgerPage() {
   const bagsSoldOf = (r: LedgerRecord) =>
     Math.max(0, (Number(r.stockLoaded) || 0) - (Number(r.returnedStock) || 0) - (Number(r.leakages) || 0));
 
+  const computeAmountSold = (r: Partial<LedgerRecord>) => {
+    const bags = Math.max(
+      0,
+      (Number(r.stockLoaded) || 0) - (Number(r.returnedStock) || 0) - (Number(r.leakages) || 0)
+    );
+    return Math.round(bags * (Number(r.unitPrice) || 0) * 100) / 100;
+  };
+
   const getTransfers = (d: LedgerRecord): TransferEntry[] =>
     (Array.isArray(d.transfers) ? d.transfers : []).map((x) => ({ name: x.name || "", amount: x.amount || 0 }));
 
@@ -187,15 +223,39 @@ export default function SalesLedgerPage() {
     { label: "Total Stock Loaded", value: totalStockLoaded, description: "bags loaded" },
     { label: "Total Returned", value: totalReturned, description: "bags returned" },
     { label: "Total Bags Sold", value: totalBagsSold, description: "loaded − returned − leakages" },
+    { label: "Total Sales Value", value: monthRecords.reduce((s, r) => s + (Number(r.amountSold) || 0), 0), prefix: "₦", description: "bags × unit price" },
     { label: "Total Leakages", value: totalLeakages, description: "bags lost" },
     { label: "Total Cash Delivered", value: totalCash, prefix: "₦", description: "total cash" },
     { label: "Total Amount Transferred", value: totalTransferred, prefix: "₦", description: "via transfer" },
   ];
 
+  const applyPatch = (id: string, patch: Record<string, unknown>) => {
+    setRecords((prev) => prev.map((r) => (r._id === id ? { ...r, ...patch } : r)));
+    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), ...patch } }));
+  };
+
   const handleChange = (id: string, field: string, rawValue: string) => {
-    const val: unknown = Number(rawValue) || 0;
-    setRecords((prev) => prev.map((r) => r._id === id ? { ...r, [field]: val } : r));
-    setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }));
+    const val = Number(rawValue) || 0;
+    const current = records.find((r) => r._id === id);
+    const next = { ...(current ?? {}), [field]: val } as Partial<LedgerRecord>;
+    const patch: Record<string, unknown> = { [field]: val };
+    if (RECALC_TRIGGERS.has(field)) patch.amountSold = computeAmountSold(next);
+    applyPatch(id, patch);
+  };
+
+  const handleProductChange = (id: string, productId: string) => {
+    const current = records.find((r) => r._id === id);
+    const product = products.find((p) => p.id === productId);
+    const patch: Record<string, unknown> = { productId };
+    if (product) {
+      patch.unitPrice = product.unitPrice;
+      patch.amountSold = computeAmountSold({ ...(current ?? {}), unitPrice: product.unitPrice });
+    }
+    applyPatch(id, patch);
+  };
+
+  const handleAmountSoldChange = (id: string, rawValue: string) => {
+    applyPatch(id, { amountSold: Number(rawValue) || 0 });
   };
 
   const updateTransfers = (id: string, updater: (list: TransferEntry[]) => TransferEntry[]) => {
@@ -409,14 +469,18 @@ export default function SalesLedgerPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[1400px] w-full text-xs">
+          <table className="min-w-[1800px] w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Product</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Unit Price</th>
                 {LEDGER_FIELDS.map((f) => (
                   <th key={f.key} className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{f.label}</th>
                 ))}
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Bags Sold</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount Sold</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Cash Delivered</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Transferred By</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount Transferred</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debtors Name</th>
@@ -426,15 +490,33 @@ export default function SalesLedgerPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={14} className="text-center py-10 text-gray-500">Loading...</td></tr>
               ) : paginatedRecords.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
+                <tr><td colSpan={14} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
               ) : (
                 paginatedRecords.map((d) => {
                   const editable = isCurrentDay(d.date);
                   return (
                     <tr key={d._id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/5">
                       <td className="px-1.5 py-1.5 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">{d.date}</td>
+                      <td className="px-1.5 py-1.5">
+                        <select value={d.productId ?? ""} onChange={(e) => handleProductChange(d._id, e.target.value)}
+                          disabled={!editable}
+                          className={`w-full min-w-[110px] px-1.5 py-1 text-xs border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${
+                            pendingChanges[d._id]?.productId != null
+                              ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800"
+                              : "border-gray-200 dark:border-gray-600"
+                          } ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`}>
+                          <option value="">—</option>
+                          {products.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+                        </select>
+                      </td>
+                      <td className="px-1.5 py-1.5">
+                        <input type="number" value={d.unitPrice ?? 0}
+                          onChange={(e) => handleChange(d._id, "unitPrice", e.target.value)}
+                          disabled={!editable} placeholder="₦"
+                          className={`${cls(d._id, "unitPrice")} ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
+                      </td>
                       {LEDGER_FIELDS.map((f) => (
                         <td key={f.key} className="px-1.5 py-1.5">
                           {f.type === "text" ? (
@@ -454,6 +536,18 @@ export default function SalesLedgerPage() {
                         <div className="w-full px-1.5 py-1 text-xs text-right border rounded border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 text-gray-800 dark:text-white/90 font-medium min-w-[52px]">
                           {bagsSoldOf(d).toLocaleString()}
                         </div>
+                      </td>
+                      <td className="px-1.5 py-1.5">
+                        <input type="number" value={d.amountSold ?? 0}
+                          onChange={(e) => handleAmountSoldChange(d._id, e.target.value)}
+                          disabled={!editable} placeholder="₦"
+                          className={`${cls(d._id, "amountSold")} ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
+                      </td>
+                      <td className="px-1.5 py-1.5">
+                        <input type="number" value={d.cashDelivered ?? 0}
+                          onChange={(e) => handleChange(d._id, "cashDelivered", e.target.value)}
+                          disabled={!editable} placeholder="₦"
+                          className={`${cls(d._id, "cashDelivered")} ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`} />
                       </td>
                       <td className="px-1.5 py-1.5 align-top">
                         <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.transfers != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
@@ -547,12 +641,20 @@ export default function SalesLedgerPage() {
               <tfoot>
                 <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-white/5 font-bold text-gray-800 dark:text-white/90">
                   <td className="px-1.5 py-2 text-xs">Totals</td>
+                  <td className="px-1.5 py-2 text-xs"></td>
+                  <td className="px-1.5 py-2 text-xs"></td>
                   {LEDGER_FIELDS.map((f) => (
                     <td key={f.key} className="px-1.5 py-2 text-xs text-right">
-                      {f.type === "text" ? "" : paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
+                      {paginatedRecords.reduce((s, r) => s + (Number((r as unknown as Record<string, number>)[f.key]) || 0), 0).toLocaleString()}
                     </td>
                   ))}
                   <td className="px-1.5 py-2 text-xs text-right">{bagsSoldTotal.toLocaleString()}</td>
+                  <td className="px-1.5 py-2 text-xs text-right">
+                    ₦{paginatedRecords.reduce((s, r) => s + (Number(r.amountSold) || 0), 0).toLocaleString()}
+                  </td>
+                  <td className="px-1.5 py-2 text-xs text-right">
+                    ₦{paginatedRecords.reduce((s, r) => s + (Number(r.cashDelivered) || 0), 0).toLocaleString()}
+                  </td>
                   <td className="px-1.5 py-2 text-xs text-right">{transferCount} transfer{transferCount !== 1 ? "s" : ""}</td>
                   <td className="px-1.5 py-2 text-xs text-right">₦{transferTotal.toLocaleString()}</td>
                   <td className="px-1.5 py-2 text-xs text-right">{debtorCount} debtor{debtorCount !== 1 ? "s" : ""}</td>
