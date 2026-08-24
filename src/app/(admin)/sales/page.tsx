@@ -507,7 +507,7 @@ export default function SalesLedgerPage() {
                               ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800"
                               : "border-gray-200 dark:border-gray-600"
                           } ${!editable ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50" : ""}`}>
-                          <option value="">—</option>
+                          <option value="">Select Product</option>
                           {products.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
                         </select>
                       </td>
