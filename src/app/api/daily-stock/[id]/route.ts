@@ -4,27 +4,11 @@ import { DailyStock, DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { dailyStockDeletedEmail } from "@/lib/emailTemplates";
+import { computeEndStock, flattenDay, getDailyStockColumns, syncStockToDailyStockEnd } from "@/lib/dailyStock";
 
 const SKIP_KEYS = new Set(["date", "locationType", "locationId", "_id", "__v", "createdAt", "updatedAt"]);
 const STRING_FIELDS = new Set(["staffName", "debtStatus"]);
 const ARRAY_FIELDS = new Set(["debtors"]);
-const SHORTAGE_LABEL_RE = /^shortages?$/i;
-
-function calcEndStock(record: Record<string, unknown>, shortageKeys: string[] = []) {
-  const shortageTotal = shortageKeys.reduce((sum, k) => sum + (Number(record[k]) || 0), 0);
-  return (Number(record.startStock) || 0)
-    + (Number(record.bagsProduced) || 0)
-    - (Number(record.factorySale) || 0)
-    - (Number(record.bigTruck) || 0)
-    - (Number(record.leakages) || 0)
-    - shortageTotal;
-}
-
-async function getDepotShortageKeys(locationType: string, locationId: string): Promise<string[]> {
-  if (locationType !== "depot") return [];
-  const columns = await DailyStockColumn.find({ locationType, locationId, type: "custom" }).lean();
-  return columns.filter((c) => SHORTAGE_LABEL_RE.test(c.label.trim())).map((c) => c.key);
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = getUserFromRequest(req);
@@ -61,25 +45,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (Object.prototype.hasOwnProperty.call(rootObj, key)) {
         (record as unknown as Record<string, number>)[key] = Number(val) || 0;
       } else {
-        // ensure custom map exists
-        if (!(record as any).custom) (record as any).custom = {};
-        // if custom is a Map, use set; otherwise treat as plain object
-        if (typeof (record as any).custom.set === "function") {
-          (record as any).custom.set(key, Number(val) || 0);
-        } else {
-          (record as any).custom[key] = Number(val) || 0;
-        }
+        // custom columns are stored in the `custom` Map (per schema)
+        if (!record.custom) record.custom = new Map<string, number>();
+        (record.custom as Map<string, number>).set(key, Number(val) || 0);
       }
     }
   }
 
-  const shortageKeys = await getDepotShortageKeys(record.locationType, record.locationId);
+  const cols = await getDailyStockColumns(record.locationType, record.locationId);
   // flatten custom into an object copy for endStock calculation
-  const obj = record.toObject();
-  if (obj.custom && typeof obj.custom === "object") Object.assign(obj, obj.custom as Record<string, unknown>);
-  record.endStock = calcEndStock(obj, shortageKeys);
+  const obj = flattenDay(record.toObject());
+  record.endStock = computeEndStock(obj, record.locationType, cols);
 
   await record.save();
+
+  // Keep the inventory (Stock) aligned with the daily stock endStock.
+  await syncStockToDailyStockEnd(record.locationType, record.locationId).catch(() => {});
+
   // return flattened object so client sees custom keys at top-level
   const out = record.toObject();
   if (out.custom && typeof out.custom === "object") Object.assign(out, out.custom as Record<string, unknown>);
@@ -96,7 +78,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const snapshot = record.toObject();
   const locationFilter = { locationType: record.locationType, locationId: record.locationId };
+  const deletedLocationType = record.locationType;
+  const deletedLocationId = record.locationId;
   await record.deleteOne();
+
+  // Re-sync inventory to the new latest daily stock endStock for this location.
+  await syncStockToDailyStockEnd(deletedLocationType, deletedLocationId).catch(() => {});
 
   const notifyEmail = process.env.DAILY_STOCK_NOTIFY_EMAIL;
   if (notifyEmail) {

@@ -4,6 +4,7 @@ import { DailyStock, DailyStockColumn } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { dailyStockRecordedEmail } from "@/lib/emailTemplates";
+import { computeEndStock, flattenDay, getDailyStockColumns, syncStockToDailyStockEnd } from "@/lib/dailyStock";
 
 function parseLocation(searchParams: URLSearchParams): { locationType: "factory" | "depot"; locationId: string } | null {
   const loc = searchParams.get("location");
@@ -13,14 +14,6 @@ function parseLocation(searchParams: URLSearchParams): { locationType: "factory"
     if (parsed.type && parsed.id) return { locationType: parsed.type, locationId: parsed.id };
   } catch { /* ignore */ }
   return null;
-}
-
-function calcEndStock(day: Record<string, unknown>) {
-  return (Number(day.startStock) || 0)
-    + (Number(day.bagsProduced) || 0)
-    - (Number(day.factorySale) || 0)
-    - (Number(day.bigTruck) || 0)
-    - (Number(day.leakages) || 0);
 }
 
 export async function GET(req: NextRequest) {
@@ -36,8 +29,10 @@ export async function GET(req: NextRequest) {
   const records = await DailyStock.find(filter).sort({ date: -1 }).lean();
   // flatten custom map/object into top-level fields so UI can read custom column keys
   const out = records.map((r) => {
-    if (r && (r as any).custom && typeof (r as any).custom === "object") {
-      try { return Object.assign({}, r, (r as any).custom); } catch { /* ignore */ }
+    const custom = r.custom as Map<string, number> | Record<string, number> | undefined;
+    if (custom && typeof custom === "object") {
+      const customObj = custom instanceof Map ? Object.fromEntries(custom.entries()) : custom;
+      return Object.assign({}, r, customObj);
     }
     return r;
   });
@@ -56,7 +51,8 @@ export async function POST(req: NextRequest) {
   const existing = await DailyStock.findOne({ date: body.date, locationType: body.locationType, locationId: body.locationId });
   if (existing) return NextResponse.json({ error: "A record for this date already exists at this location" }, { status: 409 });
 
-  const endStock = calcEndStock(body);
+  const cols = await getDailyStockColumns(body.locationType, body.locationId);
+  const endStock = computeEndStock(flattenDay(body), body.locationType, cols);
   // separate static fields from arbitrary custom columns
   const STATIC_KEYS = new Set([
     "date","locationType","locationId","startStock","bagsProduced","factorySale","bigTruck","returnedBigTruck","smallTruck1","returnedSmallTruck1","smallTruck2","returnedSmallTruck2","depot","tricycle","shortage","wastage","leakages","totalSold","totalReturned","endStock","staffName","debtors","debts","debtStatus","cashDelivered"
@@ -81,6 +77,9 @@ export async function POST(req: NextRequest) {
       html: dailyStockRecordedEmail({ recordedBy: user.email, date: body.date, data: { ...body, endStock }, customColumns, title: "New Day Created" }),
     }).catch(() => {});
   }
+
+  // Keep the inventory (Stock) aligned with the daily stock endStock.
+  await syncStockToDailyStockEnd(body.locationType, body.locationId).catch(() => {});
 
   return NextResponse.json(record, { status: 201 });
 }
