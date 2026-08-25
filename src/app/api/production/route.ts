@@ -20,13 +20,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Product and valid quantity are required" }, { status: 400 });
     }
 
-    // Production can happen at any location, but defaults to the factory.
-    let locationType: "factory" | "depot" | "truck" = body.locationType === "depot" || body.locationType === "truck" ? body.locationType : "factory";
+    // Production can happen at the factory or a depot, defaulting to factory.
+    let locationType: "factory" | "depot" = body.locationType === "depot" ? "depot" : "factory";
     let locationId: string | undefined = body.locationId;
 
     if (user.role === "factory-manager") {
       locationType = "factory";
-      locationId = typeof user.factoryId === "string" ? user.factoryId : (user.factoryId?._id as unknown as string) ?? body.factoryId;
+      const fid = user.factoryId as unknown as string | { _id?: unknown } | undefined;
+      locationId = fid
+        ? typeof fid === "string"
+          ? fid
+          : fid._id
+          ? String(fid._id)
+          : body.factoryId
+        : body.factoryId;
     }
 
     if (!locationId) {
