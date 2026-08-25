@@ -111,3 +111,5 @@ export { SupplierLedger } from "./SupplierLedger";
 export type { ISupplierLedger } from "./SupplierLedger";
 export { SalesLedger } from "./SalesLedger";
 export type { ISalesLedger } from "./SalesLedger";
+export { DashboardReset } from "./DashboardReset";
+export type { IDashboardReset } from "./DashboardReset";

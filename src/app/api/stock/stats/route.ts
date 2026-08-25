@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Production, Sale, Stock, Transfer, Wastage } from "@/lib/models";
+import { Production, Sale, Stock, Transfer, Wastage, DashboardReset } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import mongoose from "mongoose";
 
@@ -9,6 +9,12 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await connectDB();
+
+  // Reset baseline: when set, Produced / Sold / Pending Transfer only count
+  // activity on or after this date. History is preserved; the counters simply
+  // start fresh from the reset point. Available / Wastage are unaffected.
+  const resetDoc = await DashboardReset.findOne({ key: "stats" }).lean();
+  const resetAt = resetDoc?.resetAt ? new Date(resetDoc.resetAt) : null;
 
   const url = new URL(req.url);
   const filterLocationType = url.searchParams.get("locationType");
@@ -103,6 +109,20 @@ export async function GET(req: NextRequest) {
     saleFilter.date = { ...dateFilter };
     wasteFilter.date = { ...dateFilter };
     transferFilter.date = { ...dateFilter };
+  }
+
+  // Apply reset baseline to Produced / Sold / Pending Transfer (not Wastage).
+  if (resetAt) {
+    const applyReset = (f: Record<string, unknown>) => {
+      const existing = (f.date as Record<string, Date> | undefined) || {};
+      const merged: Record<string, Date> = { ...existing };
+      const cur = existing.$gte ? new Date(existing.$gte) : null;
+      if (!cur || resetAt > cur) merged.$gte = resetAt;
+      f.date = merged;
+    };
+    applyReset(prodFilter);
+    applyReset(saleFilter);
+    applyReset(transferFilter);
   }
 
   // Transfer filter for specific location
