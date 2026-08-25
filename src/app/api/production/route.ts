@@ -20,10 +20,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Product and valid quantity are required" }, { status: 400 });
     }
 
-    const factoryId = user.role === "factory-manager" ? user.factoryId : body.factoryId;
+    // Production can happen at any location, but defaults to the factory.
+    let locationType: "factory" | "depot" | "truck" = body.locationType === "depot" || body.locationType === "truck" ? body.locationType : "factory";
+    let locationId: string | undefined = body.locationId;
 
-    if (!factoryId) {
-      return NextResponse.json({ error: "No factory assigned" }, { status: 400 });
+    if (user.role === "factory-manager") {
+      locationType = "factory";
+      locationId = typeof user.factoryId === "string" ? user.factoryId : (user.factoryId?._id as unknown as string) ?? body.factoryId;
+    }
+
+    if (!locationId) {
+      return NextResponse.json({ error: "A production location is required" }, { status: 400 });
     }
 
     let prodDate = body.date;
@@ -33,14 +40,16 @@ export async function POST(req: NextRequest) {
     }
 
     const production = await Production.create({
-      factoryId,
+      factoryId: locationType === "factory" ? locationId : undefined,
+      locationType,
+      locationId,
       productId: body.productId,
       quantity: Number(body.quantity),
       date: prodDate || new Date(),
     });
 
     await Stock.findOneAndUpdate(
-      { locationType: "factory", locationId: factoryId, productId: body.productId },
+      { locationType, locationId, productId: body.productId },
       { $inc: { quantity: Number(body.quantity) } },
       { upsert: true }
     );
@@ -55,17 +64,21 @@ export async function POST(req: NextRequest) {
       entityId: production._id.toString(),
       description: `Produced ${body.quantity} units of ${prodName}`,
       userId: user.userId,
-      domainType: "factory",
-      domainId: factoryId,
+      domainType: locationType,
+      domainId: locationId,
       productId: body.productId,
-      metadata: { quantity: body.quantity, date: body.date },
+      metadata: { quantity: body.quantity, date: body.date, locationType, locationId },
     });
 
-    const factory = await (await import("@/lib/models")).Factory.findById(factoryId).select("name").lean();
+    const locName = locationType === "factory"
+      ? ((await (await import("@/lib/models")).Factory.findById(locationId).select("name").lean()) as { name?: string } | null)?.name
+      : locationType === "depot"
+      ? ((await (await import("@/lib/models")).Depot.findById(locationId).select("name").lean()) as { name?: string } | null)?.name
+      : "Location";
     notifyProductionBatch(
       prodName,
       Number(body.quantity),
-      (factory as { name?: string } | null)?.name ?? "Factory"
+      locName ?? "Location"
     ).catch(() => {});
 
     return NextResponse.json(production, { status: 201 });

@@ -12,7 +12,7 @@ import Button from "@/components/ui/button/Button";
 import { useAuth } from "@/context/AuthContext";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { formatDate } from "@/lib/dateFormat";
-import { CloseIcon } from "@/icons";
+import { CloseIcon, AlertIcon } from "@/icons";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash" },
@@ -55,6 +55,7 @@ export default function NewSalePage() {
   const customerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [stockWarn, setStockWarn] = useState<{ remaining: number } | null>(null);
   const [lastSale, setLastSale] = useState<{
     productName: string;
     quantity: number;
@@ -257,13 +258,16 @@ export default function NewSalePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        showError(err.error || "Failed to record sale");
+        showError(data.error || "Failed to record sale");
         setSubmitting(false);
-        throw new Error(err.error || "Failed to record sale");
+        throw new Error(data.error || "Failed to record sale");
       }
       showSuccess("Sale recorded");
+      if (data.stockWarning) {
+        setStockWarn({ remaining: Number(data.remainingStock) || 0 });
+      }
       const product = productsList.find((p) => p.value === productId);
       const loc = locations.find((l) => l.value === locationId);
       setLastSale({
@@ -619,6 +623,27 @@ export default function NewSalePage() {
               >
                 View All Sales
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {stockWarn && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 mx-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                <AlertIcon className="size-5" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Low Stock Warning</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              This sale has taken inventory below zero at this location. Current stock on hand is{" "}
+              <strong className="text-orange-600 dark:text-orange-400">{stockWarn.remaining.toLocaleString()}</strong> units.
+              The sale was still recorded, but please reconcile stock (production or transfer) to cover the shortfall.
+            </p>
+            <div className="flex justify-end mt-5">
+              <Button variant="primary" onClick={() => setStockWarn(null)}>Understood</Button>
             </div>
           </div>
         </div>

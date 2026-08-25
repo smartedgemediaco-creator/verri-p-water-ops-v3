@@ -2,6 +2,8 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IProduction extends Document {
   factoryId: Types.ObjectId;
+  locationType: "factory" | "depot" | "truck";
+  locationId: Types.ObjectId;
   productId: Types.ObjectId;
   quantity: number;
   date: Date;
@@ -11,7 +13,9 @@ export interface IProduction extends Document {
 
 const ProductionSchema = new Schema<IProduction>(
   {
-    factoryId: { type: Schema.Types.ObjectId, ref: "Factory", required: true },
+    factoryId: { type: Schema.Types.ObjectId, ref: "Factory" },
+    locationType: { type: String, enum: ["factory", "depot", "truck"], default: "factory" },
+    locationId: { type: Schema.Types.ObjectId, refPath: "locationType", required: true },
     productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
     quantity: { type: Number, required: true, min: 0 },
     date: { type: Date, default: Date.now },

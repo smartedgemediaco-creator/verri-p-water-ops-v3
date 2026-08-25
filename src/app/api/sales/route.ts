@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { Sale, Factory, Depot, Truck, PosDevice } from "@/lib/models";
+import { Sale, Factory, Depot, Truck, PosDevice, Stock } from "@/lib/models";
 import { getUserFromRequest } from "@/lib/auth";
 import { logActivity } from "@/lib/logActivity";
 
@@ -139,8 +139,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Sales are revenue-only — no stock check or deduction
+    // Sales deduct the sold quantity from inventory at the sale location.
+    // Stock is allowed to go negative so revenue is never lost; callers are
+    // warned when this happens via `stockWarning` in the response.
     const sale = await Sale.create(body);
+
+    let stockWarning = false;
+    let remainingStock = 0;
+    const saleProductId = sale.productId;
+    const saleLocationType = sale.locationType;
+    const saleLocationId = sale.locationId;
+    const saleQty = Number(sale.quantity) || 0;
+    if (saleProductId && saleLocationType && saleLocationId && saleQty > 0) {
+      const updated = await Stock.findOneAndUpdate(
+        { locationType: saleLocationType, locationId: saleLocationId, productId: saleProductId },
+        { $inc: { quantity: -saleQty } },
+        { upsert: true, new: true }
+      );
+      remainingStock = Number(updated?.quantity) || 0;
+      if (remainingStock < 0) stockWarning = true;
+    }
 
     try {
       await logActivity({
@@ -164,7 +182,10 @@ export async function POST(req: NextRequest) {
       console.error("Failed to log activity for sale", sale._id);
     }
 
-    return NextResponse.json(sale, { status: 201 });
+    return NextResponse.json(
+      { ...sale.toObject(), stockWarning, remainingStock },
+      { status: 201 }
+    );
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Internal server error";
     console.error("Sales POST error:", e);

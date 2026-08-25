@@ -16,9 +16,10 @@ export default function NewProductionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [products, setProducts] = useState<{ value: string; label: string }[]>([]);
-  const [factories, setFactories] = useState<{ value: string; label: string }[]>([]);
+  const [locations, setLocations] = useState<{ value: string; label: string }[]>([]);
 
-  const [factoryId, setFactoryId] = useState("");
+  const [locationType, setLocationType] = useState("factory");
+  const [locationId, setLocationId] = useState("");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [date, setDate] = useState("");
@@ -35,34 +36,37 @@ export default function NewProductionPage() {
       .catch(() => showError("Failed to load products"));
   }, []);
 
+  // Factory managers are locked to their own factory.
   useEffect(() => {
     if (isFactoryManager && user?.factoryId) {
       const id = typeof user.factoryId === "string" ? user.factoryId : user.factoryId._id;
       const name = user.factoryName ?? (typeof user.factoryId === "object" ? user.factoryId.name : "My Factory");
-      setFactories([{ value: id, label: name }]); // eslint-disable-line react-hooks/set-state-in-effect
-      setFactoryId(id); // eslint-disable-line react-hooks/set-state-in-effect
-    } else {
-      fetch("/api/factories")
-        .then((r) => r.json())
-        .then((data: { _id: string; name: string }[]) =>
-          setFactories(data.map((f) => ({ value: f._id, label: f.name })))
-        )
-        .catch(() => showError("Failed to load factories"));
+      setLocationType("factory"); // eslint-disable-line react-hooks/set-state-in-effect
+      setLocations([{ value: id, label: name }]);
+      setLocationId(id);
+      return;
     }
-  }, [isFactoryManager, user?.factoryId, user?.factoryName]);
+    const endpoint = locationType === "depot" ? "/api/depots" : "/api/factories";
+    fetch(endpoint)
+      .then((r) => r.json())
+      .then((data: { _id: string; name?: string }[]) =>
+        setLocations(data.map((d) => ({ value: d._id, label: d.name ?? d._id })))
+      )
+      .catch(() => showError(`Failed to load ${locationType}s`));
+  }, [isFactoryManager, locationType, user?.factoryId, user?.factoryName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId) { showError("Select a product"); return; }
     if (!quantity || Number(quantity) <= 0) { showError("Enter a valid quantity"); return; }
-    if (!factoryId) { showError("Select a factory"); return; }
+    if (!locationId) { showError("Select a location"); return; }
     setConfirmOpen(true);
   };
 
   const doSubmit = async () => {
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = { productId, quantity: Number(quantity), factoryId };
+      const body: Record<string, unknown> = { productId, quantity: Number(quantity), locationType, locationId };
       if (date) body.date = date;
 
       const res = await fetch("/api/production", {
@@ -104,7 +108,7 @@ export default function NewProductionPage() {
           </div>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Log a production batch. Stock will be added to the selected factory automatically.
+          Log a production batch. Stock will be added to the selected location automatically.
         </p>
       </div>
 
@@ -120,13 +124,32 @@ export default function NewProductionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Factory</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Type</label>
           {isFactoryManager ? (
             <div className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
-              {factories.find((f) => f.value === factoryId)?.label ?? "Your assigned factory"}
+              Factory (your assigned factory)
             </div>
           ) : (
-            <Select options={factories} placeholder="Select factory" value={factoryId} onChange={setFactoryId} />
+            <Select
+              options={[
+                { value: "factory", label: "Factory" },
+                { value: "depot", label: "Depot" },
+              ]}
+              placeholder="Select location type"
+              value={locationType}
+              onChange={(v) => { setLocationType(v); setLocationId(""); }}
+            />
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+          {isFactoryManager ? (
+            <div className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
+              {locations.find((l) => l.value === locationId)?.label ?? "Your assigned factory"}
+            </div>
+          ) : (
+            <Select options={locations} placeholder={`Select ${locationType}`} value={locationId} onChange={setLocationId} />
           )}
         </div>
 
@@ -155,8 +178,8 @@ export default function NewProductionPage() {
             <p>You are about to record a production batch:</p>
             <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300">
               <li><strong>Product:</strong> {products.find((p) => p.value === productId)?.label ?? "—"}</li>
-              <li><strong>Quantity:</strong> {quantity}</li>
-              <li><strong>Factory:</strong> {factories.find((f) => f.value === factoryId)?.label ?? "—"}</li>
+               <li><strong>Quantity:</strong> {quantity}</li>
+               <li><strong>Location:</strong> {locations.find((l) => l.value === locationId)?.label ?? "—"}</li>
             </ul>
           </>
         }
