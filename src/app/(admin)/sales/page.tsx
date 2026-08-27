@@ -22,7 +22,7 @@ interface LedgerRecord {
   leakages: number;
   cashDelivered: number;
   transfers: { name: string; amount: number }[];
-  debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
+  debtors: { name: string; amount: number; bags?: number; settlements?: { amount: number; date?: string; note?: string }[]; bagSettlements?: { amount: number; date?: string; note?: string }[] }[];
   debts: number;
   debtStatus: string;
   notes: string;
@@ -39,7 +39,9 @@ const ENTITY_TYPES: { value: EntityType; label: string }[] = [
 interface DebtorEntry {
   name: string;
   amount: number;
+  bags?: number;
   settlements?: { amount: number; date?: string; note?: string }[];
+  bagSettlements?: { amount: number; date?: string; note?: string }[];
 }
 
 interface TransferEntry {
@@ -55,6 +57,7 @@ interface SettleTarget {
   amount: number;
   settled: number;
   remaining: number;
+  kind: "cash" | "bags";
 }
 
 const PAGE_SIZE = 10;
@@ -98,10 +101,17 @@ export default function SalesLedgerPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           const mapped = data
-            .map((item: { _id: string; name?: string; plateNumber?: string }) => ({
-              id: item._id,
-              name: locationType === "truck" ? `Vehicle: ${item.plateNumber ?? ""}` : item.name ?? "",
-            }))
+            .map((item: { _id: string; name?: string; plateNumber?: string }) => {
+              if (locationType === "truck") {
+                const name = (item.name ?? "").trim();
+                const plate = (item.plateNumber ?? "").trim();
+                if (name && plate) return { id: item._id, name: `${name} - ${plate}` };
+                if (name) return { id: item._id, name };
+                if (plate) return { id: item._id, name: `Vehicle: ${plate}` };
+                return { id: item._id, name: "" };
+              }
+              return { id: item._id, name: item.name ?? "" };
+            })
             .filter((l) => l.name.trim() !== "");
           setAllLocations(mapped);
           if (mapped.length > 0) setSelectedLocationId(mapped[0].id);
@@ -202,13 +212,25 @@ export default function SalesLedgerPage() {
     (Array.isArray(d.transfers) ? d.transfers : []).map((x) => ({ name: x.name || "", amount: x.amount || 0 }));
 
   const getDebtors = (d: LedgerRecord): DebtorEntry[] =>
-    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({ name: x.name || "", amount: x.amount || 0, settlements: Array.isArray(x.settlements) ? x.settlements : [] }));
+    (Array.isArray(d.debtors) ? d.debtors : []).map((x) => ({
+      name: x.name || "",
+      amount: x.amount || 0,
+      bags: (x as DebtorEntry).bags || 0,
+      settlements: Array.isArray(x.settlements) ? x.settlements : [],
+      bagSettlements: Array.isArray((x as DebtorEntry).bagSettlements) ? (x as DebtorEntry).bagSettlements! : [],
+    }));
 
   const debtSettledTotal = (debtor: DebtorEntry) =>
     (Array.isArray(debtor.settlements) ? debtor.settlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
   const debtRemaining = (debtor: DebtorEntry) =>
     Math.max(0, (Number(debtor.amount) || 0) - debtSettledTotal(debtor));
+
+  const bagSettledTotal = (debtor: DebtorEntry) =>
+    (Array.isArray(debtor.bagSettlements) ? debtor.bagSettlements : []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+  const bagRemaining = (debtor: DebtorEntry) =>
+    Math.max(0, (Number(debtor.bags) || 0) - bagSettledTotal(debtor));
 
   const totalDays = monthRecords.length;
   const totalStockLoaded = sumField(monthRecords, "stockLoaded");
@@ -286,27 +308,34 @@ export default function SalesLedgerPage() {
     setPendingChanges((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), debtors: next } }));
   };
 
-  const handleDebtorChange = (id: string, index: number, field: "name" | "amount", value: string) => {
+  const handleDebtorChange = (id: string, index: number, field: "name" | "amount" | "bags", value: string) => {
     updateDebtors(id, (list) => list.map((d, i) =>
-      i === index ? { ...d, [field]: field === "amount" ? Number(value) || 0 : value } : d
+      i === index ? { ...d, [field]: field === "name" ? value : Number(value) || 0 } : d
     ));
   };
 
   const handleDebtorAdd = (id: string) => {
-    updateDebtors(id, (list) => [...list, { name: "", amount: 0, settlements: [] }]);
+    updateDebtors(id, (list) => [...list, { name: "", amount: 0, bags: 0, settlements: [], bagSettlements: [] }]);
   };
 
   const handleDebtorRemove = (id: string, index: number) => {
     updateDebtors(id, (list) => list.filter((_, i) => i !== index));
   };
 
-  const openSettle = (record: LedgerRecord, index: number) => {
+  const openSettle = (record: LedgerRecord, index: number, kind: "cash" | "bags" = "cash") => {
     const debtor = getDebtors(record)[index];
     if (!debtor) return;
-    const settled = debtSettledTotal(debtor);
-    const remaining = debtRemaining(debtor);
-    setSettleTarget({ recordId: record._id, date: record.date, index, name: debtor.name || "", amount: Number(debtor.amount) || 0, settled, remaining });
-    setSettleAmount(remaining > 0 ? String(remaining) : "");
+    if (kind === "bags") {
+      const settled = bagSettledTotal(debtor);
+      const remaining = bagRemaining(debtor);
+      setSettleTarget({ recordId: record._id, date: record.date, index, name: debtor.name || "", amount: Number(debtor.bags) || 0, settled, remaining, kind: "bags" });
+      setSettleAmount(remaining > 0 ? String(remaining) : "");
+    } else {
+      const settled = debtSettledTotal(debtor);
+      const remaining = debtRemaining(debtor);
+      setSettleTarget({ recordId: record._id, date: record.date, index, name: debtor.name || "", amount: Number(debtor.amount) || 0, settled, remaining, kind: "cash" });
+      setSettleAmount(remaining > 0 ? String(remaining) : "");
+    }
     setSettleNote("");
   };
 
@@ -320,7 +349,9 @@ export default function SalesLedgerPage() {
       const record = records.find((r) => r._id === settleTarget.recordId);
       const nextDebtors = getDebtors(record ?? ({} as LedgerRecord)).map((d, i) =>
         i === settleTarget.index
-          ? { ...d, settlements: [...(Array.isArray(d.settlements) ? d.settlements : []), { amount, date: new Date().toISOString(), note: settleNote }] }
+          ? settleTarget.kind === "bags"
+            ? { ...d, bagSettlements: [...(Array.isArray(d.bagSettlements) ? d.bagSettlements : []), { amount, date: new Date().toISOString(), note: settleNote }] }
+            : { ...d, settlements: [...(Array.isArray(d.settlements) ? d.settlements : []), { amount, date: new Date().toISOString(), note: settleNote }] }
           : d
       );
       const res = await fetch(`/api/sales-ledger/${settleTarget.recordId}`, {
@@ -412,7 +443,9 @@ export default function SalesLedgerPage() {
 
   const debtorCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).length, 0);
   const debtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.amount) || 0), 0), 0);
+  const bagDebtorTotal = paginatedRecords.reduce((s, r) => s + getDebtors(r).reduce((a, dd) => a + (Number(dd.bags) || 0), 0), 0);
   const unsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => debtRemaining(dd) > 0).length, 0);
+  const bagUnsettledCount = paginatedRecords.reduce((s, r) => s + getDebtors(r).filter((dd) => bagRemaining(dd) > 0).length, 0);
   const transferCount = paginatedRecords.reduce((s, r) => s + getTransfers(r).length, 0);
   const transferTotal = paginatedRecords.reduce((s, r) => s + getTransfers(r).reduce((a, t) => a + (Number(t.amount) || 0), 0), 0);
   const bagsSoldTotal = paginatedRecords.reduce((s, r) => s + bagsSoldOf(r), 0);
@@ -469,7 +502,7 @@ export default function SalesLedgerPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-[1800px] w-full text-xs">
+          <table className="min-w-[1940px] w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
@@ -484,15 +517,16 @@ export default function SalesLedgerPage() {
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Transferred By</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount Transferred</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debtors Name</th>
-                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt (Cash)</th>
+                <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Debt (Bags)</th>
                 <th className="px-1.5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={14} className="text-center py-10 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={15} className="text-center py-10 text-gray-500">Loading...</td></tr>
               ) : paginatedRecords.length === 0 ? (
-                <tr><td colSpan={14} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
+                <tr><td colSpan={15} className="text-center py-10 text-gray-500">No records yet. Click &quot;Add New Day&quot; to start tracking.</td></tr>
               ) : (
                 paginatedRecords.map((d) => {
                   const editable = isCurrentDay(d.date);
@@ -610,7 +644,7 @@ export default function SalesLedgerPage() {
                               {debtor.name.trim() && Number(debtor.amount) > 0 && debtRemaining(debtor) <= 0 ? (
                                 <span className="px-1 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap">✓ Settled</span>
                               ) : (
-                                <button onClick={() => openSettle(d, di)}
+                                <button onClick={() => openSettle(d, di, "cash")}
                                   className="text-[9px] font-medium text-brand-500 hover:text-brand-700 whitespace-nowrap">settle</button>
                               )}
                             </div>
@@ -623,6 +657,33 @@ export default function SalesLedgerPage() {
                           )}
                           {getDebtors(d).filter((dd) => debtRemaining(dd) > 0).length > 0 && (
                             <div className="text-[9px] text-gray-400">{getDebtors(d).filter((dd) => debtRemaining(dd) > 0).length} unsettled</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-1.5 py-1.5 align-top">
+                        <div className={`rounded border p-1.5 space-y-1 min-w-[140px] ${pendingChanges[d._id]?.debtors != null ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-200 dark:ring-amber-800" : "border-gray-200 dark:border-gray-600"}`}>
+                          {getDebtors(d).map((debtor, di) => (
+                            <div key={di} className="flex items-center gap-1 justify-between">
+                              <input type="number" value={debtor.bags ?? 0}
+                                onChange={(e) => handleDebtorChange(d._id, di, "bags", e.target.value)}
+                                placeholder="bags"
+                                className="w-20 px-1.5 py-1 text-xs text-right border rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-white/90 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none border-gray-200 dark:border-gray-600" />
+                              {debtor.name.trim() && Number(debtor.bags) > 0 && bagRemaining(debtor) <= 0 ? (
+                                <span className="px-1 py-1 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded whitespace-nowrap">✓ Settled</span>
+                              ) : (
+                                <button onClick={() => openSettle(d, di, "bags")}
+                                  className="text-[9px] font-medium text-brand-500 hover:text-brand-700 whitespace-nowrap">settle</button>
+                              )}
+                            </div>
+                          ))}
+                          {getDebtors(d).length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-600 pt-1 flex items-center justify-between text-[10px] font-semibold text-gray-800 dark:text-white/90">
+                              <span>Total</span>
+                              <span>{getDebtors(d).reduce((a, dd) => a + (Number(dd.bags) || 0), 0).toLocaleString()} bags</span>
+                            </div>
+                          )}
+                          {getDebtors(d).filter((dd) => bagRemaining(dd) > 0).length > 0 && (
+                            <div className="text-[9px] text-gray-400">{getDebtors(d).filter((dd) => bagRemaining(dd) > 0).length} unsettled</div>
                           )}
                         </div>
                       </td>
@@ -661,6 +722,10 @@ export default function SalesLedgerPage() {
                   <td className="px-1.5 py-2 text-xs text-right">
                     <span>₦{debtorTotal.toLocaleString()}</span>
                     {unsettledCount > 0 && <span className="ml-2 text-red-500 font-normal">{unsettledCount} unsettled</span>}
+                  </td>
+                  <td className="px-1.5 py-2 text-xs text-right">
+                    <span>{bagDebtorTotal.toLocaleString()} bags</span>
+                    {bagUnsettledCount > 0 && <span className="ml-2 text-red-500 font-normal">{bagUnsettledCount} unsettled</span>}
                   </td>
                   <td></td>
                 </tr>
@@ -719,7 +784,7 @@ export default function SalesLedgerPage() {
       {settleTarget && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSettleTarget(null)}>
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Settle Debt</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Settle Debt {settleTarget.kind === "bags" ? "(Bags)" : "(Cash)"}</h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Debtor:</span>
@@ -731,25 +796,25 @@ export default function SalesLedgerPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Debt:</span>
-                <span className="font-medium text-red-600">₦{settleTarget.amount.toLocaleString()}</span>
+                <span className="font-medium text-red-600">{settleTarget.kind === "bags" ? `${settleTarget.amount.toLocaleString()} bags` : `₦${settleTarget.amount.toLocaleString()}`}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Settled So Far:</span>
-                <span className="font-medium text-green-600">₦{settleTarget.settled.toLocaleString()}</span>
+                <span className="font-medium text-green-600">{settleTarget.kind === "bags" ? `${settleTarget.settled.toLocaleString()} bags` : `₦${settleTarget.settled.toLocaleString()}`}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Outstanding:</span>
-                <span className="font-bold text-red-600">₦{settleTarget.remaining.toLocaleString()}</span>
+                <span className="font-bold text-red-600">{settleTarget.kind === "bags" ? `${settleTarget.remaining.toLocaleString()} bags` : `₦${settleTarget.remaining.toLocaleString()}`}</span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount Settled (₦)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{settleTarget.kind === "bags" ? "Bags Settled (bags)" : "Amount Settled (₦)"}</label>
               <input type="number" value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder="0"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note (optional)</label>
-              <input type="text" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} placeholder="e.g. cash payment"
+              <input type="text" value={settleNote} onChange={(e) => setSettleNote(e.target.value)} placeholder={settleTarget.kind === "bags" ? "e.g. bags returned" : "e.g. cash payment"}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />
             </div>
             <div className="flex gap-3">

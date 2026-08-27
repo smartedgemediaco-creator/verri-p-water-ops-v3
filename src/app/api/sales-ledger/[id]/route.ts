@@ -25,10 +25,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ? (val as any[]).map((d) => ({
             name: String(d?.name ?? "").trim(),
             amount: Number(d?.amount) || 0,
+            bags: Number((d as any)?.bags) || 0,
             ...(key === "debtors"
               ? {
                   settlements: Array.isArray(d?.settlements)
                     ? d.settlements.map((s: any) => ({
+                        amount: Number(s?.amount) || 0,
+                        date: s?.date ? String(s.date) : new Date().toISOString(),
+                        note: s?.note ? String(s.note) : "",
+                      }))
+                    : [],
+                  bagSettlements: Array.isArray((d as any)?.bagSettlements)
+                    ? (d as any).bagSettlements.map((s: any) => ({
                         amount: Number(s?.amount) || 0,
                         date: s?.date ? String(s.date) : new Date().toISOString(),
                         note: s?.note ? String(s.note) : "",

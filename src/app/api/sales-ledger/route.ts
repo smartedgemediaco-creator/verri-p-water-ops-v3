@@ -44,6 +44,26 @@ export async function POST(req: NextRequest) {
   const existing = await SalesLedger.findOne({ date: body.date, locationType: body.locationType, locationId: body.locationId });
   if (existing) return NextResponse.json({ error: "A record for this date already exists at this location" }, { status: 409 });
 
+  const sanitizedDebtors = Array.isArray(body.debtors)
+    ? body.debtors.map((d: { name?: unknown; amount?: unknown; bags?: unknown; settlements?: unknown; bagSettlements?: unknown }) => ({
+        name: String(d?.name ?? "").trim(),
+        amount: Number(d?.amount) || 0,
+        bags: Number((d as { bags?: unknown })?.bags) || 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        settlements: Array.isArray(d?.settlements) ? (d.settlements as any[]).map((s: any) => ({
+          amount: Number(s?.amount) || 0,
+          date: s?.date ? String(s.date) : new Date().toISOString(),
+          note: s?.note ? String(s.note) : "",
+        })) : [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bagSettlements: Array.isArray((d as any)?.bagSettlements) ? ((d as any).bagSettlements as any[]).map((s: any) => ({
+          amount: Number(s?.amount) || 0,
+          date: s?.date ? String(s.date) : new Date().toISOString(),
+          note: s?.note ? String(s.note) : "",
+        })) : [],
+      }))
+    : [];
+
   const record = await SalesLedger.create({
     date: body.date,
     locationType: body.locationType,
@@ -61,8 +81,8 @@ export async function POST(req: NextRequest) {
           amount: Number(t?.amount) || 0,
         }))
       : [],
-    debtors: Array.isArray(body.debtors) ? body.debtors : [],
-    debts: Number(body.debts) || 0,
+    debtors: sanitizedDebtors,
+    debts: sanitizedDebtors.reduce((sum: number, d: { amount: number }) => sum + (Number(d.amount) || 0), 0),
     debtStatus: body.debtStatus || "pending",
     notes: body.notes || "",
   });

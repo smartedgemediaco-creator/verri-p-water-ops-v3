@@ -12,7 +12,7 @@ export interface ISalesLedger extends Document {
   leakages: number;
   cashDelivered: number;
   transfers: { name: string; amount: number }[];
-  debtors: { name: string; amount: number; settlements?: { amount: number; date?: string; note?: string }[] }[];
+  debtors: { name: string; amount: number; bags?: number; settlements?: { amount: number; date?: string; note?: string }[]; bagSettlements?: { amount: number; date?: string; note?: string }[] }[];
   debts: number;
   debtStatus: "pending" | "partial" | "paid";
   notes: string;
