@@ -83,6 +83,11 @@ export default function AdminDashboardPage() {
   const [todaySales, setTodaySales] = useState(0);
   const [yesterdaySales, setYesterdaySales] = useState(0);
   const [todayCosts, setTodayCosts] = useState(0);
+  const [salesLabelDate, setSalesLabelDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const [isLiveToday, setIsLiveToday] = useState(true);
   const triggerRefresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
@@ -152,18 +157,48 @@ export default function AdminDashboardPage() {
           setRecentActivity(logs.slice(0, 5));
         })
         .catch((e) => console.error("Dashboard fetch failed:", e));
-      // today's & yesterday's sales stats — also resilient
-      const today = new Date(); const todayStart = today.toISOString().slice(0, 10);
-      const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const yesterdayStart = yesterday.toISOString().slice(0, 10);
+      // Use local date (WAT) not UTC – sales are recorded EOD local time
+      const toLocalISO = (d: Date) => {
+        const y = d.getFullYear();
+        const m = `${d.getMonth() + 1}`.padStart(2, "0");
+        const day = `${d.getDate()}`.padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
+      const today = new Date(); const todayStart = toLocalISO(today);
+      const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const yesterdayStart = toLocalISO(yesterday);
+      const twoDaysAgo = new Date(today); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2); const twoDaysAgoStart = toLocalISO(twoDaysAgo);
       Promise.all([
         safeFetch(`/api/sales/stats?startDate=${todayStart}`),
         safeFetch(`/api/sales/stats?startDate=${yesterdayStart}&endDate=${yesterdayStart}`),
+        safeFetch(`/api/sales/stats?startDate=${twoDaysAgoStart}&endDate=${twoDaysAgoStart}`),
         safeFetch(`/api/costs?startDate=${todayStart}`),
-      ]).then(([todayData, yesterdayData, todayCostsData]) => {
-        setTodaySales((todayData as { grandTotal?: number } | null)?.grandTotal ?? 0);
-        setYesterdaySales((yesterdayData as { grandTotal?: number } | null)?.grandTotal ?? 0);
+        safeFetch(`/api/costs?startDate=${yesterdayStart}&endDate=${yesterdayStart}`),
+      ]).then(([todayData, yesterdayData, twoDaysAgoData, todayCostsData, yesterdayCostsData]) => {
+        const tSales = (todayData as { grandTotal?: number } | null)?.grandTotal ?? 0;
+        const ySales = (yesterdayData as { grandTotal?: number } | null)?.grandTotal ?? 0;
+        const twoSales = (twoDaysAgoData as { grandTotal?: number } | null)?.grandTotal ?? 0;
+        // Sales are recorded EOD – if today is 0, show the most recent day with sales as "latest" to avoid 100% loss flash
+        let effectiveSales = tSales;
+        let effectivePrev = ySales;
+        let effectiveLabelDate = todayStart;
+        let isLive = true;
+        if (tSales === 0 && ySales > 0) {
+          effectiveSales = ySales;
+          effectivePrev = twoSales;
+          effectiveLabelDate = yesterdayStart;
+          isLive = false;
+        }
+        setTodaySales(effectiveSales);
+        setYesterdaySales(effectivePrev);
+        setSalesLabelDate(effectiveLabelDate);
+        setIsLiveToday(isLive);
         const costsArr = Array.isArray(todayCostsData) ? todayCostsData : (todayCostsData as { costs?: unknown[] } | null)?.costs ?? [];
-        setTodayCosts((costsArr as { amount?: number }[]).reduce((s: number, c: { amount?: number }) => s + (c.amount ?? 0), 0));
+        const yCostsArr = Array.isArray(yesterdayCostsData) ? yesterdayCostsData : (yesterdayCostsData as { costs?: unknown[] } | null)?.costs ?? [];
+        const tCosts = (costsArr as { amount?: number }[]).reduce((s: number, c: { amount?: number }) => s + (c.amount ?? 0), 0);
+        const yCosts = (yCostsArr as { amount?: number }[]).reduce((s: number, c: { amount?: number }) => s + (c.amount ?? 0), 0);
+        // Same EOD handling for costs
+        const effCosts = tCosts === 0 && yCosts > 0 ? yCosts : tCosts;
+        setTodayCosts(effCosts);
       }).catch((e) => console.error("Dashboard day-stats fetch failed:", e));
     };
     fetchStats();
@@ -249,11 +284,14 @@ export default function AdminDashboardPage() {
         <LiveClock showDate showTime />
       </div>
 
-      {/* Top summary row */}
+      {/* Top summary row – EOD aware: sales recorded at end of day, so show latest recorded day when today is empty */}
       {(() => {
         const todayProfit = todaySales - todayCosts;
         const salesChange = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0;
         const trend = salesChange > 0 ? "up" : salesChange < 0 ? "down" : "flat";
+        const salesLabel = isLiveToday ? "Today's Sales" : `Sales — ${salesLabelDate}`;
+        const costLabel = isLiveToday ? "Today's Cost" : `Cost — ${salesLabelDate}`;
+        const profitLabel = isLiveToday ? "Today's Profit" : `Profit — ${salesLabelDate}`;
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-6">
             <Link href="/sales" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
@@ -261,22 +299,32 @@ export default function AdminDashboardPage() {
               <AutoAmount value={stats.totalSales.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
             </Link>
             <Link href="/sales" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
-              <p className="stat-label mb-0.5">Today&apos;s Sales</p>
+              <p className="stat-label mb-0.5">{salesLabel}</p>
               <AutoAmount value={todaySales.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
               <div className="flex items-center gap-1 mt-1">
-                {trend === "up" ? <TrendingUpIcon className="w-3.5 h-3.5 text-emerald-500" /> : trend === "down" ? <TrendingDownIcon className="w-3.5 h-3.5 text-red-500" /> : <MinusIcon className="w-3.5 h-3.5 text-gray-400" />}
-                <span className={`text-xs font-medium ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-600" : "text-gray-400"}`}>
-                  {salesChange === 0 ? "No change" : `${Math.abs(salesChange).toFixed(1)}% ${trend === "up" ? "vs yesterday" : "vs yesterday"}`}
-                </span>
+                {!isLiveToday ? (
+                  <>
+                    <MinusIcon className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-xs font-medium text-amber-600">Awaiting EOD entry</span>
+                  </>
+                ) : trend === "up" ? <TrendingUpIcon className="w-3.5 h-3.5 text-emerald-500" /> : trend === "down" ? <TrendingDownIcon className="w-3.5 h-3.5 text-red-500" /> : <MinusIcon className="w-3.5 h-3.5 text-gray-400" />}
+                {!isLiveToday ? null : (
+                  <span className={`text-xs font-medium ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-600" : "text-gray-400"}`}>
+                    {salesChange === 0 ? "No change" : `${Math.abs(salesChange).toFixed(1)}% ${trend === "up" ? "vs yesterday" : "vs yesterday"}`}
+                  </span>
+                )}
               </div>
+              {!isLiveToday && <p className="text-[10px] text-gray-400 mt-1">Showing {salesLabelDate} (today pending)</p>}
             </Link>
             <Link href="/costs" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
-              <p className="stat-label mb-0.5">Today&apos;s Cost</p>
+              <p className="stat-label mb-0.5">{costLabel}</p>
               <AutoAmount value={todayCosts.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
+              {!isLiveToday && <p className="text-[10px] text-gray-400 mt-1">Showing {salesLabelDate}</p>}
             </Link>
             <Link href="/analysis" className="card-corporate p-4 hover:shadow-theme-md transition-shadow dark:bg-gray-900 dark:border-gray-800">
-              <p className="stat-label mb-0.5">Today&apos;s Profit</p>
+              <p className="stat-label mb-0.5">{profitLabel}</p>
               <AutoAmount value={todayProfit.toLocaleString()} className="text-blue-600 dark:text-blue-400 !font-semibold text-lg" />
+              {!isLiveToday && <p className="text-[10px] text-gray-400 mt-1">For {salesLabelDate}</p>}
             </Link>
           </div>
         );

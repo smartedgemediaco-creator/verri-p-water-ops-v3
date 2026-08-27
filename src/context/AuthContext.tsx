@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json();
     setUser(data.user);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const register = async (name: string, email: string, password: string, role = "admin") => {
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json();
     setUser(data.user);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const logout = async () => {

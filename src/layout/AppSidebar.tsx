@@ -144,7 +144,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/" onClick={closeMobileSidebar}>
+        <Link href="/dashboard" onClick={closeMobileSidebar}>
           <span
             className={`flex items-center gap-2 ${
               !isExpanded && !isHovered ? "justify-center" : ""

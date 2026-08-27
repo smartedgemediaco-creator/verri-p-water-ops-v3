@@ -140,7 +140,7 @@ export default function OnboardingPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
             Your business is fully configured. Head to the dashboard to monitor operations.
           </p>
-          <Link href="/" className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors">
             Go to Dashboard
           </Link>
         </div>
