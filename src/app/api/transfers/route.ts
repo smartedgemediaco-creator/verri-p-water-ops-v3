@@ -139,13 +139,11 @@ async function updateStockOnDelivery(transfer: { fromType: string; fromId: strin
 
   if (fromType === "truck" && toType === "truck") return;
 
-  if (fromType !== "truck") {
-    await Stock.findOneAndUpdate(
-      { locationType: fromType, locationId: fromId, productId },
-      { $inc: { quantity: -quantity } },
-      { upsert: true }
-    );
-  }
+  await Stock.findOneAndUpdate(
+    { locationType: fromType, locationId: fromId, productId },
+    { $inc: { quantity: -quantity } },
+    { upsert: true }
+  );
 
   if (toType === "truck") {
     await Stock.findOneAndUpdate(

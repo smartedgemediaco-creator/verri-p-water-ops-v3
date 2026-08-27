@@ -6,18 +6,16 @@ import { logActivity } from "@/lib/logActivity";
 
 async function adjustStock(fromType: string, fromId: string, toType: string, toId: string, productId: string, quantity: number) {
   if (fromType === "truck" && toType === "truck") return;
-  if (fromType !== "truck") {
-    const srcStock = await Stock.findOne({ locationType: fromType, locationId: fromId, productId });
-    const available = srcStock?.quantity ?? 0;
-    if (available < quantity) {
-      throw new Error(`Insufficient stock at ${fromType}: ${available} available, ${quantity} required`);
-    }
-    await Stock.findOneAndUpdate(
-      { locationType: fromType, locationId: fromId, productId },
-      { $inc: { quantity: -quantity } },
-      { upsert: true }
-    );
+  const srcStock = await Stock.findOne({ locationType: fromType, locationId: fromId, productId });
+  const available = srcStock?.quantity ?? 0;
+  if (available < quantity) {
+    throw new Error(`Insufficient stock at ${fromType}: ${available} available, ${quantity} required`);
   }
+  await Stock.findOneAndUpdate(
+    { locationType: fromType, locationId: fromId, productId },
+    { $inc: { quantity: -quantity } },
+    { upsert: true }
+  );
   if (toType === "truck") {
     await Stock.findOneAndUpdate(
       { locationType: "truck", locationId: toId, productId },
@@ -51,30 +49,56 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: `Cannot transition from ${oldStatus} to ${newStatus}` }, { status: 400 });
     }
     const spoilageQty = Math.max(0, Number(body.spoilage) || 0);
-    const load = await TruckLoad.findByIdAndUpdate(id, { status: newStatus }, { new: true });
-    if (!load) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const { fromType, fromId, toType, toId, truckId, productId, quantity } = load;
+    // Stock adjustments BEFORE status update to avoid orphaned status on failure
     try {
       if (newStatus === "delivered" && oldStatus === "in-transit") {
-        const deliveredQty = quantity - spoilageQty;
+        const deliveredQty = oldLoad.quantity - spoilageQty;
         if (deliveredQty > 0) {
-          await adjustStock("truck", truckId.toString(), toType, toId.toString(), productId.toString(), deliveredQty);
+          // Deduct full quantity from truck, add delivered portion to destination
+          const truckFilter = { locationType: "truck", locationId: oldLoad.truckId.toString(), productId: oldLoad.productId.toString() } as const;
+          const truckStock = await Stock.findOne(truckFilter);
+          const available = truckStock?.quantity ?? 0;
+          if (available < oldLoad.quantity) {
+            throw new Error(`Insufficient stock at source: ${available} available, ${oldLoad.quantity} required`);
+          }
+          await Stock.findOneAndUpdate(truckFilter, { $inc: { quantity: -oldLoad.quantity } }, { upsert: true });
+          if (oldLoad.toType === "truck") {
+            await Stock.findOneAndUpdate(
+              { locationType: "truck", locationId: oldLoad.truckId.toString(), productId: oldLoad.productId.toString() },
+              { $inc: { quantity: deliveredQty } },
+              { upsert: true }
+            );
+          } else {
+            await Stock.findOneAndUpdate(
+              { locationType: oldLoad.toType, locationId: oldLoad.toId!.toString(), productId: oldLoad.productId.toString() },
+              { $inc: { quantity: deliveredQty } },
+              { upsert: true }
+            );
+          }
+        } else {
+          await Stock.findOneAndUpdate(
+            { locationType: "truck", locationId: oldLoad.truckId.toString(), productId: oldLoad.productId.toString() },
+            { $inc: { quantity: -oldLoad.quantity } },
+            { upsert: true }
+          );
         }
         if (spoilageQty > 0) {
           await Wastage.create({
-            productId, quantity: spoilageQty, source: "transfer",
-            locationType: toType === "truck" ? "truck" : toType,
-            locationId: toType === "truck" ? truckId : toId,
+            productId: oldLoad.productId, quantity: spoilageQty, source: "transfer",
+            locationType: oldLoad.toType === "truck" ? "truck" : oldLoad.toType,
+            locationId: oldLoad.toType === "truck" ? oldLoad.truckId : oldLoad.toId!,
             description: body.spoilageReason || "Damaged during delivery",
             date: new Date(),
           });
         }
       } else if (newStatus === "cancelled" && oldStatus === "in-transit") {
-        await adjustStock("truck", truckId.toString(), fromType, fromId.toString(), productId.toString(), quantity);
+        await adjustStock("truck", oldLoad.truckId.toString(), oldLoad.fromType, oldLoad.fromId.toString(), oldLoad.productId.toString(), oldLoad.quantity);
       }
     } catch (err: unknown) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Stock adjustment failed" }, { status: 400 });
     }
+    const load = await TruckLoad.findByIdAndUpdate(id, { status: newStatus }, { new: true });
+    if (!load) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await logActivity({ action: "updated", entity: "truck-load", entityId: id, description: `Truck load: ${oldStatus} → ${newStatus}`, userId: user.userId, domainType: load.fromType, domainId: load.fromId, productId: load.productId?.toString(), metadata: { oldStatus, newStatus } });
     return NextResponse.json(load);
   }
