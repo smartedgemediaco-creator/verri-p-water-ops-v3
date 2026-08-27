@@ -15,6 +15,15 @@ export interface IStaffEmergencyContact {
   photo?: string;
 }
 
+export interface IStaffBeneficiary {
+  name: string;
+  relationship: string;
+  phone: string;
+  email: string;
+  address: string;
+  photo?: string;
+}
+
 export interface IStaff extends Document {
   name: string;
   phone: string;
@@ -29,6 +38,7 @@ export interface IStaff extends Document {
   avatar?: string;
   addresses: IStaffAddress[];
   emergencyContacts: IStaffEmergencyContact[];
+  beneficiary: IStaffBeneficiary;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +64,18 @@ const StaffEmergencyContactSchema = new Schema<IStaffEmergencyContact>(
   { _id: false }
 );
 
+const StaffBeneficiarySchema = new Schema<IStaffBeneficiary>(
+  {
+    name: { type: String, default: "" },
+    relationship: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    email: { type: String, default: "" },
+    address: { type: String, default: "" },
+    photo: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const StaffSchema = new Schema<IStaff>(
   {
     name: { type: String, required: true },
@@ -73,6 +95,7 @@ const StaffSchema = new Schema<IStaff>(
     avatar: { type: String, default: "" },
     addresses: { type: [StaffAddressSchema], default: [] },
     emergencyContacts: { type: [StaffEmergencyContactSchema], default: [] },
+    beneficiary: { type: StaffBeneficiarySchema, default: () => ({}) },
   },
   { timestamps: true }
 );

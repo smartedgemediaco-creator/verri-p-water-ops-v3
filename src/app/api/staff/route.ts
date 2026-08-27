@@ -72,6 +72,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { role, department, locationType, locationId, ...staffFields } = body;
 
+  // Validate driver beneficiary requirement
+  if (role === "driver" && locationType === "truck") {
+    const b = staffFields.beneficiary as { name?: string; phone?: string; relationship?: string } | undefined;
+    if (!b?.name?.trim() || !b?.phone?.trim() || !b?.relationship?.trim()) {
+      return NextResponse.json({ error: "Driver must have a beneficiary with name, phone and relationship" }, { status: 400 });
+    }
+    if (!staffFields.phone?.trim() || !staffFields.email?.trim()) {
+      return NextResponse.json({ error: "Driver must have phone and email contact" }, { status: 400 });
+    }
+  }
+
   const session = await mongoose.startSession();
   session.startTransaction();
   try {

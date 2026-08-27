@@ -50,6 +50,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const { role, department, locationType, locationId, ...staffFields } = body;
 
+  // Validate driver beneficiary if assigning as driver
+  if (role === "driver" && locationType === "truck") {
+    const b = (staffFields.beneficiary ?? body.beneficiary) as { name?: string; phone?: string; relationship?: string } | undefined;
+    // If beneficiary not in patch, check existing staff
+    let beneficiaryToCheck = b;
+    if (!beneficiaryToCheck) {
+      const existing = await Staff.findById(id).select("beneficiary phone email").lean();
+      beneficiaryToCheck = (existing as unknown as { beneficiary?: { name?: string; phone?: string; relationship?: string } })?.beneficiary;
+      const phone = staffFields.phone ?? (existing as unknown as { phone?: string })?.phone;
+      const email = staffFields.email ?? (existing as unknown as { email?: string })?.email;
+      if (!phone?.trim() || !email?.trim()) {
+        return NextResponse.json({ error: "Driver must have phone and email contact" }, { status: 400 });
+      }
+    }
+    if (!beneficiaryToCheck?.name?.trim() || !beneficiaryToCheck?.phone?.trim() || !beneficiaryToCheck?.relationship?.trim()) {
+      return NextResponse.json({ error: "Driver must have a beneficiary with name, phone and relationship" }, { status: 400 });
+    }
+  }
+
   const session = await mongoose.startSession();
   session.startTransaction();
   try {

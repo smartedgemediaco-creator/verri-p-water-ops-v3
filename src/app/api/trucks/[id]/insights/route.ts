@@ -55,7 +55,7 @@ export async function GET(
       { $sort: { total: -1 } },
     ]),
     DriverAssignment.findOne({ truckId, isActive: true })
-      .populate("staffId", "name phone")
+      .populate("staffId", "name phone email beneficiary")
       .lean(),
   ]);
 
@@ -100,9 +100,13 @@ export async function GET(
     driver: driver
       ? {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          staffId: (driver as any).staffId?._id?.toString() ?? "",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           name: (driver as any).staffId?.name ?? "",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           phone: (driver as any).staffId?.phone ?? "",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          email: (driver as any).staffId?.email ?? "",
           licenseNumber: driver.licenseNumber ?? "",
         }
       : null,

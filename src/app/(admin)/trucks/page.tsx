@@ -21,6 +21,7 @@ interface Truck {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+  driver?: { _id: string; name: string; phone: string; email: string } | null;
 }
 
 export default function TrucksPage() {
@@ -138,6 +139,7 @@ export default function TrucksPage() {
             <TableRow>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 w-8">{' '}</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Plate Number</TableCell>
+              <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Driver</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Chassis Number</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Engine Number</TableCell>
               <TableCell isHeader className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Capacity</TableCell>
@@ -209,59 +211,70 @@ function TruckRow({
           </span>
         </TableCell>
         <TableCell className="py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-          <span className="flex items-center gap-2">
-            <TruckIcon className="size-4 text-orange-500 shrink-0" />
-            <Link href={`/trucks/${truck._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">{truck.name || truck.plateNumber}</Link>
-            {truck.name && <span className="text-xs text-gray-400 font-mono">{truck.plateNumber}</span>}
-          </span>
+          <Link href={`/trucks/${truck._id}`} className="flex items-center gap-2 group">
+            <TruckIcon className="size-4 text-orange-500 shrink-0 group-hover:scale-110 transition-transform" />
+            <span className="text-blue-600 dark:text-blue-400 group-hover:underline">{truck.name || truck.plateNumber}</span>
+            {truck.name && <span className="text-xs text-gray-400 font-mono group-hover:text-gray-600">{truck.plateNumber}</span>}
+          </Link>
+        </TableCell>
+        <TableCell className="py-3 text-theme-sm">
+          {truck.driver ? (
+            <Link href={`/staff/${truck.driver._id}`} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline">{truck.driver.name}</span>
+            </Link>
+          ) : (
+            <Link href={`/trucks/${truck._id}/edit`} className="text-xs text-gray-400 hover:text-amber-600 hover:underline">— Assign</Link>
+          )}
         </TableCell>
         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 font-mono">
-          {truck.chassisNumber ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-              {truck.chassisNumber}
-            </span>
-          ) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+          <Link href={`/trucks/${truck._id}`} className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 hover:underline">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            {truck.chassisNumber || "—"}
+          </Link>
         </TableCell>
         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400 font-mono">
-          {truck.engineNumber ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-              {truck.engineNumber}
-            </span>
-          ) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+          <Link href={`/trucks/${truck._id}`} className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 hover:underline">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            {truck.engineNumber || "—"}
+          </Link>
         </TableCell>
         <TableCell className="py-3 text-theme-sm text-gray-500 dark:text-gray-400">
-          <span className="font-medium">{truck.capacity.toLocaleString()}</span>
+          <Link href={`/trucks/${truck._id}`} className="font-medium hover:text-blue-600 dark:hover:text-blue-400 hover:underline">{truck.capacity.toLocaleString()}</Link>
         </TableCell>
         <TableCell className="py-3">
-          <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${
+          <Link href={`/trucks/${truck._id}`} className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full hover:opacity-80 transition-opacity ${
             truck.isActive
               ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
               : "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"
           }`}>
             {truck.isActive ? "Active" : "Inactive"}
-          </span>
+          </Link>
         </TableCell>
       </TableRow>
 
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={6} className="p-0 bg-gray-50/50 dark:bg-gray-800/30">
+          <TableCell colSpan={7} className="p-0 bg-gray-50/50 dark:bg-gray-800/30">
             <div className="border-t border-b border-gray-200 dark:border-gray-700">
               <div className="p-5 md:p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                  <DetailField label="Plate Number" value={truck.plateNumber} />
-                  <DetailField label="Chassis Number" value={truck.chassisNumber ?? "—"} mono />
-                  <DetailField label="Engine Number" value={truck.engineNumber ?? "—"} mono />
-                  <DetailField label="Capacity" value={`${truck.capacity.toLocaleString()} units`} />
-                  <DetailField
+                  <Link href={`/trucks/${truck._id}`} className="block hover:opacity-80"><DetailField label="Plate Number" value={truck.plateNumber} /></Link>
+                  <Link href={`/trucks/${truck._id}`} className="block hover:opacity-80"><DetailField label="Chassis Number" value={truck.chassisNumber ?? "—"} mono /></Link>
+                  <Link href={`/trucks/${truck._id}`} className="block hover:opacity-80"><DetailField label="Engine Number" value={truck.engineNumber ?? "—"} mono /></Link>
+                  <Link href={`/trucks/${truck._id}`} className="block hover:opacity-80"><DetailField label="Capacity" value={`${truck.capacity.toLocaleString()} units`} /></Link>
+                  <Link href={`/trucks/${truck._id}`} className="block hover:opacity-80"><DetailField
                     label="Status"
                     value={truck.isActive ? "Active" : "Inactive"}
                     badge={truck.isActive ? "success" : "error"}
-                  />
+                  /></Link>
                   <DetailField label="Created" value={truck.createdAt ? formatDate(truck.createdAt) : "—"} />
                   <DetailField label="Last Updated" value={truck.updatedAt ? formatDate(truck.updatedAt) : "—"} />
+                  {truck.driver ? (
+                    <Link href={`/staff/${truck.driver._id}`} className="block hover:opacity-80"><DetailField label="Driver" value={`${truck.driver.name} • ${truck.driver.phone}`} /></Link>
+                  ) : (
+                    <Link href={`/trucks/${truck._id}/edit`} className="block hover:opacity-80"><DetailField label="Driver" value="— Unassigned (click to assign)" /></Link>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
