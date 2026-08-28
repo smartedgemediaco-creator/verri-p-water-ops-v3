@@ -28,6 +28,7 @@ interface StaffMember {
   avatar?: string;
   addresses?: { label: string; street: string; city: string; state: string; country: string }[];
   emergencyContacts?: { name: string; phone: string; relationship: string; photo?: string }[];
+  beneficiary?: { name: string; relationship: string; phone: string; email: string; address: string; photo?: string };
 }
 
 interface Location { _id: string; name?: string; location?: string; }
@@ -485,6 +486,59 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
+      {/* Emergency Contacts */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Emergency Contacts</h3>
+          <button onClick={openEdit} className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Contact</button>
+        </div>
+        {!staff?.emergencyContacts || staff.emergencyContacts.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400 dark:text-gray-500">No emergency contacts added yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click "+ Add Contact" above to add one.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {staff.emergencyContacts.map((ec, i) => (
+              <button key={i} onClick={openEdit} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:ring-1 hover:ring-brand-300 dark:hover:ring-brand-600 transition-all text-left">
+                <StaffAvatar src={ec.photo} name={ec.name || "?"} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{ec.name || "Unnamed"}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{ec.relationship || "—"} · {ec.phone || "—"}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Beneficiary */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-theme-sm mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Beneficiary</h3>
+          <button onClick={openEdit} className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700">+ Add Beneficiary</button>
+        </div>
+        {!staff?.beneficiary || !staff.beneficiary.name ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400 dark:text-gray-500">No beneficiary added yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click "+ Add Beneficiary" above to add one.</p>
+            {staff.role === "driver" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">⚠️ Drivers must have a beneficiary for insurance purposes.</p>
+            )}
+          </div>
+        ) : (
+          <button onClick={openEdit} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 hover:ring-1 hover:ring-brand-300 dark:hover:ring-brand-600 transition-all text-left w-full">
+            <StaffAvatar src={staff.beneficiary.photo} name={staff.beneficiary.name || "?"} size="md" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{staff.beneficiary.name || "Unnamed"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{staff.beneficiary.relationship || "—"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{staff.beneficiary.phone || "—"} · {staff.beneficiary.email || "—"}</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{staff.beneficiary.address || "—"}</p>
+            </div>
+          </button>
+        )}
+      </div>
+
       {/* Salary History */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-theme-sm mb-6 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -542,7 +596,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="mt-6 text-center text-xs text-gray-400">
         <button onClick={fetchAll} className="text-blue-500 hover:text-blue-600 underline mr-4">Refresh</button>
-        {staff?.name ?? "Staff"}
+        <span>{staff && staff.name ? staff.name : "Staff"}</span>
       </div>
 
       {showAccessForm && (

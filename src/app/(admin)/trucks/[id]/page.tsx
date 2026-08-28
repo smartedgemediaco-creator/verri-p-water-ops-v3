@@ -293,9 +293,10 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
         }
 
         if (!insights.driver) {
-          advice.push({ type: "warning", icon: <AlertTriangleIcon className="w-5 h-5 text-red-500" />, title: "No Driver Assigned", message: "This truck has no active driver. Assign a driver to enable trip planning and accountability.", href: "/staff" });
+          advice.push({ type: "warning", icon: <AlertTriangleIcon className="w-5 h-5 text-red-500" />, title: "No Driver Assigned", message: "This truck has no active driver. Assign a driver to enable trip planning and accountability.", href: `/trucks/${id}/edit` });
         } else {
-          advice.push({ type: "positive", icon: <CheckCircleIcon className="w-5 h-5 text-emerald-500" />, title: "Driver Assigned", message: `${insights.driver.name} is the assigned driver${insights.driver.phone ? ` (${insights.driver.phone})` : ""}.`, href: "/staff" });
+          const driverHref = (insights.driver as unknown as { staffId?: string }).staffId ? `/staff/${(insights.driver as unknown as { staffId: string }).staffId}` : "/staff";
+          advice.push({ type: "positive", icon: <CheckCircleIcon className="w-5 h-5 text-emerald-500" />, title: "Driver Assigned", message: `${insights.driver.name} is the assigned driver${insights.driver.phone ? ` (${insights.driver.phone})` : ""} – click to view full contact & beneficiary.`, href: driverHref });
         }
 
         if (insights.totalFuelCost > 0 && insights.totalCosts > 0) {
@@ -404,8 +405,12 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             </TableHeader>
             <TableBody>
               {inventory.map((item) => (
-                <TableRow key={item._id}>
-                  <TableCell className="text-sm font-medium text-gray-800 dark:text-white/90">{item.productId?.name ?? "N/A"}</TableCell>
+                <TableRow key={item._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
+                  <TableCell className="text-sm font-medium text-gray-800 dark:text-white/90">
+                    <Link href={`/products/${item.productId?._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                      {item.productId?.name ?? "N/A"}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm text-gray-500">{(item.quantity ?? 0).toLocaleString()}</TableCell>
                 </TableRow>
               ))}
@@ -433,7 +438,7 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             </TableHeader>
             <TableBody>
               {serviceRecords.slice(0, 10).map((r) => (
-                <TableRow key={r._id}>
+                <TableRow key={r._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
                   <TableCell className="text-sm text-gray-500">{formatDate(r.date)}</TableCell>
                   <TableCell><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full capitalize bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">{r.serviceType}</span></TableCell>
                   <TableCell className="text-sm text-gray-500 max-w-[200px] truncate">{r.description || "—"}</TableCell>
@@ -466,10 +471,14 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             </TableHeader>
             <TableBody>
               {loads.slice(0, 10).map((l) => (
-                <TableRow key={l._id}>
+                <TableRow key={l._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
                   <TableCell className="text-sm text-gray-500 capitalize">{l.fromName ?? l.fromType}</TableCell>
                   <TableCell className="text-sm text-gray-500 capitalize">{l.toName ?? l.toType}</TableCell>
-                  <TableCell className="text-sm text-gray-800 dark:text-white/90">{l.productId?.name ?? "N/A"}</TableCell>
+                  <TableCell className="text-sm text-gray-800 dark:text-white/90">
+                    <Link href={`/products/${l.productId?._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                      {l.productId?.name ?? "N/A"}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm text-gray-500">{(l.quantity ?? 0).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge variant="light" color={l.status === "delivered" ? "success" : l.status === "in-transit" ? "info" : l.status === "cancelled" ? "error" : "warning"}>
@@ -502,10 +511,14 @@ export default function TruckDetailPage({ params }: { params: Promise<{ id: stri
             </TableHeader>
             <TableBody>
               {transfers.slice(0, 10).map((t) => (
-                <TableRow key={t._id}>
+                <TableRow key={t._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
                   <TableCell className="text-sm text-gray-500 capitalize">{t.fromName ?? t.fromType}</TableCell>
                   <TableCell className="text-sm text-gray-500 capitalize">{t.toName ?? t.toType}</TableCell>
-                  <TableCell className="text-sm text-gray-800 dark:text-white/90">{t.productId?.name ?? "N/A"}</TableCell>
+                  <TableCell className="text-sm text-gray-800 dark:text-white/90">
+                    <Link href={`/products/${t.productId?._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                      {t.productId?.name ?? "N/A"}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm text-gray-500">{(t.quantity ?? 0).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge variant="light" color={t.status === "delivered" ? "success" : t.status === "in-transit" ? "info" : t.status === "cancelled" ? "error" : "warning"}>

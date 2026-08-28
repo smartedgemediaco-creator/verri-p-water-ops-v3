@@ -1,17 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { showSuccess, showError } from "@/lib/toast";
 import InputField from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Select from "@/components/form/Select";
 
 export default function NewTruckPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", plateNumber: "", chassisNumber: "", engineNumber: "", capacity: "" });
+  const [driverId, setDriverId] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [drivers, setDrivers] = useState<{ value: string; label: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/staff").then(r=>r.json()).then((data: unknown)=>{
+      if(Array.isArray(data)){
+        const list = (data as { _id:string; name:string; role:string; phone:string; beneficiary?:{name:string} }[]).filter(s=>s.role==="driver");
+        setDrivers(list.map(s=>({ value: s._id, label: `${s.name} — ${s.phone}${s.beneficiary?.name ? ` • Beneficiary: ${s.beneficiary.name}` : " • No beneficiary ⚠️"}` })));
+      }
+    }).catch(()=>{});
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -28,17 +42,18 @@ export default function NewTruckPage() {
 
   const doSubmit = async () => {
     setSubmitting(true);
-    const body: Record<string, unknown> = { ...form, capacity: Number(form.capacity) };
+    const body: Record<string, unknown> = { ...form, capacity: Number(form.capacity), driverId: driverId || undefined, licenseNumber: licenseNumber || undefined };
     try {
       const res = await fetch("/api/trucks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(()=> ({}));
       if (!res.ok) {
-        showError("Failed to add truck");
+        showError((data as {error?:string}).error || "Failed to add truck");
         setSubmitting(false);
-        throw new Error("Failed to add truck");
+        return;
       }
       showSuccess("Truck added");
       router.push("/trucks");
@@ -72,6 +87,17 @@ export default function NewTruckPage() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacity <span className="text-gray-400 font-normal">(optional)</span></label>
           <InputField id="capacity" name="capacity" type="number" placeholder="Capacity" value={form.capacity} onChange={handleChange} />
         </div>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Driver <span className="text-gray-400 font-normal">(optional – staff must have beneficiary)</span></label>
+          <Select options={[{ value: "", label: "— No driver" }, ...drivers]} value={driverId} onChange={setDriverId} placeholder="Select driver" />
+          {driverId && <p className="text-[11px] text-gray-500 mt-1">Driver will be linked via <Link href={`/staff/${driverId}`} className="text-brand-600 hover:underline">staff profile</Link> – must have beneficiary, phone & email.</p>}
+        </div>
+        {driverId && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">License Number <span className="text-gray-400 font-normal">(optional)</span></label>
+            <InputField id="licenseNumber" name="licenseNumber" placeholder="License number" value={licenseNumber} onChange={(e)=>setLicenseNumber(e.target.value)} />
+          </div>
+        )}
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" disabled={submitting || !form.plateNumber.trim()}>
             {submitting ? "Saving..." : "Save"}
@@ -95,6 +121,7 @@ export default function NewTruckPage() {
               <li><strong>Chassis:</strong> {form.chassisNumber || "—"}</li>
               <li><strong>Engine:</strong> {form.engineNumber || "—"}</li>
               <li><strong>Capacity:</strong> {form.capacity}</li>
+              {driverId && <li><strong>Driver:</strong> {drivers.find(d=>d.value===driverId)?.label}</li>}
             </ul>
             <p className="mt-2">This entity will be immediately available in the system. Are you sure?</p>
           </>
