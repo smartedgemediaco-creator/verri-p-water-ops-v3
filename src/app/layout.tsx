@@ -12,6 +12,7 @@ import '@fontsource/outfit/900.css';
 import './globals.css';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { ActivityProvider } from '@/context/ActivityContext';
 import { AuthProviderWrapper } from "./auth-wrapper";
 
 export const metadata: Metadata = {
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body className="dark:bg-gray-900">
         <ThemeProvider>
           <SidebarProvider>
-            <AuthProviderWrapper>{children}</AuthProviderWrapper>
+            <AuthProviderWrapper>
+              <ActivityProvider>{children}</ActivityProvider>
+            </AuthProviderWrapper>
           </SidebarProvider>
         </ThemeProvider>
         <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} toastOptions={{ duration: 4000 }} />

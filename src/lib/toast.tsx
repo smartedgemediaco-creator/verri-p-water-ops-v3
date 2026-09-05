@@ -1,7 +1,7 @@
 "use client";
 
 import toast from "react-hot-toast";
-import { CheckCircle, XCircle, X, NotebookPen } from "lucide-react";
+import { CheckCircle, XCircle, X, NotebookPen, Sparkles } from "lucide-react";
 
 type ToastType = "success" | "error";
 
@@ -97,5 +97,68 @@ export function showNote(message: string, options?: ToastOptions) {
   toast.custom(
     (t) => <NoteCard t={t} message={message} />,
     { duration: options?.duration ?? 6000 },
+  );
+}
+
+interface AiToastOptions extends ToastOptions {
+  title?: string;
+  href?: string;
+}
+
+function AiToastCard({
+  t,
+  title,
+  message,
+  href,
+}: {
+  t: { id: string; visible: boolean };
+  title?: string;
+  message: string;
+  href?: string;
+}) {
+  return (
+    <div
+      className={`${
+        t.visible ? "animate-enter" : "animate-leave"
+      } flex items-start gap-3 bg-white dark:bg-gray-800 rounded-xl shadow-theme-lg p-4 min-w-[320px] max-w-[420px] border-l-4 border-l-brand-500`}
+    >
+      <div className="size-8 rounded-full bg-brand-500/10 flex items-center justify-center shrink-0">
+        <Sparkles className="size-4 text-brand-500" />
+      </div>
+      <div className="flex-1">
+        <p className="text-xs font-bold uppercase tracking-wide text-brand-600 dark:text-brand-400 mb-1">
+          {title || "Verri Assistant"}
+        </p>
+        <p className="text-sm font-medium text-gray-800 dark:text-white/90 leading-5 whitespace-pre-line">
+          {message}
+        </p>
+        {href && (
+          <div className="mt-2">
+            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
+              ↗ {href.replace("/", "").replaceAll("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+            </span>
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => toast.dismiss(t.id)}
+        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Subtle AI assistant toast — a friendly, non-intrusive reminder or tip.
+ * Used by the AiAssistant provider to nudge users toward features they've not used.
+ */
+export function showAiToast(message: string, options?: AiToastOptions) {
+  toast.custom(
+    (t) => (
+      <AiToastCard t={t} title={options?.title} message={message} href={options?.href} />
+    ),
+    { duration: options?.duration ?? 9000 },
   );
 }

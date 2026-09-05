@@ -7,6 +7,7 @@ import Backdrop from "@/layout/Backdrop";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import BrandedSplash from "@/components/common/BrandedSplash";
+import AiAssistant from "@/components/ai/AiAssistant";
 
 export default function AdminLayout({
   children,
@@ -42,6 +43,7 @@ export default function AdminLayout({
         <AppHeader />
         <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
       </div>
+      <AiAssistant />
     </div>
   );
 }
